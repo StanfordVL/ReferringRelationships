@@ -3,10 +3,15 @@ import sys
 
 objects = ["man", "shoes", "jacket", "sunglasses"]
 relationships = ["wears", "has", "have"]
+triplet_subset = [("man", "wears", "shoes")]
 
 
-def in_subset(object, relationship, subject, object_subset=objects, relationship_subset=relationships):
+def _in_subset(object, relationship, subject, object_subset=objects, relationship_subset=relationships):
     return object in object_subset and subject in object_subset and relationship in relationship_subset
+
+
+def in_subset(object, relationship, subject, triplet_subset=triplet_subset):
+    return (object, relationship, subject) in triplet_subset
 
 
 def get_object_name(rel_data, object_type):
