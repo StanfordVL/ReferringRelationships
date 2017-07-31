@@ -3,7 +3,7 @@ import sys
 
 objects = ["man", "shoes", "jacket", "sunglasses"]
 relationships = ["wears", "has", "have"]
-triplet_subset = [("man", "wears", "shoes")]
+triplet_subset = [("woman", "wears", "shoes"), ("woman", "wears", "jacket")]
 
 
 def _in_subset(object, relationship, subject, object_subset=objects, relationship_subset=relationships):
@@ -11,7 +11,7 @@ def _in_subset(object, relationship, subject, object_subset=objects, relationshi
 
 
 def in_subset(object, relationship, subject, triplet_subset=triplet_subset):
-    return (object, relationship, subject) in triplet_subset
+    return (subject, relationship, object) in triplet_subset
 
 
 def get_object_name(rel_data, object_type):
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     subset_data = []
     nb_images = len(data)
     for i in range(nb_images):
-        if i % 1000 == 0:
+        if i % 10000 == 0:
             print("processed {} images out of {}".format(i, nb_images))
         added = False
         image_id = data[i]["image_id"]
@@ -37,11 +37,11 @@ if __name__ == "__main__":
         for j, rel_data in enumerate(relationships):
             object_name = get_object_name(rel_data, "object")
             subject_name = get_object_name(rel_data, "subject")
-            relationship_name = rel_data["predicate"]
+            relationship_name = rel_data["predicate"].lower()
             if in_subset(object_name, relationship_name, subject_name):
                 subset_relationships += [rel_data]
                 added = True
         if added:
             subset_data += [{"image_id": image_id,
-                             "relationships": subset_relationships}]
+                             "relationships": subset_relationships, "image_index": i}]
     json.dump(subset_data, open("subset_1/subset_relationships.json", "w"))
