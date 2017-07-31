@@ -1,15 +1,13 @@
-from data import VisualGenomeRelationshipsDataset
-from config import *
-
-
 from keras.applications.vgg16 import VGG16
-from keras.models import Model, Sequential
-from keras.preprocessing.image import ImageDataGenerator
-from keras.utils import to_categorical
-from keras.layers import Dense, Dropout, Flatten, UpSampling2D, Reshape, Input, Lambda, merge
+from keras.layers import Dense, Dropout, Flatten, UpSampling2D, Reshape, Input
 from keras.layers.merge import Dot
-from keras.optimizers import RMSprop
-import numpy as np
+from keras.models import Model, Sequential
+from keras.optimizers import Adam
+from keras.utils import to_categorical
+
+from config import *
+from data import VisualGenomeRelationshipsDataset
+from image_utils import save_predictions
 
 
 # *************************************** FLATTEN MODEL ***************************************
@@ -59,6 +57,13 @@ N = gt_regions.shape[0]
 # images (N, im_dim, im_dim, 3)
 
 
+# ************************************* OVERFIT 1 EXAMPLE *************************************
+N = 1
+image_ids = image_ids[4:5]
+image_data = image_data[4:5]
+relationship_data = relationship_data[4:5]
+gt_regions = gt_regions[4:5]
+
 # ****************************************** MODEL ******************************************
 input_im = Input(shape=(input_dim, input_dim, 3))
 input_rel = Input(shape=(num_triplets,))
@@ -74,9 +79,14 @@ reshaped = Reshape(target_shape=(feat_map_dim, feat_map_dim, 1))(merged)
 upsampled = UpSampling2D(size=(upsampling_factor, upsampling_factor))(reshaped)
 flattened = Flatten(input_shape=(input_dim, input_dim, 10))(upsampled)
 model = Model(inputs=[input_im, input_rel], outputs=[flattened])
-rms = RMSprop()
-model.compile(loss='categorical_crossentropy', optimizer=rms)
+adam = Adam(lr=0.01)  # , beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+model.compile(loss='categorical_crossentropy', optimizer=adam)
 
 # ***************************************** TRAINING *****************************************
 # todo: check flatten and reshaping are the same in numpy and keras
-history = model.fit([image_data, relationship_data], gt_regions.reshape(N, -1), batch_size=batch_size, epochs=epochs, verbose=1)
+# for i in range(epochs):
+#     print("Epoch {}/{}".format(i, epochs))
+#     history = model.fit([image_data, relationship_data], gt_regions.reshape(N, -1), batch_size=batch_size,
+#                         epochs=1,
+#                         verbose=1)
+#     save_predictions(model, image_data, relationship_data, i, 'results', input_dim)
