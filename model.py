@@ -1,28 +1,15 @@
-from keras.applications.vgg16 import VGG16
-from keras.preprocessing import image
-from keras.applications.vgg16 import preprocess_input
-import numpy as np
-import keras
-from keras.models import Model
-from keras.datasets import cifar10
-from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Lambda, Flatten, Merge, UpSampling2D, Reshape, RepeatVector, merge, \
-    Input
-from keras.layers import Conv2D, MaxPooling2D
-from keras.layers.merge import Dot, dot
-from keras.optimizers import RMSprop
-from keras import backend as K
+from data import VisualGenomeRelationshipsDataset
+from config import *
 
-batch_size = 1
-num_triplets = 10
-embedding_dim = 512
-hidden_dim = 100
-feat_map_dim = 14
-feat_map_depth = 512
-input_dim = 224
-upsampling_factor = input_dim / feat_map_dim
-epochs = 5
+
+from keras.applications.vgg16 import VGG16
+from keras.models import Model, Sequential
+from keras.preprocessing.image import ImageDataGenerator
+from keras.utils import to_categorical
+from keras.layers import Dense, Dropout, Flatten, UpSampling2D, Reshape, Input, Lambda, merge
+from keras.layers.merge import Dot
+from keras.optimizers import RMSprop
+import numpy as np
 
 
 # *************************************** FLATTEN MODEL ***************************************
@@ -44,7 +31,7 @@ def image_model(input_dim, feat_map_dim, hidden_dim):
     return image_branch
 
 
-# *************************************** RELATIONSHIP BRANCH ***************************************
+# ************************************ RELATIONSHIP BRANCH ***********************************
 def relationship_model(num_triplets, embedding_dim, hidden_dim):
     relationship_branch = Sequential()
     relationship_branch.add(Dense(embedding_dim, input_shape=(num_triplets,)))
@@ -53,26 +40,26 @@ def relationship_model(num_triplets, embedding_dim, hidden_dim):
     # relationship_branch.add(RepeatVector(feat_map_dim * feat_map_dim))  # (14x14)x100
     return relationship_branch
 
-#
-# def euclidean_distance(vects):
-#     x, y = vects
-#     return K.sum(K.multiply(x, y), axis=1)
-#
-#
-# def eucl_dist_output_shape(shapes):
-#     shape1, shape2 = shapes
-#     return shape1[0], shape1[1], 1
 
-
-# *************************************** RANDOM DATA ***************************************
-x_im = 255 * np.random.random((3, 224, 224, 3))  # 3 random images
-x_rel = np.array([4, 5, 1])  # 3 relationships in range(num_triplets)
-x_rel = keras.utils.to_categorical(x_rel, num_triplets)
-y_regions = np.zeros((3, 224, 224, 1))  # label regions, check how to reshape
+# ******************************************* DATA *******************************************
+# x_im = 255 * np.random.random((3, 224, 224, 3))  # 3 random images
+# x_rel = np.array([4, 5, 1])  # 3 relationships in range(num_triplets)
+# x_rel = keras.utils.to_categorical(x_rel, num_triplets)
+# y_regions = np.zeros((3, 224, 224, 1))  # label regions, check how to reshape
 # y_regions = np.zeros((3, 224 * 224))  # label regions, check how to reshape
 # y_regions = flatten_model(input_dim)(y_regions)
+data = VisualGenomeRelationshipsDataset(data_path="data/subset_1/subset_relationships.json")
+image_ids, relationships, gt_regions = data.build_dataset()
+image_data = data.get_images(image_ids)
+relationship_data = to_categorical(relationships, num_triplets)
+N = gt_regions.shape[0]
+# image_ids (N,)
+# relationships (N,)
+# gt_regions (N, im_dim, im_dim)
+# images (N, im_dim, im_dim, 3)
 
-# *************************************** MODEL ***************************************
+
+# ****************************************** MODEL ******************************************
 input_im = Input(shape=(input_dim, input_dim, 3))
 input_rel = Input(shape=(num_triplets,))
 images = image_model(input_dim, feat_map_dim, hidden_dim)(input_im)
@@ -89,5 +76,7 @@ flattened = Flatten(input_shape=(input_dim, input_dim, 10))(upsampled)
 model = Model(inputs=[input_im, input_rel], outputs=[flattened])
 rms = RMSprop()
 model.compile(loss='categorical_crossentropy', optimizer=rms)
+
+# ***************************************** TRAINING *****************************************
 # todo: check flatten and reshaping are the same in numpy and keras
-history = model.fit([x_im, x_rel], y_regions.reshape(3, -1), batch_size=batch_size, epochs=epochs, verbose=1)
+history = model.fit([image_data, relationship_data], gt_regions.reshape(N, -1), batch_size=batch_size, epochs=epochs, verbose=1)

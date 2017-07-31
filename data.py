@@ -1,9 +1,11 @@
 import json
 import numpy as np
+from keras.preprocessing import image
+from keras.applications.vgg16 import preprocess_input   # todo: make this modular
 
 
 class VisualGenomeRelationshipsDataset():
-    def __init__(self, data_path="data/relationships.json", im_dim=224, im_metadata_path="data/image_data.json"):
+    def __init__(self, data_path="data/relationships.json", im_dim=224, im_metadata_path="data/image_data.json", img_path='data/images/{}.jpg'):
         self.data = json.load(open(data_path))
         self.im_metadata = json.load(open(im_metadata_path))
         self.relationships_to_idx = {}
@@ -19,6 +21,7 @@ class VisualGenomeRelationshipsDataset():
         self.gt_regions = []
         self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
         self.row_template = np.arange(self.im_dim).reshape(self.im_dim, 1)
+        self.img_path = img_path
 
     def get_regions(self, obj, im_metadata):
         """
@@ -85,22 +88,35 @@ class VisualGenomeRelationshipsDataset():
                 self.gt_regions += [self.build_gt_regions(o_region, s_region)]
         # self.objects_regions = np.array(self.objects_regions)
         # self.subjects_regions = np.array(self.subjects_regions)
-        self.image_ids = np.array(self.image_ids)
+        self.image_ids = np.array(self.image_ids)  # todo: these should not be class attributes
         self.relationships = np.array(self.relationships)
         self.gt_regions = np.array(self.gt_regions)
         return self.image_ids, self.relationships, self.gt_regions
 
+    def get_image_from_img_id(self, img_id):
+        img = image.load_img(self.img_path.format(img_id), target_size=(224, 224))
+        img_array = image.img_to_array(img)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = preprocess_input(img_array)
+        return img_array[0]
+
     def get_images(self, image_ids):
-        pass
+        images = np.zeros((len(image_ids), self.im_dim, self.im_dim, 3))
+        for i, img_id in enumerate(image_ids):
+            images[i] = self.get_image_from_img_id(img_id)
+        return images
+
 
 if __name__ == "__main__":
     data = VisualGenomeRelationshipsDataset(data_path="data/subset_1/subset_relationships.json")
     image_ids, relationships, gt_regions = data.build_dataset()
+    images = data.get_images(image_ids)
 
 
 # ********************************** OLD CODE *********************************************
 
-#
+# TODO: add split train-val-test
+
 # def get_object_idx(self, object_name):
 #     if object_name in self.objects_to_idx.keys():
 #         return self.objects_to_idx[object_name]
