@@ -45,11 +45,9 @@ class VRDDataset():
         row_indexes = (1 * (row_template > top) * (row_template < bottom)).repeat(self.im_dim, 1)
         return col_indexes * row_indexes
 
-    def build_gt_regions(self, o_region, s_region):
-        # todo: convert regions according to image dim
-        o_indexes = self.get_indexes(o_region, self.col_template, self.row_template)
-        s_indexes = self.get_indexes(s_region, self.col_template, self.row_template)
-        return 1 * ((o_indexes + s_indexes) > 0)
+    def build_gt_regions(self, region):
+        indexes = self.get_indexes(region, self.col_template, self.row_template)
+        return indexes
 
     def build_dataset(self):
         for i, image_id in enumerate(self.data.keys()):
@@ -63,16 +61,16 @@ class VRDDataset():
                 self.relationships += [relationship_id]
                 self.objects += [object_id]
                 self.subjects += [subject_id]
-                self.objects_regions += [o_region]
-                self.subjects_regions += [s_region]
+                self.subjects_regions += [self.build_gt_regions(s_region)]
+                self.objects_regions += [self.build_gt_regions(o_region)]
                 self.image_ids += [image_id]
-                self.gt_regions += [self.build_gt_regions(o_region, s_region)]
         self.image_ids = np.array(self.image_ids)  # todo: these should not be class attributes
         self.subjects = np.array(self.subjects)
         self.relationships = np.array(self.relationships)
         self.objects = np.array(self.objects)
-        self.gt_regions = np.array(self.gt_regions)
-        return self.image_ids, self.subjects, self.relationships, self.objects, self.gt_regions
+        self.subjects_regions = np.array(self.subjects_regions)
+        self.objects_regions = np.array(self.objects_regions)
+        return self.image_ids, self.subjects, self.relationships, self.objects, self.subjects_regions, self.objects_regions
 
     def get_image_from_img_id(self, img_id):
         img = image.load_img(self.img_path.format(img_id), target_size=(224, 224))
@@ -163,7 +161,6 @@ class VisualGenomeRelationshipsDataset():
         return col_indexes * row_indexes
 
     def build_gt_regions(self, o_region, s_region):
-        # todo: convert regions according to image dim
         o_indexes = self.get_indexes(o_region, self.col_template, self.row_template)
         s_indexes = self.get_indexes(s_region, self.col_template, self.row_template)
         return 1 * ((o_indexes + s_indexes) > 0)
