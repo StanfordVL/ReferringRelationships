@@ -5,17 +5,21 @@ from keras.applications.vgg16 import preprocess_input   # todo: make this modula
 
 
 class VisualGenomeRelationshipsDataset():
-    def __init__(self, data_path="data/relationships.json", im_dim=224, im_metadata_path="data/image_data.json", img_path='data/images/{}.jpg'):
+    def __init__(self, data_path="data/VisualGenome/relationships.json", im_dim=224, im_metadata_path="data/VisualGenome/image_data.json", img_path='data/VisualGenome/images/{}.jpg'):
         self.data = json.load(open(data_path))
         self.im_metadata = json.load(open(im_metadata_path))
         self.relationships_to_idx = {}
         self.objects_to_idx = {}
+        self.subjects_to_idx = {}
         self.objects_counter = 0
         self.relationships_counter = 0
+        self.subjects_counter = 0 
         self.nb_images = len(self.data)
         self.image_ids = []
         self.im_dim = im_dim
         self.relationships = []
+        self.objects = []
+        self.subjects = []
         self.objects_regions = []  # h, w, x, y
         self.subjects_regions = []  # h, w, x, y
         self.gt_regions = []
@@ -37,6 +41,14 @@ class VisualGenomeRelationshipsDataset():
         y = int(obj["y"] * h_ratio)
         return y, x, min(y + height, self.im_dim - 1), min(x + width, self.im_dim - 1)
 
+    def get_object_idx(self, obj_name):
+        if obj_name in self.objects_to_idx.keys():
+            return self.objects_to_idx[obj_name]
+        else:
+            self.objects_to_idx[obj_name] = self.objects_counter
+            self.objects_counter += 1
+            return self.objects_to_idx[obj_name]
+
     def get_relationship_idx(self, rel_string):
         if rel_string in self.relationships_to_idx.keys():
             return self.relationships_to_idx[rel_string]
@@ -44,6 +56,14 @@ class VisualGenomeRelationshipsDataset():
             self.relationships_to_idx[rel_string] = self.relationships_counter
             self.relationships_counter += 1
             return self.relationships_to_idx[rel_string]
+
+    def get_subject_idx(self, subj_name):
+        if subj_name in self.subjects_to_idx.keys():
+            return self.subjects_to_idx[subj_name]
+        else:
+            self.subjects_to_idx[subj_name] = self.subjects_counter
+            self.subjects_counter += 1
+            return self.subjects_to_idx[subj_name]
 
     def get_object_name(self, rel_data, object_type):
         if "name" in rel_data[object_type].keys():
@@ -74,14 +94,18 @@ class VisualGenomeRelationshipsDataset():
                 # object_id = self.get_object_idx(object_name)
                 subject_name = self.get_object_name(rel_data, "subject")
                 # subject_id = self.get_object_idx(subject_name)
-                rel_string = "-".join([subject_name, rel_data["predicate"], object_name])
+                rel_name = rel_data["predicate"]
                 # relationship_id = self.get_relationship_idx(rel_data["predicate"])
                 # self.relationships += [(object_id, relationship_id, subject_id)]
-                relationship_id = self.get_relationship_idx(rel_string)
+                relationship_id = self.get_relationship_idx(rel_name)
+                object_id = self.get_object_idx(object_name)
+                subject_id = self.get_subject_idx(subject_name)
                 # self.relationships += [(object_id, relationship_id, subject_id)]
                 o_region = self.get_regions(rel_data["object"], im_metadata)
                 s_region = self.get_regions(rel_data["subject"], im_metadata)
                 self.relationships += [relationship_id]
+                self.objects += [object_id]
+                self.subjects += [subject_id]
                 self.objects_regions += [o_region]
                 self.subjects_regions += [s_region]
                 self.image_ids += [image_id]
@@ -90,8 +114,10 @@ class VisualGenomeRelationshipsDataset():
         # self.subjects_regions = np.array(self.subjects_regions)
         self.image_ids = np.array(self.image_ids)  # todo: these should not be class attributes
         self.relationships = np.array(self.relationships)
+        self.objects = np.array(self.objects)
+        self.subjects = np.array(self.subjects)
         self.gt_regions = np.array(self.gt_regions)
-        return self.image_ids, self.relationships, self.gt_regions
+        return self.image_ids, self.subjects, self.relationships, self.objects, self.gt_regions
 
     def get_image_from_img_id(self, img_id):
         img = image.load_img(self.img_path.format(img_id), target_size=(224, 224))
@@ -109,14 +135,13 @@ class VisualGenomeRelationshipsDataset():
 
 if __name__ == "__main__":
     data = VisualGenomeRelationshipsDataset(data_path="data/subset_1/subset_relationships.json")
-    image_ids, relationships, gt_regions = data.build_dataset()
+    image_ids, subjects, relationships, objects, gt_regions = data.build_dataset()
     images = data.get_images(image_ids)
 
 
 # ********************************** OLD CODE *********************************************
 
 # TODO: add split train-val-test
-
 # def get_object_idx(self, object_name):
 #     if object_name in self.objects_to_idx.keys():
 #         return self.objects_to_idx[object_name]
