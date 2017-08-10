@@ -13,7 +13,7 @@ from config import *
 from data import VisualGenomeRelationshipsDataset, VRDDataset
 
 # ******************************************* DATA *******************************************
-data = VRDDataset(data_path="data/VRD/subset_1/subset_relationships.json")
+data = VRDDataset()
 image_ids, subjects_data, relationships_data, objects_data, subjects_region_data, objects_region_data = data.build_dataset()
 num_subjects = len(np.unique(subjects_data))
 num_predicates = len(np.unique(relationships_data))
@@ -27,15 +27,15 @@ N = objects_region_data.shape[0]
 # images (N, im_dim, im_dim, 3)
 
 # ************************************* OVERFIT 1 EXAMPLE *************************************
-N = 1
-k = 9
-image_ids = image_ids[k:k + 1]
-image_data = image_data[k:k + 1]
-subjects_data = subjects_data[k:k + 1]
-relationships_data = relationships_data[k:k + 1]
-objects_data = objects_data[k:k + 1]
-subjects_region_data = subjects_region_data[k:k + 1]
-objects_region_data = objects_region_data[k:k + 1]
+#N = 1
+#k = 22
+#image_ids = image_ids[k:k + 1]
+#image_data = image_data[k:k + 1]
+#subjects_data = subjects_data[k:k + 1]
+#relationships_data = relationships_data[k:k + 1]
+#objects_data = objects_data[k:k + 1]
+#subjects_region_data = subjects_region_data[k:k + 1]
+#objects_region_data = objects_region_data[k:k + 1]
 
 
 # *************************************** FLATTEN MODEL ***************************************
@@ -100,15 +100,17 @@ relationships = relationship_model(embedding_dim, hidden_dim, num_subjects, num_
 subject_regions = attention_layer(images, relationships)
 object_regions = attention_layer(images, relationships)
 model = Model(inputs=[input_im, input_subj, input_rel, input_obj], outputs=[subject_regions, object_regions])
-adam = Adam(lr=0.01)
+adam = Adam(lr=0.001)
 model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy'], optimizer=adam)
 
 # ***************************************** TRAINING *****************************************
 # todo: check flatten and reshaping are the same in numpy and keras
-cv2.imwrite(os.path.join('results/2', 'original.png'), image_data[0])
+k = 22
+cv2.imwrite(os.path.join('results/2', 'original.png'), image_data[k])
+cv2.imwrite(os.path.join('results/2', 'gt.png'), 255*subjects_region_data[k])
 for i in range(epochs):
     print("Epoch {}/{}".format(i, epochs))
     history = model.fit([image_data, subjects_data, relationships_data, objects_data], [subjects_region_data.reshape(N, -1), objects_region_data.reshape(N, -1)], batch_size=batch_size, epochs=1, verbose=1)
-    predictions = model.predict([image_data, subjects_data, relationships_data, objects_data])
-    predictions = predictions.reshape(input_dim, input_dim, 1)
-    cv2.imwrite(os.path.join('results/2', 'attention-' + str(i) + '.png'), predictions + image_data[0])
+    subject_pred, object_pred = model.predict([image_data[k:k+1], subjects_data[k:k+1], relationships_data[k:k+1], objects_data[k:k+1]])
+    subject_pred = subject_pred.reshape(input_dim, input_dim, 1)
+    cv2.imwrite(os.path.join('results/2', 'attention-' + str(i) + '.png'), subject_pred + image_data[k])

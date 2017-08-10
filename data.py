@@ -6,8 +6,8 @@ from keras.preprocessing import image
 
 
 class VRDDataset():
-    def __init__(self, data_path="data/VisualGenome/relationships.json", im_dim=224,
-                 img_path='data/VisualGenome/images/{}.jpg', im_metadata_path="data/VisualGenome/image_data.json"):
+    def __init__(self, data_path="data/VRD/annotations_train.json", im_dim=224,
+                 img_path='data/VRD/sg_dataset/sg_train_images/{}', im_metadata_path="data/VRD/image_metadata.json"):
         self.data = json.load(open(data_path))
         self.im_metadata = json.load(open(im_metadata_path))
         self.relationships_to_idx = {}
@@ -51,6 +51,8 @@ class VRDDataset():
 
     def build_dataset(self):
         for i, image_id in enumerate(self.data.keys()):
+            if i > 10:
+                break
             im_data = self.im_metadata[image_id]
             for j, relationship in enumerate(self.data[image_id]):
                 subject_id = relationship["subject"]["category"]
@@ -216,8 +218,8 @@ class VisualGenomeRelationshipsDataset():
 
 
 if __name__ == "__main__":
-    data = VisualGenomeRelationshipsDataset(data_path="data/subset_1/subset_relationships.json")
-    image_ids, subjects, relationships, objects, gt_regions = data.build_dataset()
+    data = VRDDataset()
+    image_ids, subjects, relationships, objects, subject_regions, object_regions = data.build_dataset()
     images = data.get_images(image_ids)
 
 
