@@ -20,8 +20,10 @@ class VRDDataset():
         self.relationships = []
         self.objects = []
         self.subjects = []
-        self.objects_regions = []  # h, w, x, y
-        self.subjects_regions = []  # h, w, x, y
+        self.objects_regions = []
+        self.subjects_regions = []
+        self.objects_bbox = []
+        self.subjects_bbox = []
         self.gt_regions = []
         self.im_dim = im_dim
         self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
@@ -60,6 +62,8 @@ class VRDDataset():
                 object_id = relationship["object"]["category"]
                 s_region = self.get_regions(relationship["subject"], im_data)
                 o_region = self.get_regions(relationship["object"], im_data)
+                self.subjects_bbox += [s_region]
+                self.objects_bbox += [o_region]
                 self.relationships += [relationship_id]
                 self.objects += [object_id]
                 self.subjects += [subject_id]
@@ -72,7 +76,7 @@ class VRDDataset():
         self.objects = np.array(self.objects)
         self.subjects_regions = np.array(self.subjects_regions)
         self.objects_regions = np.array(self.objects_regions)
-        return self.image_ids, self.subjects, self.relationships, self.objects, self.subjects_regions, self.objects_regions
+        return self.image_ids, self.subjects, self.relationships, self.objects, self.subjects_regions, self.objects_regions, self.subjects_bbox, self.objects_bbox
 
     def get_image_from_img_id(self, img_id):
         img = image.load_img(self.img_path.format(img_id), target_size=(224, 224))
