@@ -53,8 +53,8 @@ class VRDDataset():
 
     def build_dataset(self):
         for i, image_id in enumerate(self.data.keys()):
-            if i > 10:
-                break
+#            if i > 500:
+#                break
             im_data = self.im_metadata[image_id]
             for j, relationship in enumerate(self.data[image_id]):
                 subject_id = relationship["subject"]["category"]
@@ -76,6 +76,8 @@ class VRDDataset():
         self.objects = np.array(self.objects)
         self.subjects_regions = np.array(self.subjects_regions)
         self.objects_regions = np.array(self.objects_regions)
+        self.subjects_bbox = np.array(self.subjects_bbox)
+        self.objects_bbox = np.array(self.objects_bbox)
         return self.image_ids, self.subjects, self.relationships, self.objects, self.subjects_regions, self.objects_regions, self.subjects_bbox, self.objects_bbox
 
     def get_image_from_img_id(self, img_id):

@@ -30,11 +30,14 @@ def compute_iou(bbox1, bbox2):
     :param bbox2: (top, left, bottom, right)
     :return: intersection over union
     """
-    top_1, left_1, bottom_1, right_1 = bbox1
-    top_2, left_2, bottom_2, right_2 = bbox2
-    if do_overlap((top_1, left_1, bottom_1, right_1), (top_2, left_2, bottom_2, right_2)):
-        intersection = (min(bottom_1, bottom_2) - max(top_1, top_2))*(min(right_1, right_2) - max(left_1, left_2))
-        union = (bottom_1-top_1)*(right_1-left_1) + (bottom_2-top_2)*(right_2-left_2) - intersection
-        return float(intersection)/float(union)
-    return 0.
+    try:
+        top_1, left_1, bottom_1, right_1 = bbox1
+        top_2, left_2, bottom_2, right_2 = bbox2
+        if do_overlap((top_1, left_1, bottom_1, right_1), (top_2, left_2, bottom_2, right_2)):
+            intersection = (min(bottom_1, bottom_2) - max(top_1, top_2))*(min(right_1, right_2) - max(left_1, left_2))
+            union = (bottom_1-top_1)*(right_1-left_1) + (bottom_2-top_2)*(right_2-left_2) - intersection
+            return float(intersection)/float(union)
+        return 0.
+    except:
+        return 0
 
