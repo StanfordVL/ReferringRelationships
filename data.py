@@ -1,7 +1,7 @@
 import json
 
 import numpy as np
-from keras.applications.vgg16 import preprocess_input  # todo: make this modular
+from keras.applications.vgg16 import preprocess_input
 from keras.preprocessing import image
 
 
@@ -39,7 +39,8 @@ class VRDDataset():
         h_ratio = self.im_dim * 1. / im_metadata['height']
         w_ratio = self.im_dim * 1. / im_metadata['width']
         y_min, y_max, x_min, x_max = obj["bbox"]
-        return y_min * h_ratio, x_min * w_ratio, min(y_max * h_ratio, self.im_dim - 1), min(x_max * w_ratio, self.im_dim - 1)
+        return y_min * h_ratio, x_min * w_ratio, min(y_max * h_ratio, self.im_dim - 1), min(x_max * w_ratio,
+                                                                                            self.im_dim - 1)
 
     def get_indexes(self, region, col_template, row_template):
         top, left, bottom, right = region
@@ -53,8 +54,8 @@ class VRDDataset():
 
     def build_dataset(self):
         for i, image_id in enumerate(self.data.keys()):
-#            if i > 500:
-#                break
+            #            if i > 500:
+            #                break
             im_data = self.im_metadata[image_id]
             for j, relationship in enumerate(self.data[image_id]):
                 subject_id = relationship["subject"]["category"]

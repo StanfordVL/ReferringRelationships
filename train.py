@@ -83,13 +83,7 @@ for i in range(epochs):
         o_loss_hist += [o_loss]
     print("subject loss: {}".format(np.mean(s_loss_hist)))
     print("object loss: {}".format(np.mean(o_loss_hist)))
-    # saving attention heatmaps for one example
-    # subject_pred, object_pred = model.predict([train_images[k:k+1], train_subjects[k:k+1], train_predicates[k:k+1], train_objects[k:k+1]])
-    # subject_pred = subject_pred.reshape(input_dim, input_dim, 1)
-    # image_pred = np.zeros((input_dim, input_dim, 3))
-    # image_pred += subject_pred*255
-    # cv2.imwrite(os.path.join('results/2', 'attention-' + str(i) + '.png'), cv2.addWeighted(train_images[k], 0.6, image_pred, 0.4, 0))
-    # s_iou_mean, s_iou_acc, o_iou_mean, o_iou_acc = evaluate(model, train_images, train_subjects, train_predicates, train_objects, train_subject_bbox, train_object_bbox, iou_thresh, score_thresh)
+
     s_iou_mean, s_iou_acc, o_iou_mean, o_iou_acc = evaluate(model, val_images, val_subjects, val_predicates,
                                                             val_objects, val_subject_bbox, val_object_bbox, iou_thresh,
                                                             score_thresh)
