@@ -1,15 +1,14 @@
-
-
 def get_bbox_from_heatmap(heatmap, score_thresh):
     heatmap = 1 * (heatmap > score_thresh)
     x_non_zero = heatmap.sum(axis=0).nonzero()[0]
     y_non_zero = heatmap.sum(axis=1).nonzero()[0]
-    if len(x_non_zero)>0 and len(y_non_zero)>0:
+    if len(x_non_zero) > 0 and len(y_non_zero) > 0:
         x_min, x_max = x_non_zero[0], x_non_zero[-1]
         y_min, y_max = y_non_zero[0], y_non_zero[-1]
         return y_min, x_min, y_max, x_max
     else:
         return None
+
 
 def do_overlap(bbox1, bbox2):
     """
@@ -34,10 +33,23 @@ def compute_iou(bbox1, bbox2):
         top_1, left_1, bottom_1, right_1 = bbox1
         top_2, left_2, bottom_2, right_2 = bbox2
         if do_overlap((top_1, left_1, bottom_1, right_1), (top_2, left_2, bottom_2, right_2)):
-            intersection = (min(bottom_1, bottom_2) - max(top_1, top_2))*(min(right_1, right_2) - max(left_1, left_2))
-            union = (bottom_1-top_1)*(right_1-left_1) + (bottom_2-top_2)*(right_2-left_2) - intersection
-            return float(intersection)/float(union)
+            intersection = (min(bottom_1, bottom_2) - max(top_1, top_2)) * (min(right_1, right_2) - max(left_1, left_2))
+            union = (bottom_1 - top_1) * (right_1 - left_1) + (bottom_2 - top_2) * (right_2 - left_2) - intersection
+            return float(intersection) / float(union)
         return 0.
     except:
         return 0
+
+def evaluate(model, val_images, val_subjects, val_predicates, val_objects, val_subject_bbox, val_object_bbox, iou_thresh, score_thresh):
+    s_iou = []
+    o_iou = []
+    subject_preds, object_preds = model.predict([val_images, val_subjects, val_predicates, val_objects])
+    for i in range(len(subject_preds)):
+        pred_subject_bbox = get_bbox_from_heatmap(subject_preds[i].reshape(input_dim, input_dim), score_thresh)
+        pred_object_bbox = get_bbox_from_heatmap(object_preds[i].reshape(input_dim, input_dim), score_thresh)
+        s_iou += [compute_iou(pred_subject_bbox, val_subject_bbox[i])]
+        o_iou += [compute_iou(pred_object_bbox, val_object_bbox[i])]
+    s_iou = np.array(s_iou)
+    o_iou = np.array(o_iou)
+    return s_iou.mean(), (s_iou>iou_thresh).mean(), o_iou.mean(), (o_iou>iou_thresh).mean()
 
