@@ -1,10 +1,10 @@
 import numpy as np
+from keras.optimizers import Adam
 
 from config import *
 from data import VRDDataset
 from evaluation import *
 from model import ReferringRelationshipsModel
-from keras.optimizers import Adam
 
 
 def get_subset(idx, data):
@@ -17,30 +17,28 @@ def get_subset(idx, data):
 # ******************************************* DATA *******************************************
 data = VRDDataset()
 print("Building VRD dataset...")
-image_ids, subjects_data, relationships_data, objects_data, subjects_region_data, objects_region_data, subjects_bbox, objects_bbox = data.build_dataset()
+image_ids, subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox = data.build_dataset()
 num_subjects = len(np.unique(subjects_data))
 num_predicates = len(np.unique(relationships_data))
 num_objects = len(np.unique(objects_data))
 # image_data = data.get_images(image_ids)
-N = objects_region_data.shape[0]
+N = image_ids.shape[0]
 permutation = np.arange(N)
 np.random.shuffle(permutation)
 train_idx = permutation[:int(N * (1 - validation_split))]
 val_idx = permutation[int(N * (1 - validation_split)):]
 # training data
-train_image_idx, train_subjects, train_predicates, train_objects, train_subject_regions, train_object_regions, train_subject_bbox, train_object_bbox = get_subset(
-    train_idx, [image_ids, subjects_data, relationships_data, objects_data, subjects_region_data, objects_region_data,
-                subjects_bbox, objects_bbox])
-# print("Getting train images...")
-# train_images = data.get_images(train_image_idx)
+train_image_idx, train_subjects, train_predicates, train_objects, train_subject_bbox, train_object_bbox = get_subset(
+        train_idx,
+        [image_ids, subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox])
 N_train = len(train_idx)
 # validation data
-val_image_idx, val_subjects, val_predicates, val_objects, val_subject_regions, val_object_regions, val_subject_bbox, val_object_bbox = get_subset(
-    val_idx, [image_ids, subjects_data, relationships_data, objects_data, subjects_region_data, objects_region_data,
-              subjects_bbox, objects_bbox])
+val_image_idx, val_subjects, val_predicates, val_objects, val_subject_bbox, val_object_bbox = get_subset(
+        val_idx, [image_ids, subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox])
 print("Getting val images...")
 val_images = data.get_images(val_image_idx)
 N_val = len(val_idx)
+
 # ************************************* OVERFIT 1 EXAMPLE *************************************
 # N = 1
 # k = 22
@@ -70,20 +68,18 @@ for i in range(epochs):
         model.optimizer.lr.assign(lr)
     print("learning rate: {}".format(lr))
     for j in range(N_train / batch_size):
-        train_batch_image_idx = train_image_idx[j * batch_size:(j + 1) * batch_size]
-        train_images = data.get_images(train_batch_image_idx)
+        train_batch_image_idx = train_idx[j * batch_size:(j + 1) * batch_size]
+        train_images, gt_subject_regions, gt_object_regions = data.get_images_and_regions(train_batch_image_idx)
         _, s_loss, o_loss = model.train_on_batch([train_images, train_subjects[j * batch_size:(j + 1) * batch_size],
                                                   train_predicates[j * batch_size:(j + 1) * batch_size],
-                                                  train_objects[j * batch_size:(j + 1) * batch_size]], [
-                                                     train_subject_regions[j * batch_size:(j + 1) * batch_size].reshape(
-                                                         batch_size, -1),
-                                                     train_object_regions[j * batch_size:(j + 1) * batch_size].reshape(
-                                                         batch_size, -1)])
+                                                  train_objects[j * batch_size:(j + 1) * batch_size]],
+                                                 [gt_subject_regions, gt_object_regions])
         s_loss_hist += [s_loss]
         o_loss_hist += [o_loss]
     print("subject loss: {}".format(np.mean(s_loss_hist)))
     print("object loss: {}".format(np.mean(o_loss_hist)))
-
+    # subject_pred, object_pred = model.predict([train_images[k:k+1], train_subjects[k:k+1], train_predicates[k:k+1], train_objects[k:k+1]])
+    # visualize_weights(train_images[k], subject_pred, input_dim, i)
     s_iou_mean, s_iou_acc, o_iou_mean, o_iou_acc = evaluate(model, val_images, val_subjects, val_predicates,
                                                             val_objects, val_subject_bbox, val_object_bbox, iou_thresh,
                                                             score_thresh)

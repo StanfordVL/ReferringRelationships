@@ -20,11 +20,11 @@ class VRDDataset():
         self.relationships = []
         self.objects = []
         self.subjects = []
-        self.objects_regions = []
-        self.subjects_regions = []
+        # self.objects_regions = []
+        # self.subjects_regions = []
         self.objects_bbox = []
         self.subjects_bbox = []
-        self.gt_regions = []
+        # self.gt_regions = []
         self.im_dim = im_dim
         self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
         self.row_template = np.arange(self.im_dim).reshape(self.im_dim, 1)
@@ -68,18 +68,18 @@ class VRDDataset():
                 self.relationships += [relationship_id]
                 self.objects += [object_id]
                 self.subjects += [subject_id]
-                self.subjects_regions += [self.build_gt_regions(s_region)]
-                self.objects_regions += [self.build_gt_regions(o_region)]
+                # self.subjects_regions += [self.build_gt_regions(s_region)]
+                # self.objects_regions += [self.build_gt_regions(o_region)]
                 self.image_ids += [image_id]
         self.image_ids = np.array(self.image_ids)  # todo: these should not be class attributes
         self.subjects = np.array(self.subjects)
         self.relationships = np.array(self.relationships)
         self.objects = np.array(self.objects)
-        self.subjects_regions = np.array(self.subjects_regions)
-        self.objects_regions = np.array(self.objects_regions)
+        # self.subjects_regions = np.array(self.subjects_regions)
+        # self.objects_regions = np.array(self.objects_regions)
         self.subjects_bbox = np.array(self.subjects_bbox)
         self.objects_bbox = np.array(self.objects_bbox)
-        return self.image_ids, self.subjects, self.relationships, self.objects, self.subjects_regions, self.objects_regions, self.subjects_bbox, self.objects_bbox
+        return self.image_ids, self.subjects, self.relationships, self.objects, self.subjects_bbox, self.objects_bbox
 
     def get_image_from_img_id(self, img_id):
         img = image.load_img(self.img_path.format(img_id), target_size=(224, 224))
@@ -93,6 +93,19 @@ class VRDDataset():
         for i, img_id in enumerate(image_ids):
             images[i] = self.get_image_from_img_id(img_id)
         return images
+
+    def get_images_and_regions(self, rel_idx):
+        images = np.zeros((len(rel_idx), self.im_dim, self.im_dim, 3))
+        s_gt_regions = np.zeros((len(rel_idx), self.im_dim * self.im_dim))
+        o_gt_regions = np.zeros((len(rel_idx), self.im_dim * self.im_dim))
+        for k, i in enumerate(rel_idx):
+            img_id = self.image_ids[i]
+            s_region = self.subjects_bbox[i]
+            o_region = self.objects_bbox[i]
+            images[k] = self.get_image_from_img_id(img_id)
+            s_gt_regions[k] = self.build_gt_regions(s_region)
+            o_gt_regions[k] = self.build_gt_regions(o_region)
+        return images, s_gt_regions, o_gt_regions
 
 
 class VisualGenomeRelationshipsDataset():
