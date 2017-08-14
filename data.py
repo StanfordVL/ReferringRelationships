@@ -54,8 +54,8 @@ class VRDDataset():
 
     def build_dataset(self):
         for i, image_id in enumerate(self.data.keys()):
-            #            if i > 500:
-            #                break
+            if i > 500:
+                break
             im_data = self.im_metadata[image_id]
             for j, relationship in enumerate(self.data[image_id]):
                 subject_id = relationship["subject"]["category"]
@@ -79,7 +79,7 @@ class VRDDataset():
         # self.objects_regions = np.array(self.objects_regions)
         self.subjects_bbox = np.array(self.subjects_bbox)
         self.objects_bbox = np.array(self.objects_bbox)
-        return self.image_ids, self.subjects, self.relationships, self.objects, self.subjects_bbox, self.objects_bbox
+        return self.subjects, self.relationships, self.objects, self.subjects_bbox, self.objects_bbox
 
     def get_image_from_img_id(self, img_id):
         img = image.load_img(self.img_path.format(img_id), target_size=(224, 224))
@@ -88,9 +88,10 @@ class VRDDataset():
         img_array = preprocess_input(img_array)
         return img_array[0]
 
-    def get_images(self, image_ids):
+    def get_images(self, rel_idx):
         images = np.zeros((len(image_ids), self.im_dim, self.im_dim, 3))
-        for i, img_id in enumerate(image_ids):
+        for i, j in enumerate(rel_idx):
+            img_id = self.image_ids[j]
             images[i] = self.get_image_from_img_id(img_id)
         return images
 
@@ -98,14 +99,31 @@ class VRDDataset():
         images = np.zeros((len(rel_idx), self.im_dim, self.im_dim, 3))
         s_gt_regions = np.zeros((len(rel_idx), self.im_dim * self.im_dim))
         o_gt_regions = np.zeros((len(rel_idx), self.im_dim * self.im_dim))
-        for k, i in enumerate(rel_idx):
-            img_id = self.image_ids[i]
-            s_region = self.subjects_bbox[i]
-            o_region = self.objects_bbox[i]
-            images[k] = self.get_image_from_img_id(img_id)
-            s_gt_regions[k] = self.build_gt_regions(s_region)
-            o_gt_regions[k] = self.build_gt_regions(o_region)
+        for i, j in enumerate(rel_idx):
+            img_id = self.image_ids[j]
+            s_region = self.subjects_bbox[j]
+            o_region = self.objects_bbox[j]
+            images[i] = self.get_image_from_img_id(img_id)
+            s_gt_regions[i] = self.build_gt_regions(s_region).flatten()
+            o_gt_regions[i] = self.build_gt_regions(o_region).flatten()
         return images, s_gt_regions, o_gt_regions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class VisualGenomeRelationshipsDataset():

@@ -17,26 +17,26 @@ def get_subset(idx, data):
 # ******************************************* DATA *******************************************
 data = VRDDataset()
 print("Building VRD dataset...")
-image_ids, subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox = data.build_dataset()
+subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox = data.build_dataset()
 num_subjects = len(np.unique(subjects_data))
 num_predicates = len(np.unique(relationships_data))
 num_objects = len(np.unique(objects_data))
 # image_data = data.get_images(image_ids)
-N = image_ids.shape[0]
+N = subjects_data.shape[0]
 permutation = np.arange(N)
 np.random.shuffle(permutation)
 train_idx = permutation[:int(N * (1 - validation_split))]
 val_idx = permutation[int(N * (1 - validation_split)):]
 # training data
-train_image_idx, train_subjects, train_predicates, train_objects, train_subject_bbox, train_object_bbox = get_subset(
+train_subjects, train_predicates, train_objects, train_subject_bbox, train_object_bbox = get_subset(
         train_idx,
-        [image_ids, subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox])
+        [subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox])
 N_train = len(train_idx)
 # validation data
-val_image_idx, val_subjects, val_predicates, val_objects, val_subject_bbox, val_object_bbox = get_subset(
-        val_idx, [image_ids, subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox])
+val_subjects, val_predicates, val_objects, val_subject_bbox, val_object_bbox = get_subset(
+        val_idx, [subjects_data, relationships_data, objects_data, subjects_bbox, objects_bbox])
 print("Getting val images...")
-val_images = data.get_images(val_image_idx)
+val_images = data.get_images(val_idx)
 N_val = len(val_idx)
 
 # ************************************* OVERFIT 1 EXAMPLE *************************************
