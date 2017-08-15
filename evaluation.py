@@ -1,3 +1,5 @@
+import numpy as np
+
 def get_bbox_from_heatmap(heatmap, score_thresh):
     heatmap = 1 * (heatmap > score_thresh)
     x_non_zero = heatmap.sum(axis=0).nonzero()[0]
@@ -40,7 +42,7 @@ def compute_iou(bbox1, bbox2):
     except:
         return 0
 
-def evaluate(model, val_images, val_subjects, val_predicates, val_objects, val_subject_bbox, val_object_bbox, iou_thresh, score_thresh):
+def evaluate(model, val_images, val_subjects, val_predicates, val_objects, val_subject_bbox, val_object_bbox, iou_thresh, score_thresh, input_dim):
     s_iou = []
     o_iou = []
     subject_preds, object_preds = model.predict([val_images, val_subjects, val_predicates, val_objects])
@@ -51,5 +53,6 @@ def evaluate(model, val_images, val_subjects, val_predicates, val_objects, val_s
         o_iou += [compute_iou(pred_object_bbox, val_object_bbox[i])]
     s_iou = np.array(s_iou)
     o_iou = np.array(o_iou)
-    return s_iou.mean(), (s_iou>iou_thresh).mean(), o_iou.mean(), (o_iou>iou_thresh).mean()
-
+    print("subject iou mean : {} \n subject accuracy for iou thresh={} : {}".format(s_iou.mean(), iou_thresh, (s_iou>iou_thresh).mean()))
+    print("object iou mean : {} \n object accuracy for iou thresh={} : {}\n".format(o_iou.mean(), iou_thresh, (o_iou>iou_thresh).mean()))
+    return s_iou.mean(), o_iou.mean()

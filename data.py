@@ -10,12 +10,6 @@ class VRDDataset():
                  img_path='data/VRD/sg_dataset/sg_train_images/{}', im_metadata_path="data/VRD/image_metadata.json"):
         self.data = json.load(open(data_path))
         self.im_metadata = json.load(open(im_metadata_path))
-        self.relationships_to_idx = {}
-        self.objects_to_idx = {}
-        self.subjects_to_idx = {}
-        self.objects_counter = 0
-        self.relationships_counter = 0
-        self.subjects_counter = 0
         self.image_ids = []
         self.relationships = []
         self.objects = []
@@ -54,8 +48,8 @@ class VRDDataset():
 
     def build_dataset(self):
         for i, image_id in enumerate(self.data.keys()):
-            if i > 500:
-                break
+#            if i > 10:
+#                break
             im_data = self.im_metadata[image_id]
             for j, relationship in enumerate(self.data[image_id]):
                 subject_id = relationship["subject"]["category"]
@@ -89,7 +83,7 @@ class VRDDataset():
         return img_array[0]
 
     def get_images(self, rel_idx):
-        images = np.zeros((len(image_ids), self.im_dim, self.im_dim, 3))
+        images = np.zeros((len(rel_idx), self.im_dim, self.im_dim, 3))
         for i, j in enumerate(rel_idx):
             img_id = self.image_ids[j]
             images[i] = self.get_image_from_img_id(img_id)
