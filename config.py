@@ -7,5 +7,5 @@ feat_map_dim = 14
 input_dim = 224
 epochs = 50
 score_thresh = 0.8
-validation_split = 0.1
+train_val_split_ratio = 0.2
 iou_thresh = 0.5

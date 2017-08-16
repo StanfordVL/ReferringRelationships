@@ -8,7 +8,7 @@ from keras.models import Model
 
 
 class ReferringRelationshipsModel():
-    def __init__(self, num_objects, num_subjects, num_predicates, input_dim=224, feat_map_dim=14, hidden_dim=200, embedding_dim=100):
+    def __init__(self, num_subjects, num_predicates, num_objects, input_dim=224, feat_map_dim=14, hidden_dim=200, embedding_dim=100):
         self.input_dim = input_dim
         self.feat_map_dim = feat_map_dim
         self.hidden_dim = hidden_dim
