@@ -104,7 +104,7 @@ class VRDDataset():
             images[i] = self.get_image_from_img_id(image_id)
             s_regions[i] = self.get_regions_from_bbox(s_bbox)
             o_regions[i] = self.get_regions_from_bbox(o_bbox)
-        return images, subject_regions, o_regions
+        return images, s_regions, o_regions
 
 
 class VisualGenomeRelationshipsDataset():
