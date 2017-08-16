@@ -9,7 +9,7 @@ from evaluation import *
 from model import ReferringRelationshipsModel
 
 
-res_dir = 'results/3'
+res_dir = 'results'
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 fh = logging.FileHandler(os.path.join(res_dir, 'train.log'))

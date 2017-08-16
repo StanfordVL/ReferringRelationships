@@ -7,7 +7,7 @@ from keras.preprocessing import image
 
 class VRDDataset():
     def __init__(self, num_subjects=100, num_predicates=70, num_objects=100, data_path="data/VRD/annotations_train.json", im_dim=224,
-                 img_path='data/VRD/sg_dataset/sg_train_images/{}', im_metadata_path="data/VRD/image_metadata.json"):
+                 img_path='/data/chami/VRD/sg_dataset/sg_train_images/{}', im_metadata_path="data/VRD/image_metadata.json"):
         self.data = json.load(open(data_path))
         self.im_metadata = json.load(open(im_metadata_path))
         self.im_dim = im_dim
@@ -47,11 +47,12 @@ class VRDDataset():
         :param val_split: float, proportion of validation examples
         :return: train image ids (list) and validation image ids (list)
         """
-        for i, image_id in enumerate(self.data.keys()):
-            if i > len(self.data.keys())*(1-val_split):
-                self.val_image_idx += image_id
+        image_idx = self.data.keys()[:10]
+        for i, image_id in enumerate(image_idx):
+            if i > len(image_idx)*(1.-val_split):
+                self.val_image_idx += [image_id]
             else:
-                self.train_image_idx += image_id
+                self.train_image_idx += [image_id]
         return self.train_image_idx, self.val_image_idx
 
     def build_dataset(self, image_idx):
