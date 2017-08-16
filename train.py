@@ -1,13 +1,13 @@
 import logging
 import os
-import progressbar
 
+import progressbar
 from keras.optimizers import Adam
+
 from config import *
 from data import VRDDataset
 from evaluation import *
 from model import ReferringRelationshipsModel
-
 
 res_dir = 'results'
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +32,8 @@ num_objects = vrd_dataset.num_objects
 # ***************************************** TRAINING *****************************************
 best_o_iou = -1
 best_s_iou = -1
-relationships_model = ReferringRelationshipsModel(num_subjects=num_subjects, num_predicates=num_predicates, num_objects=num_objects)
+relationships_model = ReferringRelationshipsModel(num_subjects=num_subjects, num_predicates=num_predicates,
+                                                  num_objects=num_objects)
 model = relationships_model.build_model()
 print(model.summary())
 optimizer = Adam(lr=lr)
@@ -43,8 +44,11 @@ model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy'], opt
 # cv2.imwrite(os.path.join(res_dir, 'original.png'), im_test[0])
 # cv2.imwrite(os.path.join(res_dir, 'subject-gt.png'), 255*subj_test[0].reshape(input_dim, input_dim, 1))
 for i in range(epochs):
-    s_iou, o_iou = evaluate(model, val_images, val_relationships, val_subject_bbox, val_object_bbox, iou_thresh,
-                            score_thresh, input_dim)
+    s_regions_pred, o_regions_pred = model.predict(
+            [val_images, val_relationships[:, 0], val_relationships[:, 1], val_relationships[:, 2]])
+    s_iou, o_iou = evaluate(s_regions_pred, o_regions_pred, val_subject_bbox, val_object_bbox, input_dim, score_thresh)
+    logger.info("subject iou mean : {} \nsubject accuracy for iou thresh={} : {}".format(s_iou.mean(), iou_thresh, (s_iou>iou_thresh).mean()))
+    logger.info("object iou mean : {} \nobject accuracy for iou thresh={} : {}\n".format(o_iou.mean(), iou_thresh, (o_iou>iou_thresh).mean()))
     if s_iou > best_s_iou:
         logger.info("saving best subject model...")
         model.save(os.path.join(res_dir, "best_subject_model.h5"))
@@ -68,7 +72,8 @@ for i in range(epochs):
         batch_image_idx = train_image_idx[start:end]
         batch_s_bbox = train_subject_bbox[start:end]
         batch_o_bbox = train_object_bbox[start:end]
-        batch_images, batch_s_regions, batch_o_regions = vrd_dataset.get_images_and_regions(batch_image_idx, batch_s_bbox, batch_o_bbox)
+        batch_images, batch_s_regions, batch_o_regions = vrd_dataset.get_images_and_regions(batch_image_idx,
+                                                                                            batch_s_bbox, batch_o_bbox)
         _, s_loss, o_loss = model.train_on_batch(
                 [batch_images, train_relationships[start:end, 0],
                  train_relationships[start:end, 1],
@@ -81,11 +86,6 @@ for i in range(epochs):
     logger.info("------------------------ object loss: {}".format(np.mean(o_loss_hist)))
     # subject_pred, object_pred = model.predict([im_test, subjects_data[k:k+1], relationships_data[k:k+1], objects_data[k:k+1]])
     # visualize_weights(im_test[0], subject_pred, input_dim, i, 'subject', res_dir)
-
-
-
-
-
 
 
 
