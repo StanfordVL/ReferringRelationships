@@ -17,17 +17,26 @@ fh = logging.FileHandler(os.path.join(res_dir, 'train.log'))
 logger.addHandler(fh)
 
 # ******************************************* DATA *******************************************
+# creates dataset object that has json data path, image metadata etc ...
 vrd_dataset = VRDDataset()
 logger.info("Building VRD dataset...")
+# get train image ids and validation image ids by using some split 
 train_split, val_split = vrd_dataset.get_train_val_splits(train_val_split_ratio)
+# get training data, each array has the same length 
+# train_image_idx: array Nx1 with image ids, repeated for each relationship within an image 
+# train_relationships: array Nx3 zith subject, predicate, object categories
+# object and subject bbox: arrays Nx4 with top left bottom right coordinates for evaluation
 train_image_idx, train_relationships, train_subject_bbox, train_object_bbox = vrd_dataset.build_dataset(train_split)
 N_train = len(train_image_idx)
+# todo : shuffle data 
 logger.info("Number of training samples : {}".format(N_train))
 logger.info("Getting val images...")
+# doing the same for validation data 
 val_image_idx, val_relationships, val_subject_bbox, val_object_bbox = vrd_dataset.build_dataset(val_split)
 val_images = vrd_dataset.get_images(val_image_idx)
 N_val = len(val_image_idx)
 logger.info("Number of validation samples : {}".format(N_val))
+# getting number of categories to build embedding layers in the model 
 num_subjects = vrd_dataset.num_subjects
 num_predicates = vrd_dataset.num_predicates
 num_objects = vrd_dataset.num_objects
@@ -35,6 +44,7 @@ num_objects = vrd_dataset.num_objects
 # ***************************************** TRAINING *****************************************
 best_o_iou = -1
 best_s_iou = -1
+# build the model
 relationships_model = ReferringRelationshipsModel(num_subjects=num_subjects, num_predicates=num_predicates,
                                                   num_objects=num_objects)
 model = relationships_model.build_model()
@@ -42,17 +52,12 @@ print(model.summary())
 optimizer = Adam(lr=lr)
 model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy'], optimizer=optimizer)
 
-# overfitting one example 
-train_images, train_s_regions, train_o_regions = vrd_dataset.get_images_and_regions(train_image_idx, train_subject_bbox, train_object_bbox)
-k = np.random.choice(np.arange(len(train_image_idx)), 1)[0]
-cv2.imwrite(os.path.join(res_dir, 'original.png'), train_images[k])
-cv2.imwrite(os.path.join(res_dir, 'subject-gt.png'), 255*train_s_regions[k].reshape(input_dim, input_dim, 1))
 for i in range(epochs):
-    #s_regions_pred, o_regions_pred = model.predict(
-    #        [val_images, val_relationships[:, 0], val_relationships[:, 1], val_relationships[:, 2]])
-    #s_iou, o_iou = evaluate(s_regions_pred, o_regions_pred, val_subject_bbox, val_object_bbox, input_dim, score_thresh)
-    s_regions_pred, o_regions_pred = model.predict([train_images, train_relationships[:, 0], train_relationships[:, 1], train_relationships[:, 2]])
-    visualize_weights(train_images[k], s_regions_pred[k], input_dim, i, 'subject', res_dir)
+    # predict object and subject regions to evaluate the current model 
+    # these are numpy arrays 224 x 224 x 1
+    s_regions_pred, o_regions_pred = model.predict(
+            [val_images, val_relationships[:, 0], val_relationships[:, 1], val_relationships[:, 2]])
+    # compute iou for each validation example 
     s_iou, o_iou = evaluate(s_regions_pred, o_regions_pred, train_subject_bbox, train_object_bbox, input_dim, score_thresh)
     s_iou_mean = s_iou.mean()
     o_iou_mean = o_iou.mean()
@@ -73,14 +78,22 @@ for i in range(epochs):
         lr /= 2.
         model.optimizer.lr.assign(lr)
     logger.info("learning rate: {}".format(lr))
+    # here I manually divide the training data in batches
+    # this is the slow part 
+    # first compute number of steps
     nb_steps = N_train / batch_size
     bar = progressbar.ProgressBar(maxval=nb_steps).start()
     for j in range(nb_steps):
         bar.update(j + 1)
         start, end = (j * batch_size, (j + 1) * batch_size)
+        # get subset data for this batch 
         batch_image_idx = train_image_idx[start:end]
         batch_s_bbox = train_subject_bbox[start:end]
         batch_o_bbox = train_object_bbox[start:end]
+        # call get_images_and_regions that returns 3 image arrays
+        # batch_images: training images as numpy array
+        # batch_s_regions: image for subject ground truth region 
+        # batch_o_regions: image for object ground truth region
         batch_images, batch_s_regions, batch_o_regions = vrd_dataset.get_images_and_regions(batch_image_idx,
                                                                                             batch_s_bbox, batch_o_bbox)
         _, s_loss, o_loss = model.train_on_batch(
@@ -93,19 +106,3 @@ for i in range(epochs):
     bar.finish()
     logger.info("------------------------ subject loss: {}".format(np.mean(s_loss_hist)))
     logger.info("------------------------ object loss: {}".format(np.mean(o_loss_hist)))
-    # subject_pred, object_pred = model.predict([im_test, subjects_data[k:k+1], relationships_data[k:k+1], objects_data[k:k+1]])
-    # visualize_weights(im_test[0], subject_pred, input_dim, i, 'subject', res_dir)
-
-
-
-
-# ************************************* OVERFIT 1 EXAMPLE *************************************
-# N = 1
-# k = 22
-# image_ids = image_ids[k:k + 1]
-# image_data = image_data[k:k + 1]
-# subjects_data = subjects_data[k:k + 1]
-# relationships_data = relationships_data[k:k + 1]
-# objects_data = objects_data[k:k + 1]
-# subjects_region_data = subjects_region_data[k:k + 1]
-# objects_region_data = objects_region_data[k:k + 1]
