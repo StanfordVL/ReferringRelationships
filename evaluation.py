@@ -42,6 +42,11 @@ def compute_iou(bbox1, bbox2):
     except:
         return 0
 
+def subject_iou(y_true, y_pred):
+    pass
+
+def object_iou(y_true, y_pred):
+    pass
 
 def evaluate(s_regions_pred, o_regions_pred, val_subject_bbox, val_object_bbox, input_dim, score_thresh):
     s_iou = []

@@ -96,7 +96,7 @@ class VRDDataset():
         for i, image_id in enumerate(image_idx):
             im_data = self.im_metadata[image_id]
             for j, relationship in enumerate(self.data[image_id]):
-                rel_id = image_id + "-{}".format(j)
+                rel_id = image_id.replace(".jpg", "") + "-{}".format(j)
                 rel_idx += [rel_id]
                 subject_id = relationship["subject"]["category"]
                 predicate_id = relationship["predicate"]
