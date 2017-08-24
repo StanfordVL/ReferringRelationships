@@ -54,7 +54,7 @@ class VRDDataset():
         image_idx = self.data.keys()[:10]
         if shuffle:
             np.random.shuffle(image_idx)
-        thresh = len(image_idx) * (1. - val_split)
+        thresh = int(len(image_idx) * (1. - val_split))
         self.train_image_idx = image_idx[:thresh]
         self.val_image_idx = image_idx[thresh:]
         return self.train_image_idx, self.val_image_idx
@@ -96,14 +96,16 @@ class VRDDataset():
         for i, image_id in enumerate(image_idx):
             im_data = self.im_metadata[image_id]
             for j, relationship in enumerate(self.data[image_id]):
-                rel_id = image_id.replace(".jpg", "") + "-{}".format(j)
+                rel_id = image_id + "-{}".format(j)
                 rel_idx += [rel_id]
                 subject_id = relationship["subject"]["category"]
                 predicate_id = relationship["predicate"]
                 object_id = relationship["object"]["category"]
                 relationships += [(subject_id, predicate_id, object_id)]
-                s_region = self.rescale_bbox_coordinates(relationship["subject"], im_data)
-                o_region = self.rescale_bbox_coordinates(relationship["object"], im_data)
+                s_bbox = self.rescale_bbox_coordinates(relationship["subject"], im_data)
+                o_bbox= self.rescale_bbox_coordinates(relationship["object"], im_data)
+                s_region = self.get_regions_from_bbox(s_bbox) * 255
+                o_region = self.get_regions_from_bbox(o_bbox) * 255#TODO:this is just to visualize regions, needs to me removed afterwards 
                 cv2.imwrite(os.path.join(save_dir, "{}-s.jpg".format(rel_id)), s_region)
                 cv2.imwrite(os.path.join(save_dir, "{}-o.jpg".format(rel_id)), o_region)
         np.save(os.path.join(save_dir, "rel_idx.npy"), np.array(rel_idx))
