@@ -44,11 +44,11 @@ class RefRelDataIterator(Iterator):
             index_array, current_index, current_batch_size = next(self.index_generator)
         batch_image = np.zeros((current_batch_size,) + self.rgb_image_shape, dtype=K.floatx())
         batch_rel = np.zeros((current_batch_size,) + (3,), dtype=K.floatx())
-        #batch_s_regions = np.zeros((current_batch_size,) + self.gray_image_shape, dtype=K.floatx())
-        #batch_o_regions = np.zeros((current_batch_size,) + self.gray_image_shape, dtype=K.floatx())
+        batch_s_regions = np.zeros((current_batch_size,) + self.gray_image_shape, dtype=K.floatx())
+        batch_o_regions = np.zeros((current_batch_size,) + self.gray_image_shape, dtype=K.floatx())
         # todo: fix this shape thing
-        batch_s_regions = np.zeros((current_batch_size,) + (224*224,), dtype=K.floatx())
-        batch_o_regions = np.zeros((current_batch_size,) + (224*224,), dtype=K.floatx())
+        #batch_s_regions = np.zeros((current_batch_size,) + (224*224,), dtype=K.floatx())
+        #batch_o_regions = np.zeros((current_batch_size,) + (224*224,), dtype=K.floatx())
         # build batch of image data
         for i, j in enumerate(index_array):
             rel_id = self.rel_idx[j]
@@ -60,8 +60,8 @@ class RefRelDataIterator(Iterator):
             s_region = load_img(os.path.join(self.data_dir, subject_fname), grayscale=True, target_size=self.target_size)
             o_region = load_img(os.path.join(self.data_dir, object_fname), grayscale=True, target_size=self.target_size)
             img = img_to_array(img, data_format=self.data_format)
-            s_region = img_to_array(s_region, data_format=self.data_format).flatten()
-            o_region = img_to_array(o_region, data_format=self.data_format).flatten()
+            s_region = img_to_array(s_region, data_format=self.data_format)#.flatten()
+            o_region = img_to_array(o_region, data_format=self.data_format)#.flatten()
             batch_image[i] = img
             batch_rel[i] = rel
             batch_s_regions[i] = s_region
