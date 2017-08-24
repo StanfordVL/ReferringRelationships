@@ -104,8 +104,8 @@ class VRDDataset():
                 relationships += [(subject_id, predicate_id, object_id)]
                 s_bbox = self.rescale_bbox_coordinates(relationship["subject"], im_data)
                 o_bbox= self.rescale_bbox_coordinates(relationship["object"], im_data)
-                s_region = self.get_regions_from_bbox(s_bbox) * 255
-                o_region = self.get_regions_from_bbox(o_bbox) * 255#TODO:this is just to visualize regions, needs to me removed afterwards 
+                s_region = self.get_regions_from_bbox(s_bbox) #* 255
+                o_region = self.get_regions_from_bbox(o_bbox) #* 255#TODO:this is just to visualize regions, needs to me removed afterwards 
                 cv2.imwrite(os.path.join(save_dir, "{}-s.jpg".format(rel_id)), s_region)
                 cv2.imwrite(os.path.join(save_dir, "{}-o.jpg".format(rel_id)), o_region)
         np.save(os.path.join(save_dir, "rel_idx.npy"), np.array(rel_idx))

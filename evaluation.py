@@ -1,4 +1,19 @@
 import numpy as np
+from config import *
+import tensorflow as tf
+from keras import backend as K
+
+score_thresh = 0.8
+
+def iou(y_true, y_pred):
+    y_true = tf.reshape(y_true, [-1, input_dim*input_dim])
+    y_pred = tf.reshape(y_pred, [-1, input_dim*input_dim])
+    y_pred = tf.cast(y_pred > score_thresh, tf.float32)
+    intersection = tf.cast(y_true * y_pred > 0, tf.float32)
+    union = tf.cast(y_true + y_pred, tf.float32)
+    iou_values = K.sum(intersection, axis=-1) / K.sum(union, axis=-1)
+    return K.mean(iou_values)
+
 
 def get_bbox_from_heatmap(heatmap, score_thresh):
     heatmap = 1 * (heatmap > score_thresh)
@@ -42,11 +57,6 @@ def compute_iou(bbox1, bbox2):
     except:
         return 0
 
-def subject_iou(y_true, y_pred):
-    pass
-
-def object_iou(y_true, y_pred):
-    pass
 
 def evaluate(s_regions_pred, o_regions_pred, val_subject_bbox, val_object_bbox, input_dim, score_thresh):
     s_iou = []
