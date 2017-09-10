@@ -17,10 +17,10 @@ from keras.preprocessing.image import Iterator, load_img, img_to_array
 class RefRelDataIterator(Iterator):
     """Iterator capable of reading images from a directory on disk.
     """
-    def __init__(self, image_dir, data_dir, target_size=(224, 224), batch_size=64, shuffle=True, seed=None):
+    def __init__(self, image_dir, data_dir, input_dim, batch_size, shuffle=True, seed=None):
         data_format = K.image_data_format()
         self.data_dir = data_dir
-        self.target_size = tuple(target_size)
+        self.target_size = (input_dim, input_dim)
         self.data_format = data_format
         self.image_dir = image_dir
         if self.data_format == 'channels_last':

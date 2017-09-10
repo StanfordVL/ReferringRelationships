@@ -16,7 +16,7 @@ if not params["session_params"]["save_dir"]:
     params["session_params"]["save_dir"] = get_dir_name(params["session_params"]["models_dir"])
     os.makedirs(params["session_params"]["save_dir"])
 
-json.dump(params, os.path.join(params["session_params"]["save_dir"], "params.json"))
+json.dump(params, open(os.path.join(params["session_params"]["save_dir"], "params.json"), "w"))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 fh = logging.FileHandler(os.path.join(params["session_params"]["save_dir"], 'train.log'))
@@ -45,8 +45,8 @@ def binary_ce(y_true, y_pred):
 
 
 # ******************************************* DATA *******************************************
-train_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["train_data_dir"], batch_size=params["session_params"]["batch_size"])
-val_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["val_data_dir"], batch_size=params["session_params"]["batch_size"])
+train_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["train_data_dir"], input_dim=params["model_params"]["input_dim"], batch_size=params["session_params"]["batch_size"])
+val_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["val_data_dir"], input_dim=params["model_params"]["input_dim"], batch_size=params["session_params"]["batch_size"])
 logger.info("Train on {} samples".format(train_generator.samples))
 logger.info("Validate on {} samples".format(val_generator.samples))
 
@@ -64,7 +64,7 @@ history = model.fit_generator(train_generator, steps_per_epoch=int(train_generat
 monitored_val = history.keys()
 for epoch in range(params["session_params"]["epochs"]):
     res = "epoch {}/{}:".format(epoch, params["session_params"]["epochs"])
-    res += " | ".join([" x = {}".format(round(history[x][epoch], 4)) for x in monitored_val])
+    res += " | ".join([" {} = {}".format(x, round(history[x][epoch], 4)) for x in monitored_val])
     res += "\n"
     logger.info(res)
     # logger.info("Best validation accuracy : {}".format(round(np.max(hist['val_acc']), 4)))

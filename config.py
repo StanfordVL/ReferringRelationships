@@ -19,8 +19,7 @@ params = {
     "data_params": {
         "train_data_dir": "/data/chami/VRD/overfit/train/",
         "val_data_dir": "/data/chami/VRD/overfit/val/",
-        "image_data_dir": "/data/chami/VRD/sg_dataset/sg_train_images/",
-        "train_val_split_ratio": 0.2,
+        "image_data_dir": "/data/chami/VRD/sg_dataset/sg_train_images/"
     },
     "eval_params": {
         "score_thresh": 0.9,
