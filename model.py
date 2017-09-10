@@ -8,15 +8,15 @@ from keras.models import Model
 
 
 class ReferringRelationshipsModel():
-    def __init__(self, num_subjects, num_predicates, num_objects, input_dim=224, feat_map_dim=14, hidden_dim=200, embedding_dim=100):
-        self.input_dim = input_dim
-        self.feat_map_dim = feat_map_dim
-        self.hidden_dim = hidden_dim
-        self.embedding_dim = embedding_dim
-        self.num_subjects = num_subjects
-        self.num_predicates = num_predicates
-        self.num_objects = num_objects
-        self.upsampling_factor = input_dim / feat_map_dim
+    def __init__(self, model_params):
+        self.input_dim = model_params["input_dim"]
+        self.feat_map_dim = model_params["feat_map_dim"]
+        self.hidden_dim = model_params["hidden_dim"]
+        self.embedding_dim = model_params["embedding_dim"]
+        self.num_subjects = model_params["num_subjects"]
+        self.num_predicates = model_params["num_predicates"]
+        self.num_objects = model_params["num_objects"]
+        self.upsampling_factor = self.input_dim / self.feat_map_dim
 
     def build_model(self):
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
@@ -75,6 +75,7 @@ class ReferringRelationshipsModel():
 
 
 if __name__ == "__main__":
-    rel = ReferringRelationshipsModel(num_objects=10, num_subjects=10, num_predicates=10)
+    from ReferringRelationships.config import params;
+    rel = ReferringRelationshipsModel(params["model_params"])
     model = rel.build_model()
     model.summary()

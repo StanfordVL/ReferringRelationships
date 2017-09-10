@@ -1,108 +1,70 @@
+import json
 import logging
 import os
-import cv2
-import progressbar
+import tensorflow as tf
+from keras import backend as K
+from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 
-from config import *
-from data import VRDDataset
-from evaluation import *
-from model import ReferringRelationshipsModel
-from image_utils import visualize_weights
+from ReferringRelationships.config import params
+from ReferringRelationships.iterator import RefRelDataIterator
+from ReferringRelationships.model import ReferringRelationshipsModel
+from ReferringRelationships.utils import format_params, get_dir_name
 
-res_dir = 'results'
+
+if not params["session_params"]["save_dir"]:
+    params["session_params"]["save_dir"] = get_dir_name(params["session_params"]["models_dir"])
+    os.makedirs(params["session_params"]["save_dir"])
+
+json.dump(params, os.path.join(params["session_params"]["save_dir"], "params.json"))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-fh = logging.FileHandler(os.path.join(res_dir, 'train.log'))
+fh = logging.FileHandler(os.path.join(params["session_params"]["save_dir"], 'train.log'))
 logger.addHandler(fh)
+logger.info(format_params(params))
+
+
+def iou(y_true, y_pred):
+    # todo: check this
+    input_dim = params["model_params"]["input_dim"]
+    y_true = tf.reshape(y_true, [-1, input_dim * input_dim])
+    y_pred = tf.reshape(y_pred, [-1, input_dim * input_dim])
+    y_pred = tf.cast(y_pred > params["eval_params"]["score_thresh"], tf.float32)
+    intersection = tf.cast(y_true * y_pred > 0, tf.float32)
+    union = tf.cast(y_true + y_pred, tf.float32)
+    iou_values = K.sum(intersection, axis=-1) / K.sum(union, axis=-1)
+    return K.mean(iou_values)
+
+
+def binary_ce(y_true, y_pred):
+    # todo: check how to compuye ce with multidimensinal tensors
+    input_dim = params["model_params"]["input_dim"]
+    ce = K.binary_crossentropy(y_true, y_pred)
+    ce = tf.reshape(ce, [-1, input_dim * input_dim])
+    return K.mean(ce, axis=-1)
+
 
 # ******************************************* DATA *******************************************
-# creates dataset object that has json data path, image metadata etc ...
-vrd_dataset = VRDDataset()
-logger.info("Building VRD dataset...")
-# get train image ids and validation image ids by using some split 
-train_split, val_split = vrd_dataset.get_train_val_splits(train_val_split_ratio)
-# get training data, each array has the same length 
-# train_image_idx: array Nx1 with image ids, repeated for each relationship within an image 
-# train_relationships: array Nx3 zith subject, predicate, object categories
-# object and subject bbox: arrays Nx4 with top left bottom right coordinates for evaluation
-train_image_idx, train_relationships, train_subject_bbox, train_object_bbox = vrd_dataset.build_dataset(train_split)
-N_train = len(train_image_idx)
-# todo : shuffle data 
-logger.info("Number of training samples : {}".format(N_train))
-logger.info("Getting val images...")
-# doing the same for validation data 
-val_image_idx, val_relationships, val_subject_bbox, val_object_bbox = vrd_dataset.build_dataset(val_split)
-val_images = vrd_dataset.get_images(val_image_idx)
-N_val = len(val_image_idx)
-logger.info("Number of validation samples : {}".format(N_val))
-# getting number of categories to build embedding layers in the model 
-num_subjects = vrd_dataset.num_subjects
-num_predicates = vrd_dataset.num_predicates
-num_objects = vrd_dataset.num_objects
+train_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["train_data_dir"], batch_size=params["session_params"]["batch_size"])
+val_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["val_data_dir"], batch_size=params["session_params"]["batch_size"])
+logger.info("Train on {} samples".format(train_generator.samples))
+logger.info("Validate on {} samples".format(val_generator.samples))
 
 # ***************************************** TRAINING *****************************************
-best_o_iou = -1
-best_s_iou = -1
-# build the model
-relationships_model = ReferringRelationshipsModel(num_subjects=num_subjects, num_predicates=num_predicates,
-                                                  num_objects=num_objects)
+relationships_model = ReferringRelationshipsModel(params["model_params"])
 model = relationships_model.build_model()
-print(model.summary())
-optimizer = Adam(lr=lr)
-model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy'], optimizer=optimizer)
-
-for i in range(epochs):
-    # predict object and subject regions to evaluate the current model 
-    # these are numpy arrays 224 x 224 x 1
-    s_regions_pred, o_regions_pred = model.predict(
-            [val_images, val_relationships[:, 0], val_relationships[:, 1], val_relationships[:, 2]])
-    # compute iou for each validation example 
-    s_iou, o_iou = evaluate(s_regions_pred, o_regions_pred, train_subject_bbox, train_object_bbox, input_dim, score_thresh)
-    s_iou_mean = s_iou.mean()
-    o_iou_mean = o_iou.mean()
-    logger.info("subject iou mean : {} \nsubject accuracy for iou thresh={} : {}".format(s_iou_mean, iou_thresh, (s_iou>iou_thresh).mean()))
-    logger.info("object iou mean : {} \nobject accuracy for iou thresh={} : {}\n".format(o_iou_mean, iou_thresh, (o_iou>iou_thresh).mean()))
-    if s_iou_mean > best_s_iou:
-        logger.info("saving best subject model...")
-        model.save(os.path.join(res_dir, "best_subject_model.h5"))
-        best_s_iou = s_iou_mean
-    if o_iou_mean > best_o_iou:
-        logger.info("saving best object model...")
-        model.save(os.path.join(res_dir, "best_object_model.h5"))
-        best_o_iou = o_iou_mean
-    s_loss_hist = []
-    o_loss_hist = []
-    logger.info("Epoch {}/{}".format(i + 1, epochs))
-    if (i + 1) % step == 0:
-        lr /= 2.
-        model.optimizer.lr.assign(lr)
-    logger.info("learning rate: {}".format(lr))
-    # here I manually divide the training data in batches
-    # this is the slow part 
-    # first compute number of steps
-    nb_steps = N_train / batch_size
-    bar = progressbar.ProgressBar(maxval=nb_steps).start()
-    for j in range(nb_steps):
-        bar.update(j + 1)
-        start, end = (j * batch_size, (j + 1) * batch_size)
-        # get subset data for this batch 
-        batch_image_idx = train_image_idx[start:end]
-        batch_s_bbox = train_subject_bbox[start:end]
-        batch_o_bbox = train_object_bbox[start:end]
-        # call get_images_and_regions that returns 3 image arrays
-        # batch_images: training images as numpy array
-        # batch_s_regions: image for subject ground truth region 
-        # batch_o_regions: image for object ground truth region
-        batch_images, batch_s_regions, batch_o_regions = vrd_dataset.get_images_and_regions(batch_image_idx,
-                                                                                            batch_s_bbox, batch_o_bbox)
-        _, s_loss, o_loss = model.train_on_batch(
-                [batch_images, train_relationships[start:end, 0],
-                 train_relationships[start:end, 1],
-                 train_relationships[start:end, 2]],
-                [batch_s_regions, batch_o_regions])
-        s_loss_hist += [s_loss]
-        o_loss_hist += [o_loss]
-    bar.finish()
-    logger.info("------------------------ subject loss: {}".format(np.mean(s_loss_hist)))
-    logger.info("------------------------ object loss: {}".format(np.mean(o_loss_hist)))
+model.summary(print_fn=lambda x: logger.info(x + "\n"))
+optimizer = Adam(lr=params["session_params"]["lr"])
+model.compile(loss=[binary_ce, binary_ce], optimizer=optimizer, metrics=[iou, iou])
+checkpointer = ModelCheckpoint(
+    filepath=os.path.join(params["session_params"]["save_dir"], "model{epoch:02d}-{val_loss:.2f}.h5"), verbose=1,
+    save_best_only=True)
+history = model.fit_generator(train_generator, steps_per_epoch=int(train_generator.samples/params["session_params"]["batch_size"]), epochs=params["session_params"]["epochs"], validation_data=val_generator,
+                    validation_steps=int(val_generator.samples/params["session_params"]["batch_size"]), callbacks=[checkpointer]).history
+monitored_val = history.keys()
+for epoch in range(params["session_params"]["epochs"]):
+    res = "epoch {}/{}:".format(epoch, params["session_params"]["epochs"])
+    res += " | ".join([" x = {}".format(round(history[x][epoch], 4)) for x in monitored_val])
+    res += "\n"
+    logger.info(res)
+    # logger.info("Best validation accuracy : {}".format(round(np.max(hist['val_acc']), 4)))

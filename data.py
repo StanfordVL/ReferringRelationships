@@ -1,8 +1,8 @@
 import json
 import os
-
 import cv2
 import numpy as np
+
 from keras.applications.vgg16 import preprocess_input
 from keras.preprocessing import image
 
@@ -142,5 +142,5 @@ if __name__ == "__main__":
     train_val_split_ratio = 0.2
     vrd_dataset = VRDDataset()
     train_split, val_split = vrd_dataset.get_train_val_splits(train_val_split_ratio)
-    vrd_dataset.build_and_save_dataset(train_split, "/data/chami/VRD/train")
-    vrd_dataset.build_and_save_dataset(val_split, "/data/chami/VRD/val")
+    vrd_dataset.build_and_save_dataset(train_split, "/data/chami/VRD/overfit/train")
+    vrd_dataset.build_and_save_dataset(val_split, "/data/chami/VRD/overfit/val")
