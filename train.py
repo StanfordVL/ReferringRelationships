@@ -9,7 +9,7 @@ from keras.optimizers import Adam
 from ReferringRelationships.config import params
 from ReferringRelationships.iterator import RefRelDataIterator
 from ReferringRelationships.model import ReferringRelationshipsModel
-from ReferringRelationships.utils import format_params, get_dir_name
+from ReferringRelationships.utils import format_params, get_dir_name, format_history
 
 
 if not params["session_params"]["save_dir"]:
@@ -26,6 +26,8 @@ logger.info(format_params(params))
 
 def iou(y_true, y_pred):
     # todo: check this
+    #import ipdb;
+    #ipdb.set_trace()
     input_dim = params["model_params"]["input_dim"]
     y_true = tf.reshape(y_true, [-1, input_dim * input_dim])
     y_pred = tf.reshape(y_pred, [-1, input_dim * input_dim])
@@ -55,16 +57,13 @@ relationships_model = ReferringRelationshipsModel(params["model_params"])
 model = relationships_model.build_model()
 model.summary(print_fn=lambda x: logger.info(x + "\n"))
 optimizer = Adam(lr=params["session_params"]["lr"])
-model.compile(loss=[binary_ce, binary_ce], optimizer=optimizer, metrics=[iou, iou])
+#model.compile(loss=[binary_ce, binary_ce], optimizer=optimizer, metrics=[iou, iou])
+# TODO: fix iou
+model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=["acc", "acc"])
 checkpointer = ModelCheckpoint(
     filepath=os.path.join(params["session_params"]["save_dir"], "model{epoch:02d}-{val_loss:.2f}.h5"), verbose=1,
-    save_best_only=True)
+    save_best_only=False)
 history = model.fit_generator(train_generator, steps_per_epoch=int(train_generator.samples/params["session_params"]["batch_size"]), epochs=params["session_params"]["epochs"], validation_data=val_generator,
                     validation_steps=int(val_generator.samples/params["session_params"]["batch_size"]), callbacks=[checkpointer]).history
-monitored_val = history.keys()
-for epoch in range(params["session_params"]["epochs"]):
-    res = "epoch {}/{}:".format(epoch, params["session_params"]["epochs"])
-    res += " | ".join([" {} = {}".format(x, round(history[x][epoch], 4)) for x in monitored_val])
-    res += "\n"
-    logger.info(res)
-    # logger.info("Best validation accuracy : {}".format(round(np.max(hist['val_acc']), 4)))
+logger.info(format_history(history, params["session_params"]["epochs"]))
+# logger.info("Best validation accuracy : {}".format(round(np.max(hist['val_acc']), 4)))

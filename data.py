@@ -51,7 +51,7 @@ class VRDDataset():
         :param val_split: float, proportion of validation examples
         :return: train image ids (list) and validation image ids (list)
         """
-        image_idx = self.data.keys()[:10]
+        image_idx = self.data.keys()
         if shuffle:
             np.random.shuffle(image_idx)
         thresh = int(len(image_idx) * (1. - val_split))
@@ -93,10 +93,13 @@ class VRDDataset():
         """
         rel_idx = []
         relationships = []
+        nb_images = len(image_idx)
         for i, image_id in enumerate(image_idx):
             im_data = self.im_metadata[image_id]
+            if i%100==0:
+                print("{}/{} images processed".format(i, nb_images))
             for j, relationship in enumerate(self.data[image_id]):
-                rel_id = image_id.replace(".jpg", "") + "-{}".format(j)
+                rel_id = image_id.split(".")[0] + "-{}".format(j)
                 rel_idx += [rel_id]
                 subject_id = relationship["subject"]["category"]
                 predicate_id = relationship["predicate"]
@@ -139,8 +142,10 @@ class VRDDataset():
 
 
 if __name__ == "__main__":
-    train_val_split_ratio = 0.2
+    train_val_split_ratio = 0.1
     vrd_dataset = VRDDataset()
     train_split, val_split = vrd_dataset.get_train_val_splits(train_val_split_ratio)
-    vrd_dataset.build_and_save_dataset(train_split, "/data/chami/VRD/overfit/train")
-    vrd_dataset.build_and_save_dataset(val_split, "/data/chami/VRD/overfit/val")
+    print("building validation data...")
+    vrd_dataset.build_and_save_dataset(val_split, "/data/chami/VRD/09_09_2017/val")
+    print("building training data...")
+    vrd_dataset.build_and_save_dataset(train_split, "/data/chami/VRD/09_09_2017/train")

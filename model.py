@@ -68,9 +68,9 @@ class ReferringRelationshipsModel():
         merged = Lambda(lambda x: K.sum(x, axis=3))(merged)
         merged = Reshape(target_shape=(self.feat_map_dim, self.feat_map_dim, 1))(merged)
         upsampled = UpSampling2D(size=(self.upsampling_factor, self.upsampling_factor))(merged)
-        #flattened = Flatten()(upsampled)
-        #predictions = Activation('sigmoid')(flattened)
-        predictions = Activation('sigmoid')(upsampled)
+        flattened = Flatten()(upsampled)
+        predictions = Activation('sigmoid')(flattened)
+        #predictions = Activation('sigmoid')(upsampled)
         return predictions
 
 
