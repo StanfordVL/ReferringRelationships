@@ -1,6 +1,7 @@
 import json
 import os
 import cv2
+import argparse
 import numpy as np
 
 from keras.applications.vgg16 import preprocess_input
@@ -8,10 +9,7 @@ from keras.preprocessing import image
 
 
 class VRDDataset():
-    def __init__(self, num_subjects=100, num_predicates=70, num_objects=100,
-                 data_path="data/VRD/annotations_train.json", im_dim=224,
-                 img_path='/data/chami/VRD/sg_dataset/sg_train_images/{}',
-                 im_metadata_path="data/VRD/image_metadata.json"):
+    def __init__(self, data_path, img_path, im_metadata_path, num_subjects=100, num_predicates=70, num_objects=100, im_dim=224):
         self.data = json.load(open(data_path))
         self.im_metadata = json.load(open(im_metadata_path))
         self.im_dim = im_dim
@@ -84,7 +82,7 @@ class VRDDataset():
                 objects_bbox += [o_region]
         return np.array(image_ids), np.array(relationships), np.array(subjects_bbox), np.array(objects_bbox)
 
-    def build_and_save_dataset(self, image_idx, save_dir):
+    def build_and_save_dataset(self, save_dir, image_idx=None):
         """
         :param image_idx: list of image ids
         :return: images ids (each image ids is repeated for each relationship within that image),
@@ -93,6 +91,8 @@ class VRDDataset():
         """
         rel_idx = []
         relationships = []
+        if not image_idx:
+            image_idx = self.data.keys()
         nb_images = len(image_idx)
         for i, image_id in enumerate(image_idx):
             im_data = self.im_metadata[image_id]
@@ -142,10 +142,28 @@ class VRDDataset():
 
 
 if __name__ == "__main__":
-    train_val_split_ratio = 0.1
-    vrd_dataset = VRDDataset()
-    train_split, val_split = vrd_dataset.get_train_val_splits(train_val_split_ratio)
-    print("building validation data...")
-    vrd_dataset.build_and_save_dataset(val_split, "/data/chami/VRD/09_09_2017/val")
-    print("building training data...")
-    vrd_dataset.build_and_save_dataset(train_split, "/data/chami/VRD/09_09_2017/train")
+    parser = argparse.ArgumentParser(description='Dataset creation for Visual Relationship model. This scripts saves masks for objects and subjects in directories, as well as numpy arrays for relationships.')
+    parser.add_argument('--test', help='when true, the data is not split into training and validation sets')
+    parser.add_argument('val_split', type=float, default=0.1, help='validation split')
+    parser.add_argument('save_dir', type=str, help='where to save the ground truth masks, this directory should exist')
+    parser.add_argument('img_dir', type=str, help='images directory')
+    parser.add_argument('annotations', default="data/VRD/annotations_train.json",type=str, help='json with relationships for each image')
+    parser.add_argument('image_metadata', default="data/VRD/image_metadata.json", type=str, help='image metadata json file')
+    args = parser.parse_args()
+    img_path = os.path.join(args.img_dir, "{}")
+    vrd_dataset = VRDDataset(args.annotations, img_path, args.image_metadata)
+    if args.test:
+        test_dir = os.path.join(args.save_dir, "test")
+        os.mkdir(test_dir)
+        vrd_dataset.build_and_save_dataset(test_dir)
+    else:
+        train_split, val_split = vrd_dataset.get_train_val_splits(args.val_split)
+        train_dir = os.path.join(args.save_dir, "train")
+        os.mkdir(train_dir)
+        print("building training data...")
+        vrd_dataset.build_and_save_dataset(train_split, train_dir)
+        val_dir = os.path.join(args.save_dir, "val")
+        os.mkdir(val_dir)
+        print("building validation data...")
+        vrd_dataset.build_and_save_dataset(val_split, val_dir)
+

@@ -24,16 +24,11 @@ logger.addHandler(fh)
 logger.info(format_params(params))
 
 
-def iou(y_true, y_pred):
+def iou(y_true, y_pred, score_threshold):
     # todo: check this
-    #import ipdb;
-    #ipdb.set_trace()
-    input_dim = params["model_params"]["input_dim"]
-    y_true = tf.reshape(y_true, [-1, input_dim * input_dim])
-    y_pred = tf.reshape(y_pred, [-1, input_dim * input_dim])
-    y_pred = tf.cast(y_pred > params["eval_params"]["score_thresh"], tf.float32)
+    y_pred = tf.cast(y_pred > score_threshold, tf.float32)
     intersection = tf.cast(y_true * y_pred > 0, tf.float32)
-    union = tf.cast(y_true + y_pred, tf.float32)
+    union = tf.cast(y_true + y_pred > 0, tf.float32)
     iou_values = K.sum(intersection, axis=-1) / K.sum(union, axis=-1)
     return K.mean(iou_values)
 
@@ -59,7 +54,7 @@ model.summary(print_fn=lambda x: logger.info(x + "\n"))
 optimizer = Adam(lr=params["session_params"]["lr"])
 #model.compile(loss=[binary_ce, binary_ce], optimizer=optimizer, metrics=[iou, iou])
 # TODO: fix iou
-model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=["acc", "acc"])
+model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=["acc", iou(score_threshold=0.5)])
 checkpointer = ModelCheckpoint(
     filepath=os.path.join(params["session_params"]["save_dir"], "model{epoch:02d}-{val_loss:.2f}.h5"), verbose=1,
     save_best_only=False)

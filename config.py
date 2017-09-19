@@ -22,7 +22,7 @@ params = {
         "image_data_dir": "/data/chami/VRD/sg_dataset/sg_train_images/"
     },
     "eval_params": {
-        "score_thresh": 0.9,
+        "score_thresh": [0.5, 0.7, 0.9],
         "iou_thresh": 0.5
     }
 }
