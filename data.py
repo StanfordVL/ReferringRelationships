@@ -49,7 +49,7 @@ class VRDDataset():
         :param val_split: float, proportion of validation examples
         :return: train image ids (list) and validation image ids (list)
         """
-        image_idx = self.data.keys()
+        image_idx = list(self.data.keys())
         if shuffle:
             np.random.shuffle(image_idx)
         thresh = int(len(image_idx) * (1. - val_split))
@@ -143,12 +143,12 @@ class VRDDataset():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Dataset creation for Visual Relationship model. This scripts saves masks for objects and subjects in directories, as well as numpy arrays for relationships.')
-    parser.add_argument('--test', help='when true, the data is not split into training and validation sets')
-    parser.add_argument('val_split', type=float, default=0.1, help='validation split')
-    parser.add_argument('save_dir', type=str, help='where to save the ground truth masks, this directory should exist')
-    parser.add_argument('img_dir', type=str, help='images directory')
-    parser.add_argument('annotations', default="data/VRD/annotations_train.json",type=str, help='json with relationships for each image')
-    parser.add_argument('image_metadata', default="data/VRD/image_metadata.json", type=str, help='image metadata json file')
+    parser.add_argument('--test', action='store_true', help='when true, the data is not split into training and validation sets')
+    parser.add_argument('--val_split', type=float, default=0.1, help='validation split')
+    parser.add_argument('--save_dir', type=str, help='where to save the ground truth masks, this directory should exist')
+    parser.add_argument('--img_dir', type=str, help='images directory')
+    parser.add_argument('--annotations', default="data/VRD/annotations_train.json",type=str, help='json with relationships for each image')
+    parser.add_argument('--image_metadata', default="data/VRD/image_metadata.json", type=str, help='image metadata json file')
     args = parser.parse_args()
     img_path = os.path.join(args.img_dir, "{}")
     vrd_dataset = VRDDataset(args.annotations, img_path, args.image_metadata)
@@ -161,9 +161,9 @@ if __name__ == "__main__":
         train_dir = os.path.join(args.save_dir, "train")
         os.mkdir(train_dir)
         print("building training data...")
-        vrd_dataset.build_and_save_dataset(train_split, train_dir)
+        vrd_dataset.build_and_save_dataset(train_dir, train_split)
         val_dir = os.path.join(args.save_dir, "val")
         os.mkdir(val_dir)
         print("building validation data...")
-        vrd_dataset.build_and_save_dataset(val_split, val_dir)
+        vrd_dataset.build_and_save_dataset(val_dir, val_split)
 
