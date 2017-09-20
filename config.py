@@ -3,8 +3,8 @@ params = {
     "session_params": {
         "lr": 0.005,
         "batch_size": 64,
-        "epochs": 50,
-        "save_dir": "/data/chami/ReferringRelationships/models/09_09_2017",
+        "epochs": 3,
+        "save_dir": "/data/chami/ReferringRelationships/09_20_2017",
         "models_dir": "/data/chami/ReferringRelationships/models"
     },
     "model_params": {
@@ -17,12 +17,11 @@ params = {
         "num_objects": 100
     },
     "data_params": {
-        "train_data_dir": "/data/chami/VRD/09_09_2017/train/",
+        "train_data_dir": "/data/chami/VRD/09_09_2017/val/",
         "val_data_dir": "/data/chami/VRD/09_09_2017/val/",
         "image_data_dir": "/data/chami/VRD/sg_dataset/sg_train_images/"
     },
     "eval_params": {
-        "score_thresh": [0.5, 0.7, 0.9],
-        "iou_thresh": 0.5
+        "score_thresh": [0.5, 0.7, 0.9]
     }
 }
