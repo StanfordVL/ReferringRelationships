@@ -10,7 +10,7 @@ from ReferringRelationships.config import params
 from ReferringRelationships.iterator import RefRelDataIterator
 from ReferringRelationships.model import ReferringRelationshipsModel
 from ReferringRelationships.utils.train_utils import format_params, get_dir_name, format_history
-from ReferringRelationships.utils.eval_utils import iou_5, iou_7, iou_9
+from ReferringRelationships.utils.eval_utils import iou_3, iou_5, iou_7, iou_9
 
 if not params["session_params"]["save_dir"]:
     params["session_params"]["save_dir"] = get_dir_name(params["session_params"]["models_dir"])
@@ -24,21 +24,6 @@ logger.addHandler(fh)
 logger.info(format_params(params))
 
 
-def iou_5(y_true, y_pred):
-    # todo: check this
-    y_pred = tf.cast(y_pred > 0.5, tf.float32)
-    intersection = tf.cast(y_true * y_pred > 0, tf.float32)
-    union = tf.cast(y_true + y_pred > 0, tf.float32)
-    iou_values = K.sum(intersection, axis=-1) / K.sum(union, axis=-1)
-    return K.mean(iou_values)
-
-
-def binary_ce(y_true, y_pred):
-    # todo: check how to compuye ce with multidimensinal tensors
-    input_dim = params["model_params"]["input_dim"]
-    ce = K.binary_crossentropy(y_true, y_pred)
-    ce = tf.reshape(ce, [-1, input_dim * input_dim])
-    return K.mean(ce, axis=-1)
 
 
 # ******************************************* DATA *******************************************
@@ -47,14 +32,13 @@ val_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], para
 logger.info("Train on {} samples".format(train_generator.samples))
 logger.info("Validate on {} samples".format(val_generator.samples))
 
+
 # ***************************************** TRAINING *****************************************
 relationships_model = ReferringRelationshipsModel(params["model_params"])
 model = relationships_model.build_model()
 model.summary(print_fn=lambda x: logger.info(x + "\n"))
 optimizer = Adam(lr=params["session_params"]["lr"])
-#model.compile(loss=[binary_ce, binary_ce], optimizer=optimizer, metrics=[iou, iou])
-# TODO: fix iou
-model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=["acc", iou_5, iou_7, iou_9])
+model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=["acc", iou_3, iou_5, iou_7, iou_9])
 checkpointer = ModelCheckpoint(
     filepath=os.path.join(params["session_params"]["save_dir"], "model{epoch:02d}-{val_loss:.2f}.h5"), verbose=1,
     save_best_only=False)

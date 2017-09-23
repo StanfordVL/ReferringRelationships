@@ -1,23 +1,32 @@
 import tensorflow as tf
 from keras import backend as K 
 
-def iou_5(y_true, y_pred):
-    y_pred = tf.cast(y_pred > 0.5, tf.float32)
-    intersection = tf.cast(y_true * y_pred > 0, tf.float32)
-    union = tf.cast(y_true + y_pred > 0, tf.float32)
-    iou_values = K.sum(intersection, axis=-1) / K.sum(union, axis=-1)
+def iou(y_true, y_pred, thresh):
+    pred = K.cast(K.greater(y_pred, thresh), "float32")
+    intersection = y_true * pred
+    union = K.cast(K.greater(y_true + pred, 0), "float32")
+    iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
+
+
+def iou_3(y_true, y_pred):
+    return iou(y_true, y_pred, 0.3)
+
+
+def iou_5(y_true, y_pred):
+    return iou(y_true, y_pred, 0.5)
+
 
 def iou_7(y_true, y_pred):
-    y_pred = tf.cast(y_pred > 0.7, tf.float32)
-    intersection = tf.cast(y_true * y_pred > 0, tf.float32)
-    union = tf.cast(y_true + y_pred > 0, tf.float32)
-    iou_values = K.sum(intersection, axis=-1) / K.sum(union, axis=-1)
-    return K.mean(iou_values)
+    return iou(y_true, y_pred, 0.7)
+
 
 def iou_9(y_true, y_pred):
-    y_pred = tf.cast(y_pred > 0.9, tf.float32)
-    intersection = tf.cast(y_true * y_pred > 0, tf.float32)
-    union = tf.cast(y_true + y_pred > 0, tf.float32)
-    iou_values = K.sum(intersection, axis=-1) / K.sum(union, axis=-1)
-    return K.mean(iou_values)
+    return iou(y_true, y_pred, 0.9)
+
+if __name__ == "__main__":
+    import numpy as np;
+    x = np.random.random((5, 3)) 
+    y = np.ones((5, 3))
+    tf.InteractiveSession()
+    print(iou_5(y, x).eval())
