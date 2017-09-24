@@ -1,7 +1,7 @@
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, Flatten, UpSampling2D, Reshape, Input, Activation
-from keras.layers.core import Lambda
+from keras.layers.core import Lambda, Dropout
 from keras.layers.convolutional import Conv2DTranspose
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Dot, Concatenate, Multiply
@@ -17,6 +17,7 @@ class ReferringRelationshipsModel():
         self.num_subjects = model_params["num_subjects"]
         self.num_predicates = model_params["num_predicates"]
         self.num_objects = model_params["num_objects"]
+        self.p_drop = model_params["p_drop"]
         self.upsampling_factor = self.input_dim / self.feat_map_dim
 
     def build_model(self):
@@ -26,10 +27,11 @@ class ReferringRelationshipsModel():
         input_subj = Input(shape=(1,))
         images = self.build_image_model()(input_im)
         relationships = self.build_relationship_model(input_subj, input_rel, input_obj)
+        relationships = Dropout(self.p_drop)(relationships)
         subjects_att = Dense(self.hidden_dim, activation='relu')(relationships)
         objects_att = Dense(self.hidden_dim, activation='relu')(relationships)
-        # subjects_att = Dropout(0.2)(subjects_att)
-        # objects_att = Dropout(0.2)(objects_att)
+        subjects_att = Dropout(self.p_drop)(subjects_att)
+        objects_att = Dropout(self.p_drop)(objects_att)
         subject_regions = self.build_attention_layer_2(images, subjects_att)
         object_regions = self.build_attention_layer_2(images, objects_att)
         model = Model(inputs=[input_im, input_subj, input_rel, input_obj], outputs=[subject_regions, object_regions])
@@ -53,6 +55,8 @@ class ReferringRelationshipsModel():
         predicate_embedding = self.build_embedding_layer(input_rel, self.num_predicates)
         obj_embedding = self.build_embedding_layer(input_obj, self.num_objects)
         concatenated_inputs = Concatenate(axis=2)([subj_embedding, predicate_embedding, obj_embedding])
+        concatenated_inputs = Dropout(self.p_drop)(concatenated_inputs)
+        concatenated_inputs = Dense(self.hidden_dim)(concatenated_inputs)
         return concatenated_inputs
 
     def build_attention_layer_1(self, images, relationships):
@@ -79,12 +83,8 @@ class ReferringRelationshipsModel():
         upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
         upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
         upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
-        #upsampled = Conv2DTranspose(1, 3, strides=(1, 1), padding='valid', dilation_rate=(2, 2))(merged)
-        #upsampled = Conv2DTranspose(1, 3, strides=(1, 1), padding='valid', dilation_rate=(2, 2))(upsampled)
-        #upsampled = UpSampling2D(size=(self.upsampling_factor, self.upsampling_factor))(merged)
         flattened = Flatten()(upsampled)
         predictions = Activation('sigmoid')(flattened)
-        #predictions = Activation('sigmoid')(upsampled)
         return predictions
 
 

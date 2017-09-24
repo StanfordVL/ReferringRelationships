@@ -6,12 +6,13 @@ import numpy as np
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
+from keras.callbacks import TensorBoard
 
 from ReferringRelationships.config import params
 from ReferringRelationships.iterator import RefRelDataIterator
 from ReferringRelationships.model import ReferringRelationshipsModel
 from ReferringRelationships.utils.train_utils import format_params, get_dir_name, format_history
-from ReferringRelationships.utils.eval_utils import iou_3, iou_5, iou_7, iou_9
+from ReferringRelationships.utils.eval_utils import iou_acc_5, iou_3, iou_5, iou_7, iou_9
 
 if not params["session_params"]["save_dir"]:
     params["session_params"]["save_dir"] = get_dir_name(params["session_params"]["models_dir"])
@@ -23,8 +24,6 @@ logger = logging.getLogger(__name__)
 fh = logging.FileHandler(os.path.join(params["session_params"]["save_dir"], 'train.log'))
 logger.addHandler(fh)
 logger.info(format_params(params))
-
-
 
 
 # ******************************************* DATA *******************************************
@@ -39,11 +38,12 @@ relationships_model = ReferringRelationshipsModel(params["model_params"])
 model = relationships_model.build_model()
 model.summary(print_fn=lambda x: logger.info(x + "\n"))
 optimizer = Adam(lr=params["session_params"]["lr"])
-model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=["acc", iou_3, iou_5, iou_7, iou_9])
+model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=[iou_acc_5, iou_3, iou_5])
+tb_callback = TensorBoard(log_dir=params["session_params"]["save_dir"])
 checkpointer = ModelCheckpoint(
     filepath=os.path.join(params["session_params"]["save_dir"], "model{epoch:02d}-{val_loss:.2f}.h5"), verbose=1,
     save_best_only=False)
 history = model.fit_generator(train_generator, steps_per_epoch=int(train_generator.samples/params["session_params"]["batch_size"]), epochs=params["session_params"]["epochs"], validation_data=val_generator,
-                    validation_steps=int(val_generator.samples/params["session_params"]["batch_size"]), callbacks=[checkpointer]).history
+                    validation_steps=int(val_generator.samples/params["session_params"]["batch_size"]), callbacks=[checkpointer, tb_callback]).history
 logger.info(format_history(history, params["session_params"]["epochs"]))
 logger.info("Best validation loss: {}".format(round(np.min(history['val_loss']), 4)))
