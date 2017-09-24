@@ -1,5 +1,5 @@
 from keras import backend as K
-from keras.applications.vgg16 import VGG16
+from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, Flatten, UpSampling2D, Reshape, Input, Activation
 from keras.layers.core import Lambda
 from keras.layers.convolutional import Conv2DTranspose
@@ -36,10 +36,10 @@ class ReferringRelationshipsModel():
         return model
 
     def build_image_model(self):
-        base_model = VGG16(weights='imagenet', include_top=False, input_shape=(self.input_dim, self.input_dim, 3))
+        base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
-        output = base_model.get_layer('block5_conv3').output
+        output = base_model.get_layer('activation_40').output
         output = Dense(self.hidden_dim)(output)
         image_branch = Model(inputs=base_model.input, outputs=output)
         return image_branch
