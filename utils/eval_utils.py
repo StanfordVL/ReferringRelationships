@@ -26,7 +26,9 @@ def iou_9(y_true, y_pred):
 
 if __name__ == "__main__":
     import numpy as np;
-    x = np.random.random((5, 3)) 
-    y = np.ones((5, 3))
+    x = np.random.random((3, 2))
+    y = np.array([[0., 1.],[1., 1.],[1., 0.]])
+    print(x)
+    print(y)
     tf.InteractiveSession()
-    print(iou_5(y, x).eval())
+    print(iou_5(y, y).eval())

@@ -2,6 +2,7 @@ from keras import backend as K
 from keras.applications.vgg16 import VGG16
 from keras.layers import Dense, Flatten, UpSampling2D, Reshape, Input, Activation
 from keras.layers.core import Lambda
+from keras.layers.convolutional import Conv2DTranspose
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Dot, Concatenate, Multiply
 from keras.models import Model
@@ -63,11 +64,24 @@ class ReferringRelationshipsModel():
         predictions = Activation('sigmoid')(flattened)
         return predictions
 
+    def build_frac_strided_transposed_conv_layer(self, conv_layer):
+        res = UpSampling2D(size=(2, 2))(conv_layer)
+        res = Conv2DTranspose(1, 3, padding='same')(res)
+        #res = BatchNormalization(momentum=0.9))(res)
+        #res = Activation('relu')(res)
+        return res
+
     def build_attention_layer_2(self, images, relationships):
         merged = Multiply()([images, relationships])
         merged = Lambda(lambda x: K.sum(x, axis=3))(merged)
         merged = Reshape(target_shape=(self.feat_map_dim, self.feat_map_dim, 1))(merged)
-        upsampled = UpSampling2D(size=(self.upsampling_factor, self.upsampling_factor))(merged)
+        upsampled = self.build_frac_strided_transposed_conv_layer(merged)
+        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
+        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
+        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
+        #upsampled = Conv2DTranspose(1, 3, strides=(1, 1), padding='valid', dilation_rate=(2, 2))(merged)
+        #upsampled = Conv2DTranspose(1, 3, strides=(1, 1), padding='valid', dilation_rate=(2, 2))(upsampled)
+        #upsampled = UpSampling2D(size=(self.upsampling_factor, self.upsampling_factor))(merged)
         flattened = Flatten()(upsampled)
         predictions = Activation('sigmoid')(flattened)
         #predictions = Activation('sigmoid')(upsampled)

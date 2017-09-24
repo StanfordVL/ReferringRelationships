@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import tensorflow as tf
+import numpy as np
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
@@ -45,4 +46,4 @@ checkpointer = ModelCheckpoint(
 history = model.fit_generator(train_generator, steps_per_epoch=int(train_generator.samples/params["session_params"]["batch_size"]), epochs=params["session_params"]["epochs"], validation_data=val_generator,
                     validation_steps=int(val_generator.samples/params["session_params"]["batch_size"]), callbacks=[checkpointer]).history
 logger.info(format_history(history, params["session_params"]["epochs"]))
-# logger.info("Best validation accuracy : {}".format(round(np.max(hist['val_acc']), 4)))
+logger.info("Best validation loss: {}".format(round(np.min(history['val_loss']), 4)))
