@@ -50,6 +50,12 @@ def iou_3(y_true, y_pred):
 def iou_5(y_true, y_pred):
     return iou(y_true, y_pred, 0.5)
 
+def iou_7(y_true, y_pred):
+    return iou(y_true, y_pred, 0.7)
+
+def iou_9(y_true, y_pred):
+    return iou(y_true, y_pred, 0.9)
+
 def iou_acc_3(y_true, y_pred):
     return iou_acc(y_true, y_pred, 0.3)
 
