@@ -17,28 +17,25 @@ def iou_acc(y_true, y_pred, thresh):
     return K.mean(acc)
 
 def iou_bbox(y_true, y_pred, thresh):
+    # TODO
     pred = K.cast(K.greater(y_pred, thresh), "float32")    
     pred = K.reshape(pred, (pred.shape[0], 224, 224))
-    pass
+    horiz = K.sum(pred, axis=1)
+    vert = K.sum(pred, axis=2)
+    
 
 def iou_3(y_true, y_pred):
     return iou(y_true, y_pred, 0.3)
 
-
 def iou_5(y_true, y_pred):
     return iou(y_true, y_pred, 0.5)
 
+def iou_acc_3(y_true, y_pred):
+    return iou_acc(y_true, y_pred, 0.3)
 
 def iou_acc_5(y_true, y_pred):
     return iou_acc(y_true, y_pred, 0.5)
 
-
-def iou_7(y_true, y_pred):
-    return iou(y_true, y_pred, 0.7)
-
-
-def iou_9(y_true, y_pred):
-    return iou(y_true, y_pred, 0.9)
 
 if __name__ == "__main__":
     import numpy as np;

@@ -49,6 +49,7 @@ class VRDDataset():
         :param val_split: float, proportion of validation examples
         :return: train image ids (list) and validation image ids (list)
         """
+        #TODO: Add seed
         image_idx = list(self.data.keys())
         if shuffle:
             np.random.shuffle(image_idx)

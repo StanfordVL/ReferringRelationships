@@ -18,7 +18,6 @@ class ReferringRelationshipsModel():
         self.num_predicates = model_params["num_predicates"]
         self.num_objects = model_params["num_objects"]
         self.p_drop = model_params["p_drop"]
-        self.upsampling_factor = self.input_dim / self.feat_map_dim
 
     def build_model(self):
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
@@ -58,15 +57,6 @@ class ReferringRelationshipsModel():
         concatenated_inputs = Dropout(self.p_drop)(concatenated_inputs)
         concatenated_inputs = Dense(self.hidden_dim)(concatenated_inputs)
         return concatenated_inputs
-
-    def build_attention_layer_1(self, images, relationships):
-        images = Reshape(target_shape=(self.feat_map_dim * self.feat_map_dim, self.hidden_dim))(images)  # (196)x100
-        merged = Dot(axes=(2, 2))([images, relationships])
-        reshaped = Reshape(target_shape=(self.feat_map_dim, self.feat_map_dim, 1))(merged)
-        upsampled = UpSampling2D(size=(self.upsampling_factor, self.upsampling_factor))(reshaped)
-        flattened = Flatten()(upsampled)
-        predictions = Activation('sigmoid')(flattened)
-        return predictions
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
         res = UpSampling2D(size=(2, 2))(conv_layer)
