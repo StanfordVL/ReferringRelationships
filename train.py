@@ -9,7 +9,7 @@ from keras.optimizers import Adam
 from config import parse_args
 from iterator import RefRelDataIterator
 from model import ReferringRelationshipsModel
-from utils.eval_utils import iou_acc_3, iou_3
+from utils.eval_utils import iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5, iou_bbox_6
 from utils.train_utils import format_args, get_dir_name, format_history, get_opt
 
 import json
@@ -57,7 +57,6 @@ if __name__=='__main__':
     logging.info('Train on {} samples'.format(train_generator.samples))
     logging.info('Validate on {} samples'.format(val_generator.samples))
 
-
     # Start training
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
@@ -65,7 +64,8 @@ if __name__=='__main__':
     optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
     model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
                   optimizer=optimizer,
-                  metrics=[iou_acc_3, iou_3])
+                  metrics=[iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5,
+                           iou_bbox_6])
     tb_callback = TensorBoard(log_dir=args.save_dir)
     checkpointer = ModelCheckpoint(
         filepath=os.path.join(
