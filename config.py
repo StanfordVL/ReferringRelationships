@@ -76,4 +76,7 @@ if __name__=='__main__':
     """Testing that the arguments in fact do get parsed.
     """
     args = parse_args()
-    print args
+    args = args.__dict__
+    print "Arguments:"
+    for k in args:
+        print '\t%15s:\t%s' % (k, args[k])
