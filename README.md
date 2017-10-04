@@ -27,6 +27,7 @@ python data.py [-h] [--test TEST] val_split save_dir img_dir annotations image_m
 
 Change the configuration parameters in config.py
 
+```
 optional arguments:
   -h, --help            Show this help message and exit
   --opt                 The optimizer used during training. Currently supports
@@ -51,6 +52,7 @@ optional arguments:
   --train-data-dir      Location of the training data.
   --val-data-dir        Location of the validation data.
   --image-data-dir      Location of the images.
+```
 
 ## Model training
 
