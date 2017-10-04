@@ -7,7 +7,7 @@ params = {
         "batch_size": 128,
         "epochs": 100,
         "save_dir": "test", #"/data/chami/ReferringRelationships/09_20_2017",
-        "models_dir": "/data/chami/ReferringRelationships/models/09_24_2017", 
+        "models_dir": "/data/chami/ReferringRelationships/models/10_04_2017", 
         "save_best_only": True
     },
     "model_params": {

@@ -11,7 +11,7 @@ from ReferringRelationships.config import params
 from ReferringRelationships.iterator import RefRelDataIterator
 from ReferringRelationships.model import ReferringRelationshipsModel
 from ReferringRelationships.utils.train_utils import format_params, get_dir_name, format_history, get_opt
-from ReferringRelationships.utils.eval_utils import iou_acc_3, iou_3
+from ReferringRelationships.utils.eval_utils import iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5, iou_bbox_6
 
 if not params["session_params"]["save_dir"]:
     params["session_params"]["save_dir"] = get_dir_name(params["session_params"]["models_dir"])
@@ -37,7 +37,7 @@ relationships_model = ReferringRelationshipsModel(params["model_params"])
 model = relationships_model.build_model()
 model.summary(print_fn=lambda x: logger.info(x + "\n"))
 optimizer = get_opt(opt=params["session_params"]["opt"], lr=params["session_params"]["lr"], lr_decay=params["session_params"]["lr_decay"])
-model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=[iou_acc_3, iou_3])
+model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=[iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5, iou_bbox_6])
 tb_callback = TensorBoard(log_dir=params["session_params"]["save_dir"])
 checkpointer = ModelCheckpoint(
     filepath=os.path.join(params["session_params"]["save_dir"], "model{epoch:02d}-{val_loss:.2f}.h5"), verbose=1,
