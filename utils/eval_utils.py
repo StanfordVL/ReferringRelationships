@@ -71,6 +71,34 @@ def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
 
+def iou_bbox_3(y_true, y_pred):
+    return iou_bbox(y_true, y_pred, 0.3)
+    
+def iou_bbox_5(y_true, y_pred):
+    return iou_bbox(y_true, y_pred, 0.5)
+
+def iou_bbox_6(y_true, y_pred):
+    return iou_bbox(y_true, y_pred, 0.6)
+
+def iou_3(y_true, y_pred):
+    return iou(y_true, y_pred, 0.3)
+
+def iou_5(y_true, y_pred):
+    return iou(y_true, y_pred, 0.5)
+
+def iou_7(y_true, y_pred):
+    return iou(y_true, y_pred, 0.7)
+
+def iou_9(y_true, y_pred):
+    return iou(y_true, y_pred, 0.9)
+
+def iou_acc_3(y_true, y_pred):
+    return iou_acc(y_true, y_pred, 0.3)
+
+def iou_acc_5(y_true, y_pred):
+    return iou_acc(y_true, y_pred, 0.5)
+
+
 if __name__ == "__main__":
     import numpy as np;
     x = np.random.random((3, 3))
