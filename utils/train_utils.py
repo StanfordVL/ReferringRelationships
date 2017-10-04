@@ -50,7 +50,7 @@ def get_opt(opt, lr, lr_decay):
         raise ValueError("optimizer name not recognized")
 
 
-def format_params(args):
+def format_args(args):
     """Formats the command line arguments so that they can be logged.
 
     Args:
@@ -60,10 +60,11 @@ def format_params(args):
         A formatted human readable string representation of the arguments.
     """
     formatted_args = ""
+    args = args.__dict__
     for key in args.keys():
-        formatted_params += "{} : {} \n".format(x, args[key])
-        formatted_params += "\n"
-    return formatted_params
+        formatted_args += "{} : {} \n".format(key, args[key])
+        formatted_args += "\n"
+    return formatted_args
 
 
 def format_history(history, epochs):
