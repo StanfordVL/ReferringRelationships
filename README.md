@@ -52,6 +52,8 @@ optional arguments:
   --train-data-dir      Location of the training data.
   --val-data-dir        Location of the validation data.
   --image-data-dir      Location of the images.
+  --heatmap-threshold   The thresholds above which we consider a heatmap to
+                        contain an object.
 ```
 
 ## Model training

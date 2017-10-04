@@ -70,6 +70,12 @@ def parse_args():
                         default='/data/chami/VRD/sg_dataset/sg_train_images/',
                         help='Location of the images.')
 
+    # Eval parameters.
+    parser.add_argument('--heatmap-threshold', type=float, nargs='+',
+                        default=[0.3, 0.5, 0.6],
+                        help='The thresholds above which we consider '
+                        'a heatmap to contain an object.')
+
     # Parse arguments and return.
     args = parser.parse_args()
     return args

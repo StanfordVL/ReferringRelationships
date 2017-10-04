@@ -9,12 +9,13 @@ from keras.optimizers import Adam
 from config import parse_args
 from iterator import RefRelDataIterator
 from model import ReferringRelationshipsModel
-from utils.eval_utils import iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5, iou_bbox_6
+from utils.eval_utils import iou_acc, iou, iou_bbox
 from utils.train_utils import format_args, get_dir_name, format_history, get_opt
 
 import json
 import logging
 import numpy as np
+import sys
 import os
 
 
@@ -30,9 +31,10 @@ if __name__=='__main__':
         args.save_dir = get_dir_name(args.models_dir)
 
     # If the save directory does exists, don't launch the training script.
-    if os.path.exists(args.save_dir):
+    if os.path.isdir(args.save_dir):
         print('The directory %s already exists. Exiting training!'
               % args.save_dir)
+        sys.exit(0)
 
     # Otherwise, create the directory and start training.
     os.mkdir(args.save_dir)
@@ -57,6 +59,17 @@ if __name__=='__main__':
     logging.info('Train on {} samples'.format(train_generator.samples))
     logging.info('Validate on {} samples'.format(val_generator.samples))
 
+    # Setup all the metrics we want to report. The names of the metrics need to
+    # be set so that Keras can log them correctly.
+    metrics = []
+    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, args.input_dim)
+    iou_bbox_metric.__name__ = 'iou_bbox'
+    for metric_func in [iou, iou_acc, iou_bbox_metric]:
+        for thresh in args.heatmap_threshold:
+            metric = lambda gt, pred: metric_func(gt, pred, thresh)
+            metric.__name__ = metric_func.__name__ + '_' + str(thresh)
+            metrics.append(metric)
+
     # Start training
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
@@ -64,8 +77,7 @@ if __name__=='__main__':
     optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
     model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
                   optimizer=optimizer,
-                  metrics=[iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5,
-                           iou_bbox_6])
+                  metrics=metrics)
     tb_callback = TensorBoard(log_dir=args.save_dir)
     checkpointer = ModelCheckpoint(
         filepath=os.path.join(
