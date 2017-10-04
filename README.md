@@ -2,28 +2,55 @@
 
 ## Environment Variables
 
-First, set environment variables
+First, set the environment variables. You might have to change these
+ depending on where you have your LD LIBRARY and PYTHON PATHS set in
+ your machine.
 
-```cd ReferringRelationships```
-```source set_env.sh```
+```
+cd ReferringRelationships
+source set_env.sh
+```
 
 ## Building the dataset
 
-Then, create the dataset for the Visual Relationship model. The script data.py will save masks for
-objects and subjects in train/val/test directories that will be created in the directory --save_dir.
-The script also saves numpy arrays for relationships.
+Next, create the dataset for the Visual Relationship model.
+ The script `data.py` will save masks for objects and subjects
+ in train/val/test directories that will be created in the directory
+ `--save-dir`. The script also saves numpy arrays for relationships.
 
-```usage: data.py [-h] [--test TEST] val_split save_dir img_dir annotations image_metadata```
+Usage:
+```
+python data.py [-h] [--test TEST] val_split save_dir img_dir annotations image_metadata
+```
 
 ## Model Configuration
 
 Change the configuration parameters in config.py
 
-* models_dir: Directory where to save the models
-* save_dir: If this is None, the script will create sub-directories into models_dir directory for each experiment, otherwise, use a path to save the model in a specific directory.
-* train_data_dir: train directory that has relationships as numpy arrays and ground truth masks for objects and subjects. This directory was created with data.py above.
-* val_data_dir: validation directory that has relationships as numpy arrays and ground truth masks for objects and subjects. This directory was created with data.py above.
-* image_data_dir: images directory that has jpg files for images. 
+optional arguments:
+  -h, --help            Show this help message and exit
+  --opt                 The optimizer used during training. Currently supports
+                        rms, adam, adagrad and adadelta.
+  --lr                  The learning rate for training.
+  --lr_decay            The learning rate decay.
+  --batch-size          The batch size used in training.
+  --epochs              The number of epochs to train.
+  --save-dir            The location to save the model and the results.
+  --models-dir          The location of the model weights
+  --use-models-dir      Indicates that new models can be saved in the models
+                        directory set by --models-dir.
+  --save-best-only      Saves only the best model checkpoint.
+  --embedding-dim       Number of dimensions in our class embeddings.
+  --hidden-dim          Number of dimensions in the hidden unit.
+  --feat-map-dim        The size of the feature map extracted from the image.
+  --input-dim           Size of the input image.
+  --num-subjects        The number of subjects in the dataset.
+  --num-predicates      The number of predicates in the dataset.
+  --num-objects         The number of objects in the dataset.
+  --dropout             The dropout probability used in training.
+  --train-data-dir      Location of the training data.
+  --val-data-dir        Location of the validation data.
+  --image-data-dir      Location of the images.
 
 ## Model training
 
