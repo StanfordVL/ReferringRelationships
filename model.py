@@ -18,12 +18,13 @@ class ReferringRelationshipsModel():
         self.num_predicates = model_params["num_predicates"]
         self.num_objects = model_params["num_objects"]
         self.p_drop = model_params["p_drop"]
+        self.use_predicate = model_params["use_predicate"]
 
     def build_model(self):
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_rel = Input(shape=(1,))
         input_obj = Input(shape=(1,))
         input_subj = Input(shape=(1,))
+        input_rel = Input(shape=(1,))
         images = self.build_image_model()(input_im)
         relationships = self.build_relationship_model(input_subj, input_rel, input_obj)
         relationships = Dropout(self.p_drop)(relationships)
@@ -33,6 +34,7 @@ class ReferringRelationshipsModel():
         objects_att = Dropout(self.p_drop)(objects_att)
         subject_regions = self.build_attention_layer_2(images, subjects_att, "subject")
         object_regions = self.build_attention_layer_2(images, objects_att, "object")
+        
         model = Model(inputs=[input_im, input_subj, input_rel, input_obj], outputs=[subject_regions, object_regions])
         return model
 
@@ -51,9 +53,12 @@ class ReferringRelationshipsModel():
 
     def build_relationship_model(self, input_subj, input_rel, input_obj):
         subj_embedding = self.build_embedding_layer(input_subj, self.num_subjects)
-        predicate_embedding = self.build_embedding_layer(input_rel, self.num_predicates)
         obj_embedding = self.build_embedding_layer(input_obj, self.num_objects)
-        concatenated_inputs = Concatenate(axis=2)([subj_embedding, predicate_embedding, obj_embedding])
+        if self.use_predicate:
+            predicate_embedding = self.build_embedding_layer(input_rel, self.num_predicates)
+            concatenated_inputs = Concatenate(axis=2)([subj_embedding, predicate_embedding, obj_embedding])
+        else:
+            concatenated_inputs = Concatenate(axis=2)([subj_embedding, obj_embedding])
         concatenated_inputs = Dropout(self.p_drop)(concatenated_inputs)
         concatenated_inputs = Dense(self.hidden_dim)(concatenated_inputs)
         return concatenated_inputs

@@ -11,6 +11,7 @@ params = {
         "save_best_only": True
     },
     "model_params": {
+        "use_predicate": False, 
         "embedding_dim": 128,
         "hidden_dim": 512,
         "feat_map_dim": 14,
