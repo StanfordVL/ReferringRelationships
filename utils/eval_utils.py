@@ -2,6 +2,7 @@ import tensorflow as tf
 from keras import backend as K
 from config import parse_args
 
+args = parse_args()
 input_dim = args.input_dim
 
 def iou(y_true, y_pred, thresh):
