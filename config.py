@@ -38,9 +38,12 @@ def parse_args():
                         help='Saves only the best model checkpoint.')
 
     # Model parameters.
+    parser.add_argument('--use-subject', action='store_true',
+                        help='Boolean indicating whether to use the subjects.')
     parser.add_argument('--use-predicate', action='store_true',
-                        help='Boolean indicating whether to use the predicates'
-                        ' when training.')
+                        help='Boolean indicating whether to use the predicates.')
+    parser.add_argument('--use-object', action='store_true',
+                        help='Boolean indicating whether to use the objects.')
     parser.add_argument('--embedding-dim', type=int, default=128,
                         help='Number of dimensions in our class embeddings.')
     parser.add_argument('--hidden-dim', type=int, default=512,

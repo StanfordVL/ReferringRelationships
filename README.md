@@ -41,6 +41,11 @@ optional arguments:
   --use-models-dir      Indicates that new models can be saved in the models
                         directory set by --models-dir.
   --save-best-only      Saves only the best model checkpoint.
+
+  --use-subject         Boolean indicating whether to use the subjects.
+  --use-predicate       Boolean indicating whether to use the predicates.
+  --use-object          Boolean indicating whether to use the objects.
+
   --embedding-dim       Number of dimensions in our class embeddings.
   --hidden-dim          Number of dimensions in the hidden unit.
   --feat-map-dim        The size of the feature map extracted from the image.
@@ -49,6 +54,7 @@ optional arguments:
   --num-predicates      The number of predicates in the dataset.
   --num-objects         The number of objects in the dataset.
   --dropout             The dropout probability used in training.
+
   --train-data-dir      Location of the training data.
   --val-data-dir        Location of the validation data.
   --image-data-dir      Location of the images.

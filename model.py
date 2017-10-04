@@ -1,6 +1,7 @@
 """Define the referring relationship model.
 """
 
+from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, Flatten, UpSampling2D, Reshape, Input, Activation
@@ -9,11 +10,18 @@ from keras.layers.convolutional import Conv2DTranspose
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Dot, Concatenate, Multiply
 from keras.models import Model
-from config import parse_args
 
 
 class ReferringRelationshipsModel():
+    """Given a relationship, this model locatlizes them.
+    """
+
     def __init__(self, args):
+        """Constructor for ReferringRelationshipModel.
+
+        Args:
+            args: the arguments specified by `config.py`.
+        """
         self.input_dim = args.input_dim
         self.feat_map_dim = args.feat_map_dim
         self.hidden_dim = args.hidden_dim
@@ -22,13 +30,20 @@ class ReferringRelationshipsModel():
         self.num_predicates = args.num_predicates
         self.num_objects = args.num_objects
         self.dropout = args.dropout
+        self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
+        self.use_object = args.use_object
 
     def build_model(self):
+        """Initializes the ReferringRelationshipModel.
+        """
+
+        # Setup the inputs.
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
         input_obj = Input(shape=(1,))
         input_subj = Input(shape=(1,))
         input_rel = Input(shape=(1,))
+
         images = self.build_image_model()(input_im)
         relationships = self.build_relationship_model(input_subj, input_rel, input_obj)
         relationships = Dropout(self.dropout)(relationships)
@@ -36,8 +51,8 @@ class ReferringRelationshipsModel():
         objects_att = Dense(self.hidden_dim, activation='relu')(relationships)
         subjects_att = Dropout(self.dropout)(subjects_att)
         objects_att = Dropout(self.dropout)(objects_att)
-        subject_regions = self.build_attention_layer_2(images, subjects_att, "subject")
-        object_regions = self.build_attention_layer_2(images, objects_att, "object")
+        subject_regions = self.build_attention_layer(images, subjects_att, "subject")
+        object_regions = self.build_attention_layer(images, objects_att, "object")
         model = Model(inputs=[input_im, input_subj, input_rel, input_obj], outputs=[subject_regions, object_regions])
         return model
 
@@ -73,7 +88,7 @@ class ReferringRelationshipsModel():
         #res = Activation('relu')(res)
         return res
 
-    def build_attention_layer_2(self, images, relationships, layer_name):
+    def build_attention_layer(self, images, relationships, layer_name):
         merged = Multiply()([images, relationships])
         merged = Lambda(lambda x: K.sum(x, axis=3))(merged)
         merged = Reshape(target_shape=(self.feat_map_dim, self.feat_map_dim, 1))(merged)
