@@ -26,7 +26,7 @@ def parse_args():
                         help='The number of epochs to train.')
 
     # Locations read and written to in the filesystem.
-    parser.add_argument('--save-dir', type=str, default='temp/test',
+    parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')
     parser.add_argument('--models-dir', type=str,
                         default='/data/chami/ReferringRelationships/09_20_2017',
