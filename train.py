@@ -11,7 +11,7 @@ from ReferringRelationships.config import params
 from ReferringRelationships.iterator import RefRelDataIterator
 from ReferringRelationships.model import ReferringRelationshipsModel
 from ReferringRelationships.utils.train_utils import format_params, get_dir_name, format_history, get_opt
-from ReferringRelationships.utils.eval_utils import iou_acc_5, iou_3, iou_5, iou_7, iou_9
+from ReferringRelationships.utils.eval_utils import iou_acc_3, iou_3
 
 if not params["session_params"]["save_dir"]:
     params["session_params"]["save_dir"] = get_dir_name(params["session_params"]["models_dir"])
