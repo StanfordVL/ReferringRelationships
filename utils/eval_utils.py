@@ -16,6 +16,10 @@ def iou_acc(y_true, y_pred, thresh):
     acc = K.cast(K.greater(iou_values, 0.5), "float32")
     return K.mean(acc)
 
+def iou_bbox(y_true, y_pred, thresh):
+    pred = K.cast(K.greater(y_pred, thresh), "float32")    
+    pred = K.reshape(pred, (pred.shape[0], 224, 224))
+    pass
 
 def iou_3(y_true, y_pred):
     return iou(y_true, y_pred, 0.3)

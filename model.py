@@ -32,8 +32,8 @@ class ReferringRelationshipsModel():
         objects_att = Dense(self.hidden_dim, activation='relu')(relationships)
         subjects_att = Dropout(self.p_drop)(subjects_att)
         objects_att = Dropout(self.p_drop)(objects_att)
-        subject_regions = self.build_attention_layer_2(images, subjects_att)
-        object_regions = self.build_attention_layer_2(images, objects_att)
+        subject_regions = self.build_attention_layer_2(images, subjects_att, "subject")
+        object_regions = self.build_attention_layer_2(images, objects_att, "object")
         model = Model(inputs=[input_im, input_subj, input_rel, input_obj], outputs=[subject_regions, object_regions])
         return model
 
@@ -75,7 +75,7 @@ class ReferringRelationshipsModel():
         #res = Activation('relu')(res)
         return res
 
-    def build_attention_layer_2(self, images, relationships):
+    def build_attention_layer_2(self, images, relationships, layer_name):
         merged = Multiply()([images, relationships])
         merged = Lambda(lambda x: K.sum(x, axis=3))(merged)
         merged = Reshape(target_shape=(self.feat_map_dim, self.feat_map_dim, 1))(merged)
@@ -84,7 +84,7 @@ class ReferringRelationshipsModel():
         upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
         upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
         flattened = Flatten()(upsampled)
-        predictions = Activation('sigmoid')(flattened)
+        predictions = Activation('sigmoid', name=layer_name)(flattened)
         return predictions
 
 

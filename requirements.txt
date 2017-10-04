@@ -1,5 +1,5 @@
-keras=='2.0.6'
-tensorflow=='1.1.0'
-numpy=='1.13.1'
-cv2=='3.1.0-dev'
-h5py=='2.6.0'
+keras==2.0.6
+tensorflow==1.1.0
+numpy==1.13.1
+cv2==3.1.0-dev
+h5py==2.6.0

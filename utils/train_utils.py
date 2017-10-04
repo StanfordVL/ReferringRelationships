@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from keras.models import load_model
 from keras.preprocessing.image import load_img
-
+from keras.optimizers import RMSprop, Adam, Adagrad, Adadelta
 
 def save_weights(img_path, model_path, save_path, target_size=(224, 224)):
     model = load_model(model_path)
@@ -22,6 +22,17 @@ def visualize_weights(orig_image, pred, input_dim, epoch, name, res_dir):
     attention_viz = cv2.addWeighted(orig_image, 0.6, image_pred, 0.4, 0)
     cv2.imwrite(os.path.join(res_dir, 'attention-' + name + '-' + str(epoch) + '.png'), attention_viz)
 
+def get_opt(opt, lr, lr_decay):
+    if opt=="rms":
+        return RMSprop(lr=lr,decay=lr_decay)
+    elif opt=="adam":
+        return Adam(lr=lr,decay=lr_decay)
+    elif opt=="adagrad":
+        return Adagrad(lr=lr,decay=lr_decay)
+    elif opt=="adadelta":
+        return Adadelta(lr=lr,decay=lr_decay)
+    else:
+        raise ValueError("optimizer name not recognized")
 
 def format_params(params):
     stars = "*" * 30
@@ -41,7 +52,7 @@ def format_history(history, epochs):
         res = "epoch {}/{} : ".format(epoch, epochs)
         res += " | ".join([" {} = {}".format(x, round(history[x][epoch], 3)) for x in monitored_val])
         res += "\n"
-    results += res
+        results += res
     return results
 
 
