@@ -1,48 +1,95 @@
-import json
-import logging
-import os
-import numpy as np
+"""Training script for referring relationships.
+"""
+
 from keras import backend as K
 from keras.callbacks import ModelCheckpoint
-from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
+from keras.optimizers import Adam
 
-from ReferringRelationships.config import params
-from ReferringRelationships.iterator import RefRelDataIterator
-from ReferringRelationships.model import ReferringRelationshipsModel
-from ReferringRelationships.utils.train_utils import format_params, get_dir_name, format_history, get_opt
-from ReferringRelationships.utils.eval_utils import iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5, iou_bbox_6
+from config import parse_args
+from iterator import RefRelDataIterator
+from model import ReferringRelationshipsModel
+from utils.eval_utils import iou_acc, iou, iou_bbox
+from utils.train_utils import format_args, get_dir_name, format_history, get_opt
 
-if not params["session_params"]["save_dir"]:
-    params["session_params"]["save_dir"] = get_dir_name(params["session_params"]["models_dir"])
-    os.makedirs(params["session_params"]["save_dir"])
-
-json.dump(params, open(os.path.join(params["session_params"]["save_dir"], "params.json"), "w"))
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-fh = logging.FileHandler(os.path.join(params["session_params"]["save_dir"], 'train.log'))
-logger.addHandler(fh)
-logger.info(format_params(params))
+import json
+import logging
+import numpy as np
+import sys
+import os
 
 
-# ******************************************* DATA *******************************************
-train_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["train_data_dir"], input_dim=params["model_params"]["input_dim"], batch_size=params["session_params"]["batch_size"])
-val_generator = RefRelDataIterator(params["data_params"]["image_data_dir"], params["data_params"]["val_data_dir"], input_dim=params["model_params"]["input_dim"], batch_size=params["session_params"]["batch_size"])
-logger.info("Train on {} samples".format(train_generator.samples))
-logger.info("Validate on {} samples".format(val_generator.samples))
+if __name__=='__main__':
+    # Parse command line arguments.
+    args = parse_args()
 
+    # First check if --use-models-dir is set. In that case, create a new folder
+    # to store all the training logs.
+    if (args.use_models_dir and
+        args.models_dir is not None and
+        args.save_dir is None):
+        args.save_dir = get_dir_name(args.models_dir)
 
-# ***************************************** TRAINING *****************************************
-relationships_model = ReferringRelationshipsModel(params["model_params"])
-model = relationships_model.build_model()
-model.summary(print_fn=lambda x: logger.info(x + "\n"))
-optimizer = get_opt(opt=params["session_params"]["opt"], lr=params["session_params"]["lr"], lr_decay=params["session_params"]["lr_decay"])
-model.compile(loss=["binary_crossentropy", "binary_crossentropy"], optimizer=optimizer, metrics=[iou_acc_3, iou_3, iou_bbox_3, iou_bbox_5, iou_bbox_6])
-tb_callback = TensorBoard(log_dir=params["session_params"]["save_dir"])
-checkpointer = ModelCheckpoint(
-    filepath=os.path.join(params["session_params"]["save_dir"], "model{epoch:02d}-{val_loss:.2f}.h5"), verbose=1,
-    save_best_only=params["session_params"]["save_best_only"], monitor='val_loss')
-history = model.fit_generator(train_generator, steps_per_epoch=int(train_generator.samples/params["session_params"]["batch_size"]), epochs=params["session_params"]["epochs"], validation_data=val_generator,
-                    validation_steps=int(val_generator.samples/params["session_params"]["batch_size"]), callbacks=[checkpointer, tb_callback]).history
-logger.info(format_history(history, params["session_params"]["epochs"]))
-logger.info("Best validation loss: {}".format(round(np.min(history['val_loss']), 4)))
+    # If the save directory does exists, don't launch the training script.
+    if os.path.isdir(args.save_dir):
+        print('The directory %s already exists. Exiting training!'
+              % args.save_dir)
+        sys.exit(0)
+
+    # Otherwise, create the directory and start training.
+    os.mkdir(args.save_dir)
+
+    # Setup logging.
+    logfile = os.path.join(args.save_dir, 'train.log')
+    logging.basicConfig(level=logging.INFO, filename=logfile)
+
+    # Store the arguments used in this training process.
+    args_file = open(os.path.join(args.save_dir, 'args.json'), 'w')
+    json.dump(args.__dict__, args_file)
+    args_file.close()
+    logging.info(format_args(args))
+
+    # Setup the training and validation data iterators
+    train_generator = RefRelDataIterator(args.image_data_dir, args.train_data_dir,
+                                         input_dim=args.input_dim,
+                                         batch_size=args.batch_size)
+    val_generator = RefRelDataIterator(args.image_data_dir, args.val_data_dir,
+                                       input_dim=args.input_dim,
+                                       batch_size=args.batch_size)
+    logging.info('Train on {} samples'.format(train_generator.samples))
+    logging.info('Validate on {} samples'.format(val_generator.samples))
+
+    # Setup all the metrics we want to report. The names of the metrics need to
+    # be set so that Keras can log them correctly.
+    metrics = []
+    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, args.input_dim)
+    iou_bbox_metric.__name__ = 'iou_bbox'
+    for metric_func in [iou, iou_acc, iou_bbox_metric]:
+        for thresh in args.heatmap_threshold:
+            metric = lambda gt, pred: metric_func(gt, pred, thresh)
+            metric.__name__ = metric_func.__name__ + '_' + str(thresh)
+            metrics.append(metric)
+
+    # Start training
+    relationships_model = ReferringRelationshipsModel(args)
+    model = relationships_model.build_model()
+    model.summary(print_fn=lambda x: logging.info(x + '\n'))
+    optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
+    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
+                  optimizer=optimizer,
+                  metrics=metrics)
+    tb_callback = TensorBoard(log_dir=args.save_dir)
+    checkpointer = ModelCheckpoint(
+        filepath=os.path.join(
+            args.save_dir, 'model{epoch:02d}-{val_loss:.2f}.h5'),
+        verbose=1,
+        save_best_only=args.save_best_only,
+        monitor='val_loss')
+    history = model.fit_generator(train_generator,
+                                  steps_per_epoch=int(train_generator.samples/args.batch_size),
+                                  epochs=args.epochs,
+                                  validation_data=val_generator,
+                                  validation_steps=int(val_generator.samples/args.batch_size),
+                                  callbacks=[checkpointer, tb_callback]).history
+    logging.info(format_history(history, args.epochs))
+    logging.info('Best validation loss: {}'.format(round(np.min(history['val_loss']), 4)))
