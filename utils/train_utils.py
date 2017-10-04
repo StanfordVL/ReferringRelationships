@@ -59,11 +59,10 @@ def format_args(args):
     Returns:
         A formatted human readable string representation of the arguments.
     """
-    formatted_args = ""
+    formatted_args = "Training Arguments: \n"
     args = args.__dict__
     for key in args.keys():
-        formatted_args += "{} : {} \n".format(key, args[key])
-        formatted_args += "\n"
+        formatted_args += "\t > {} : {} \n".format(key, args[key])
     return formatted_args
 
 
