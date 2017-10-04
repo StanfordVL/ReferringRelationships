@@ -62,7 +62,7 @@ class ReferringRelationshipsModel():
             concatenated_inputs = Concatenate(axis=2)([subj_embedding, predicate_embedding, obj_embedding])
         else:
             concatenated_inputs = Concatenate(axis=2)([subj_embedding, obj_embedding])
-        concatenated_inputs = Dropout(self.p_drop)(concatenated_inputs)
+        concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
         concatenated_inputs = Dense(self.hidden_dim)(concatenated_inputs)
         return concatenated_inputs
 
