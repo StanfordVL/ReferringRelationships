@@ -45,7 +45,7 @@ class ReferringRelationshipsModel():
         relationship_inputs = []
         num_classes = []
         if self.use_subject:
-            input_subj = Input(shape=(1,))
+            input_sub = Input(shape=(1,))
             relationship_inputs.append(input_sub)
             num_classes.append(self.num_objects)
         if self.use_predicate:
@@ -113,7 +113,7 @@ class ReferringRelationshipsModel():
             embedding_layer = Embedding(num_categories,
                                         self.embedding_dim,
                                         input_length=1)
-            embbedings.append(embedding_layer(rel_input))
+            embeddings.append(embedding_layer(rel_input))
         if len(embeddings) > 1:
             concatenated_inputs = Concatenate(axis=2)(embeddings)
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
