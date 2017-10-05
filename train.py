@@ -37,7 +37,8 @@ if __name__=='__main__':
         sys.exit(0)
 
     # Otherwise, create the directory and start training.
-    os.mkdir(args.save_dir)
+    if not os.path.isdir(args.save_dir):
+        os.mkdir(args.save_dir)
 
     # Setup logging.
     logfile = os.path.join(args.save_dir, 'train.log')
