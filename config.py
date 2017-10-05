@@ -53,8 +53,6 @@ def parse_args():
                         'image.')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
-    parser.add_argument('--num-subjects', type=int, default=100,
-                        help='The number of subjects in the dataset.')
     parser.add_argument('--num-predicates', type=int, default=70,
                         help='The number of predicates in the dataset.')
     parser.add_argument('--num-objects', type=int, default=100,

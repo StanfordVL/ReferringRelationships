@@ -50,7 +50,6 @@ optional arguments:
   --hidden-dim          Number of dimensions in the hidden unit.
   --feat-map-dim        The size of the feature map extracted from the image.
   --input-dim           Size of the input image.
-  --num-subjects        The number of subjects in the dataset.
   --num-predicates      The number of predicates in the dataset.
   --num-objects         The number of objects in the dataset.
   --dropout             The dropout probability used in training.
