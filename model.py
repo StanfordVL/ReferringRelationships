@@ -114,8 +114,12 @@ class ReferringRelationshipsModel():
                                         self.embedding_dim,
                                         input_length=1)
             embeddings.append(embedding_layer(rel_input))
+
+        # Concatenate the inputs if there are more than 1.
         if len(embeddings) > 1:
             concatenated_inputs = Concatenate(axis=2)(embeddings)
+        else:
+            concatenated_inputs = embeddings[0]
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
         rel_features = Dense(self.hidden_dim)(concatenated_inputs)
         return rel_features
