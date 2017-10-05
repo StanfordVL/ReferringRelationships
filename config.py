@@ -7,6 +7,9 @@ import argparse
 def parse_args():
     """Initializes a parser and reads the command line parameters.
 
+    Raises:
+        ValueError: If the parameters are incorrect.
+
     Returns:
         An object containing all the parameters.
     """
@@ -82,8 +85,14 @@ def parse_args():
                         help='The thresholds above which we consider '
                         'a heatmap to contain an object.')
 
-    # Parse arguments and return.
+    # Parse arguments.
     args = parser.parse_args()
+
+    # Verify that we have at least one of the following flags set:
+    if not (args.use_subject or args.use_predicate or args.use_object):
+        raise ValueError('At least one of the 3 components of the '
+            'relationship should be included in training.')
+
     return args
 
 
