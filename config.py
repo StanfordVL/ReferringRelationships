@@ -88,6 +88,9 @@ def parse_args():
     # Parse arguments.
     args = parser.parse_args()
 
+    # set the random seed.
+    np.random.seed(args.seed)
+
     # Verify that we have at least one of the following flags set:
     if not (args.use_subject or args.use_predicate or args.use_object):
         raise ValueError('At least one of the 3 components of the '
