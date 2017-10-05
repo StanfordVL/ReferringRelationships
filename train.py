@@ -50,12 +50,10 @@ if __name__=='__main__':
     logging.info(format_args(args))
 
     # Setup the training and validation data iterators
-    train_generator = RefRelDataIterator(args.image_data_dir, args.train_data_dir,
-                                         input_dim=args.input_dim,
-                                         batch_size=args.batch_size)
-    val_generator = RefRelDataIterator(args.image_data_dir, args.val_data_dir,
-                                       input_dim=args.input_dim,
-                                       batch_size=args.batch_size)
+    train_generator = RefRelDataIterator(args.train_data_dir,
+                                         args)
+    val_generator = RefRelDataIterator(args.val_data_dir,
+                                       args)
     logging.info('Train on {} samples'.format(train_generator.samples))
     logging.info('Validate on {} samples'.format(val_generator.samples))
 
@@ -85,11 +83,14 @@ if __name__=='__main__':
         verbose=1,
         save_best_only=args.save_best_only,
         monitor='val_loss')
+    train_steps = int(train_generator.samples/args.batch_size)
+    val_steps = int(val_generator.samples/args.batch_size)
     history = model.fit_generator(train_generator,
-                                  steps_per_epoch=int(train_generator.samples/args.batch_size),
+                                  steps_per_epoch=train_steps,
                                   epochs=args.epochs,
                                   validation_data=val_generator,
-                                  validation_steps=int(val_generator.samples/args.batch_size),
+                                  validation_steps=val_steps,
                                   callbacks=[checkpointer, tb_callback]).history
     logging.info(format_history(history, args.epochs))
-    logging.info('Best validation loss: {}'.format(round(np.min(history['val_loss']), 4)))
+    logging.info('Best validation loss: {}'.format(
+        round(np.min(history['val_loss']), 4)))
