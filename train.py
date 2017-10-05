@@ -15,7 +15,6 @@ from utils.train_utils import format_args, get_dir_name, format_history, get_opt
 import json
 import logging
 import numpy as np
-import sys
 import os
 
 
@@ -32,9 +31,8 @@ if __name__=='__main__':
 
     # If the save directory does exists, don't launch the training script.
     if not args.overwrite and os.path.isdir(args.save_dir):
-        print('The directory %s already exists. Exiting training!'
+        raise ValueError('The directory %s already exists. Exiting training!'
               % args.save_dir)
-        sys.exit(0)
 
     # Otherwise, create the directory and start training.
     if not os.path.isdir(args.save_dir):
