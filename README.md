@@ -37,6 +37,8 @@ optional arguments:
   --batch-size          The batch size used in training.
   --epochs              The number of epochs to train.
   --seed                The random seed used to reproduce results.
+  --overwrite           Train even if that folder already contains an existing
+                        model.
   --save-dir            The location to save the model and the results.
   --models-dir          The location of the model weights
   --use-models-dir      Indicates that new models can be saved in the models

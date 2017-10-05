@@ -26,6 +26,9 @@ def parse_args():
                         help='The number of epochs to train.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
+    parser.add_argument('--overwrite', action='store_true',
+                        help='Train even if that folder already contains '
+                        'an existing model.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,

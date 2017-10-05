@@ -31,7 +31,7 @@ if __name__=='__main__':
         args.save_dir = get_dir_name(args.models_dir)
 
     # If the save directory does exists, don't launch the training script.
-    if os.path.isdir(args.save_dir):
+    if not args.overwrite and os.path.isdir(args.save_dir):
         print('The directory %s already exists. Exiting training!'
               % args.save_dir)
         sys.exit(0)
