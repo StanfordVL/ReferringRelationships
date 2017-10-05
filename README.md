@@ -36,6 +36,7 @@ optional arguments:
   --lr_decay            The learning rate decay.
   --batch-size          The batch size used in training.
   --epochs              The number of epochs to train.
+  --seed                The random seed used to reproduce results.
   --save-dir            The location to save the model and the results.
   --models-dir          The location of the model weights
   --use-models-dir      Indicates that new models can be saved in the models

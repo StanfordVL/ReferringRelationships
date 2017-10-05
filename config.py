@@ -24,6 +24,8 @@ def parse_args():
                         help='The batch size used in training.')
     parser.add_argument('--epochs', type=int, default=100,
                         help='The number of epochs to train.')
+    parser.add_argument('--seed', type=int, default=1234,
+                        help='The random seed used to reproduce results.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
