@@ -2,7 +2,7 @@
 """
 
 import argparse
-
+import numpy as np
 
 def parse_args():
     """Initializes a parser and reads the command line parameters.
