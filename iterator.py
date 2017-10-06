@@ -1,7 +1,10 @@
 """Iterator class that reads the data and batches it for training.
 """
 
-from keras.preprocessing.image import Iterator, load_img, img_to_array
+from keras.applications.resnet50 import preprocess_input
+from keras.preprocessing.image import Iterator
+from keras.preprocessing.image import img_to_array
+from keras.preprocessing.image import load_img
 
 import os
 import keras.backend as K
@@ -33,10 +36,10 @@ class RefRelDataIterator(Iterator):
             self.rgb_image_shape = self.target_size + (3,)
         else:
             self.rgb_image_shape = (3,) + self.target_size
-        self.rel_idx = np.load(os.path.join(self.data_dir, 'rel_idx.npy'))
+        self.rel_ids = np.load(os.path.join(self.data_dir, 'rel_ids.npy'))
         self.relationships = np.load(os.path.join(self.data_dir,
                                                   'relationships.npy'))
-        self.samples = self.rel_idx.shape[0]
+        self.samples = self.rel_ids.shape[0]
         super(RefRelDataIterator, self).__init__(
             self.samples, args.batch_size, shuffle, args.seed)
 
@@ -64,7 +67,7 @@ class RefRelDataIterator(Iterator):
 
         # build batch of image data.
         for i, j in enumerate(index_array):
-            rel_id = self.rel_idx[j]
+            rel_id = self.rel_ids[j]
             rel = self.relationships[j]
             image_fname = ''.join(rel_id.split('-')[:-1])
             subject_fname = rel_id + '-s.jpg'
@@ -98,6 +101,9 @@ class RefRelDataIterator(Iterator):
             batch_rel[i] = rel
             batch_s_regions[i] = s_region.flatten()
             batch_o_regions[i] = o_region.flatten()
+
+        # Preprocess the images
+        batch_image = preprocess_input(batch_img)
 
         # Choose the inputs based on the parts of the relationship we will use.
         inputs = [batch_image]

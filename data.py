@@ -1,7 +1,7 @@
 """Converts a dataset into the format we expect for training.
 """
 
-from keras.applications.vgg16 import preprocess_input
+from keras.applications.resnet50 import preprocess_input
 from keras.preprocessing import image
 
 import argparse
