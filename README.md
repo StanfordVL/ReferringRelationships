@@ -18,14 +18,27 @@ Next, create the dataset for the Visual Relationship model.
  in train/val/test directories that will be created in the directory
  `--save-dir`. The script also saves numpy arrays for relationships.
 
-Usage:
+The script has the following command line arguments to modify the dataset
+pre-processing:
+
 ```
-python data.py [-h] [--test TEST] val_split save_dir img_dir annotations image_metadata
+optional arguments:
+  -h, --help            show this help message and exit
+  --test                When true, the data is not split into training and
+                        validation sets
+  --val-percent         Fraction of images in validation split.
+  --save-dir            where to save the ground truth masks, this Location
+                        where dataset should be saved.
+  --img-dir             Location where images are stored.
+  --annotations         Json with relationships for each image.
+  --image-metadata      Image metadata json file.
+  --seed                The random seed used to reproduce results.
 ```
 
 ## Model Configuration
 
-Change the configuration parameters in config.py
+The model can be trained by calling `python train.py` with the following command
+line arguments to modify your training:
 
 ```
 optional arguments:
