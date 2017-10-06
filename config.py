@@ -46,12 +46,12 @@ def parse_args():
                         help='Saves only the best model checkpoint.')
 
     # Model parameters.
-    parser.add_argument('--use-subject', action='store_true',
-                        help='Boolean indicating whether to use the subjects.')
-    parser.add_argument('--use-predicate', action='store_true',
-                        help='Boolean indicating whether to use the predicates.')
-    parser.add_argument('--use-object', action='store_true',
-                        help='Boolean indicating whether to use the objects.')
+    parser.add_argument('--use-subject', type=int, default=1,
+                        help='1/0 indicating whether to use the subjects.')
+    parser.add_argument('--use-predicate', type=int, default=1,
+                        help='1/0 indicating whether to use the predicates.')
+    parser.add_argument('--use-object', type=int, default=1,
+                        help='1/0 indicating whether to use the objects.')
     parser.add_argument('--embedding-dim', type=int, default=128,
                         help='Number of dimensions in our class embeddings.')
     parser.add_argument('--hidden-dim', type=int, default=512,
@@ -92,6 +92,9 @@ def parse_args():
     np.random.seed(args.seed)
 
     # Verify that we have at least one of the following flags set:
+    args.use_subject = args.use_subject > 0
+    args.use_predicate = args.use_subject > 0
+    args.use_object = args.use_subject > 0
     if not (args.use_subject or args.use_predicate or args.use_object):
         raise ValueError('At least one of the 3 components of the '
             'relationship should be included in training.')
