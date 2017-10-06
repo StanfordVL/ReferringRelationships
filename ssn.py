@@ -56,10 +56,10 @@ class ReferringRelationshipsModel():
         subject_att = self.build_attention_layer(im_features, dense_subject)
         predicate_att = self.build_attention_layer(subject_att, dense_predicate)
         object_att = self.build_attention_layer(predicate_att, dense_object)
-        object_regions = self.build_upsampling_layer(object_att, "object_att")
-        object_regions_flat = Flatten()(object_regions)
         subject_regions = self.build_upsampling_layer(subject_att, "subject_att")
-        subject_regions_flat = Flatten()(subject_regions)
+        subject_regions_flat = Flatten(name="subject")(subject_regions)
+        object_regions = self.build_upsampling_layer(object_att, "object_att")
+        object_regions_flat = Flatten(name="object")(object_regions)
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions_flat, object_regions_flat])
         return model
 
@@ -87,8 +87,8 @@ class ReferringRelationshipsModel():
         return Embedding(num_categories, self.embedding_dim, input_length=1)
 
     def build_attention_layer(self, feature_map, query):
-        dense_map = Dense(self.hidden_dim, activation="relu")(feature_map)
-        attention_weights = Multiply()([dense_map, query])
+        #dense_map = Dense(self.hidden_dim, activation="relu")(feature_map)
+        attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation('sigmoid')(attention_weights)
         attended_map = Multiply()([feature_map, attention_weights])

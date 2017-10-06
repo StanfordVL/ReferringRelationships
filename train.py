@@ -8,7 +8,7 @@ from keras.optimizers import Adam
 
 from config import parse_args
 from iterator import RefRelDataIterator
-from model import ReferringRelationshipsModel
+from ssn import ReferringRelationshipsModel
 from utils.eval_utils import iou_acc, iou, iou_bbox
 from utils.train_utils import format_args, get_dir_name, format_history, get_opt
 
