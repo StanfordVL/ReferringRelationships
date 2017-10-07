@@ -121,6 +121,7 @@ class VRDDataset():
                 - 'object': The numpy object location mask.
                 - 'categories': A list of subject, object and predicate indices.
         """
+        # TODO
         if not image_ids:
             image_ids = self.data.keys()
 
@@ -139,6 +140,7 @@ class VRDDataset():
             predicate2cat: A mapping from predicate names to categories.
             cat2predicate: A mapping from category index to predicate name.
         """
+        # TODO
 
         total_relationships = len(relationships)
         dataset = h5py.File(filename, 'w')
