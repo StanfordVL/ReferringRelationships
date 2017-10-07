@@ -47,7 +47,7 @@ def parse_args():
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
-                        help='The model we want to train with.')
+                        help='Indicates which model to use')
     parser.add_argument('--use-subject', type=int, default=1,
                         help='1/0 indicating whether to use the subjects.')
     parser.add_argument('--use-predicate', type=int, default=1,

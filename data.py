@@ -6,6 +6,7 @@ from keras.preprocessing import image
 
 import argparse
 import cv2
+import h5py
 import json
 import numpy as np
 import sys
@@ -95,28 +96,72 @@ class VRDDataset():
 
         Converts the dataset into a series of images, relationship labels
         and heatmaps.
+
+        Args:
+            save_dir: Location to save the data.
+            image_ids: List of image ids.
+        """
+        (relationships, object2cat, cat2object,
+         predicate2cat, cat2predicate) = self.build_dataset(save_dir,
+                                                            image_ids=image_ids)
+        self.save_dataset(relationships, object2cat, cat2object,
+                          predicate2cat, cat2predicate)
+
+    def build_dataset(self, save_dir, image_ids=None):
+        """Converts the dataset into a list of relationships and categories.
+
         Args:
             save_dir: Location to save the data.
             image_ids: List of image ids.
 
         Returns:
-            Images ids (each image ids is repeated for each relationship
-            within that image), relationships (Nx3 array with subject,
-            predicate and object categories) subject and object bounding
-            boxes (each Nx4).
+            relationships: A list containing objects that contain:
+                - 'image': The numpy image representation.
+                - 'subject': The numpy subject location mask.
+                - 'object': The numpy object location mask.
+                - 'categories': A list of subject, object and predicate indices.
         """
-        rel_ids = []
-        relationships = []
         if not image_ids:
             image_ids = self.data.keys()
+
+    def save_dataset(self, relationships, object2cat, cat2object,
+                     predicate2cat, cat2predicate):
+        """Converts the dataset into hdf5.
+
+        Args:
+            relationships: A list containing objects that contain:
+                - 'image': The numpy image representation.
+                - 'subject': The numpy subject location mask.
+                - 'object': The numpy object location mask.
+                - 'categories': A list of subject, object and predicate indices.
+            object2cat: A mapping from object names to categories.
+            cat2object: A mapping from category index to object name.
+            predicate2cat: A mapping from predicate names to categories.
+            cat2predicate: A mapping from category index to predicate name.
+        """
+
+        total_relationships = len(relationships)
+        dataset = h5py.File(filename, 'w')
+        images_db = dataset.create_dataset('images',
+                                           (len(total_relationships),
+                                            self.input_dim, self.input_dim, 3),
+                                           dtype='f')
+        categories_db = dataset.create_dataset('categories',
+                                               (len(total_relationships), 3),
+                                               dtype='f')
+        subject_db = dataset.create_dataset('subject_location',
+                                            (len(total_relationships),
+                                             self.input_dim, self.input_dim),
+                                            dtype='f')
+        object_db = dataset.create_dataset('object_location',
+                                           (len(total_relationships),
+                                            self.input_dim, self.input_dim),
+                                           dtype='f')
         nb_images = len(image_ids)
         for i, image_id in enumerate(image_ids):
             im_data = self.im_metadata[image_id]
-            if i % 100 == 0:
-                print('{}/{} images processed'.format(i, nb_images))
             for j, relationship in enumerate(self.data[image_id]):
                 rel_id = image_id.split('.')[0] + '-{}'.format(j)
-                rel_ids += [rel_id]
                 subject_id = relationship['subject']['category']
                 predicate_id = relationship['predicate']
                 object_id = relationship['object']['category']
@@ -125,10 +170,8 @@ class VRDDataset():
                 o_bbox= self.rescale_bbox_coordinates(relationship['object']['bbox'], im_data['height'], im_data['width'])
                 s_region = self.get_regions_from_bbox(s_bbox)
                 o_region = self.get_regions_from_bbox(o_bbox)
-                cv2.imwrite(os.path.join(save_dir, '{}-s.jpg'.format(rel_id)), s_region)
-                cv2.imwrite(os.path.join(save_dir, '{}-o.jpg'.format(rel_id)), o_region)
-        np.save(os.path.join(save_dir, 'rel_ids.npy'), np.array(rel_ids))
-        np.save(os.path.join(save_dir, 'relationships.npy'), np.array(relationships))
+            if i % 100 == 0:
+                print('{}/{} images processed'.format(i, nb_images))
 
     def get_image_from_img_id(self, img_id):
         """Reads the image associated with a specific img_id.
