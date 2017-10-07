@@ -107,6 +107,6 @@ if __name__=='__main__':
     """
     args = parse_args()
     args = args.__dict__
-    print "Arguments:"
+    print("Arguments:")
     for k in args:
-        print '\t%15s:\t%s' % (k, args[k])
+        print('\t%15s:\t%s' % (k, args[k]))

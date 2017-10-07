@@ -8,7 +8,6 @@ from keras.optimizers import Adam
 
 from config import parse_args
 from iterator import RefRelDataIterator
-from model import ReferringRelationshipsModel
 from utils.eval_utils import iou
 from utils.eval_utils import iou_acc
 from utils.eval_utils import iou_bbox
@@ -73,6 +72,10 @@ if __name__=='__main__':
             metrics.append(metric)
 
     # Prepare the model.
+    if args.model == 'ssn':
+        from ssn import ReferringRelationshipsModel
+    else:
+        from model import ReferringRelationshipsModel
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))

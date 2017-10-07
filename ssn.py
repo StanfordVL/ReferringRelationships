@@ -47,17 +47,21 @@ class ReferringRelationshipsModel():
         im_features = self.build_image_model(input_im)
         obj_subj_embedding = self.build_embedding_layer(self.num_objects)
         predicate_embedding = self.build_embedding_layer(self.num_predicates)
-        subject_features = obj_subj_embedding(input_subj)
-        predicate_features = predicate_embedding(input_pred)
-        object_features = obj_subj_embedding(input_obj)
-        subject_att = self.build_attention_layer(self, im_features, subject_features)
-        predicate_att = self.build_attention_layer(self, subject_att, predicate_features)
-        object_att = self.build_attention_layer(self, predicate_att, object_features)
-        object_regions = self.build_upsampling_layer(object_att, "object_att")
-        object_regions_flat = Flatten()(object_regions)
+        embedded_subject = obj_subj_embedding(input_subj)
+        dense_subject = Dense(self.hidden_dim, activation="relu")(embedded_subject)
+        embedded_predicate= predicate_embedding(input_pred)
+        dense_predicate = Dense(self.hidden_dim, activation="relu")(embedded_predicate)
+        embedded_object = obj_subj_embedding(input_obj)
+        dense_object = Dense(self.hidden_dim, activation="relu")(embedded_object)
+        subject_att = self.build_attention_layer(im_features, dense_subject)
+        predicate_att = self.build_attention_layer(subject_att, dense_predicate)
+        object_att = self.build_attention_layer(predicate_att, dense_object)
         subject_regions = self.build_upsampling_layer(subject_att, "subject_att")
-        subject_regions_flat = Flatten()(subject_regions)
-        return [subject_regions_flat, object_regions_flat]
+        subject_regions_flat = Flatten(name="subject")(subject_regions)
+        object_regions = self.build_upsampling_layer(object_att, "object_att")
+        object_regions_flat = Flatten(name="object")(object_regions)
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions_flat, object_regions_flat])
+        return model
 
     def build_image_model(self, input_im):
         """Grab the image features.
@@ -83,6 +87,7 @@ class ReferringRelationshipsModel():
         return Embedding(num_categories, self.embedding_dim, input_length=1)
 
     def build_attention_layer(self, feature_map, query):
+        #dense_map = Dense(self.hidden_dim, activation="relu")(feature_map)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation('sigmoid')(attention_weights)
