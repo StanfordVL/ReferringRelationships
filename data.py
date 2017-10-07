@@ -90,37 +90,20 @@ class VRDDataset():
         self.val_image_ids = image_ids[thresh:]
         return self.train_image_ids, self.val_image_ids
 
-    def build_dataset(self, image_ids):
-        """
-        :param image_ids: list of image ids
-        :return: images ids (each image ids is repeated for each relationship within that image),
-        relationships (Nx3 array with subject, predicate and object categories)
-        subject and object bounding boxes (each Nx4)
-        """
-        subjects_bbox = []
-        objects_bbox = []
-        relationships = []
-        image_ids = []
-        for i, image_id in enumerate(image_ids):
-            im_data = self.im_metadata[image_id]
-            for j, relationship in enumerate(self.data[image_id]):
-                image_ids += [image_id]
-                subject_id = relationship['subject']['category']
-                relationship_id = relationship['predicate']
-                object_id = relationship['object']['category']
-                relationships += [(subject_id, relationship_id, object_id)]
-                s_region = self.rescale_bbox_coordinates(relationship['subject']['bbox'], im_data['height'], im_data['width'])
-                o_region = self.rescale_bbox_coordinates(relationship['object']['bbox'], im_data['height'], im_data['width'])
-                subjects_bbox += [s_region]
-                objects_bbox += [o_region]
-        return np.array(image_ids), np.array(relationships), np.array(subjects_bbox), np.array(objects_bbox)
-
     def build_and_save_dataset(self, save_dir, image_ids=None):
-        """
-        :param image_ids: list of image ids
-        :return: images ids (each image ids is repeated for each relationship within that image),
-        relationships (Nx3 array with subject, predicate and object categories)
-        subject and object bounding boxes (each Nx4)
+        """Converts the dataset into format we will use for training.
+
+        Converts the dataset into a series of images, relationship labels
+        and heatmaps.
+        Args:
+            save_dir: Location to save the data.
+            image_ids: List of image ids.
+
+        Returns:
+            Images ids (each image ids is repeated for each relationship
+            within that image), relationships (Nx3 array with subject,
+            predicate and object categories) subject and object bounding
+            boxes (each Nx4).
         """
         rel_ids = []
         relationships = []
@@ -129,7 +112,7 @@ class VRDDataset():
         nb_images = len(image_ids)
         for i, image_id in enumerate(image_ids):
             im_data = self.im_metadata[image_id]
-            if i%100==0:
+            if i % 100 == 0:
                 print('{}/{} images processed'.format(i, nb_images))
             for j, relationship in enumerate(self.data[image_id]):
                 rel_id = image_id.split('.')[0] + '-{}'.format(j)
@@ -140,8 +123,8 @@ class VRDDataset():
                 relationships += [(subject_id, predicate_id, object_id)]
                 s_bbox = self.rescale_bbox_coordinates(relationship['subject']['bbox'], im_data['height'], im_data['width'])
                 o_bbox= self.rescale_bbox_coordinates(relationship['object']['bbox'], im_data['height'], im_data['width'])
-                s_region = self.get_regions_from_bbox(s_bbox) #* 255
-                o_region = self.get_regions_from_bbox(o_bbox) #* 255#TODO:this is just to visualize regions, needs to me removed afterwards
+                s_region = self.get_regions_from_bbox(s_bbox)
+                o_region = self.get_regions_from_bbox(o_bbox)
                 cv2.imwrite(os.path.join(save_dir, '{}-s.jpg'.format(rel_id)), s_region)
                 cv2.imwrite(os.path.join(save_dir, '{}-o.jpg'.format(rel_id)), o_region)
         np.save(os.path.join(save_dir, 'rel_ids.npy'), np.array(rel_ids))
