@@ -9,8 +9,13 @@ from keras.optimizers import Adam
 from config import parse_args
 from iterator import RefRelDataIterator
 from model import ReferringRelationshipsModel
-from utils.eval_utils import iou_acc, iou, iou_bbox
-from utils.train_utils import format_args, get_dir_name, format_history, get_opt
+from utils.eval_utils import iou
+from utils.eval_utils import iou_acc
+from utils.eval_utils import iou_bbox
+from utils.train_utils import Logger
+from utils.train_utils import get_dir_name
+from utils.train_utils import get_opt
+from utils.train_utils import format_args
 
 import json
 import logging
@@ -67,7 +72,7 @@ if __name__=='__main__':
             metric.__name__ = metric_func.__name__ + '_' + str(thresh)
             metrics.append(metric)
 
-    # Start training
+    # Prepare the model.
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
@@ -75,21 +80,23 @@ if __name__=='__main__':
     model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
                   optimizer=optimizer,
                   metrics=metrics)
+
+    # Setup callbacks for tensorboard, logging and checkpoints.
     tb_callback = TensorBoard(log_dir=args.save_dir)
+    logging_callback = Logger(args.epochs)
     checkpointer = ModelCheckpoint(
         filepath=os.path.join(
             args.save_dir, 'model{epoch:02d}-{val_loss:.2f}.h5'),
         verbose=1,
         save_best_only=args.save_best_only,
         monitor='val_loss')
+
+    # Start training
     train_steps = int(train_generator.samples/args.batch_size)
     val_steps = int(val_generator.samples/args.batch_size)
-    history = model.fit_generator(train_generator,
-                                  steps_per_epoch=train_steps,
-                                  epochs=args.epochs,
-                                  validation_data=val_generator,
-                                  validation_steps=val_steps,
-                                  callbacks=[checkpointer, tb_callback]).history
-    logging.info(format_history(history, args.epochs))
-    logging.info('Best validation loss: {}'.format(
-        round(np.min(history['val_loss']), 4)))
+    model.fit_generator(train_generator,
+                        steps_per_epoch=train_steps,
+                        epochs=args.epochs,
+                        validation_data=val_generator,
+                        validation_steps=val_steps,
+                        callbacks=[checkpointer, tb_callback, logging_callback])

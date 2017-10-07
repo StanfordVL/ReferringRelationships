@@ -4,8 +4,10 @@
 from keras.models import load_model
 from keras.preprocessing.image import load_img
 from keras.optimizers import RMSprop, Adam, Adagrad, Adadelta
+from keras.callbacks import Callback
 
 import cv2
+import logging
 import numpy as np
 import os
 
@@ -66,28 +68,6 @@ def format_args(args):
     return formatted_args
 
 
-def format_history(history, epochs):
-    """Format the history into a readable string.
-
-    Args:
-        history: Object containing all the events that we are monitoring.
-        epochs: The total number of epochs we are training for.
-
-    Returns:
-        A string that is human readable and can be used for logging.
-    """
-    monitored_val = history.keys()
-    results = ""
-    for epoch in range(epochs):
-        res = "epoch {}/{} : ".format(epoch, epochs)
-        for x in monitored_val:
-            kv = " {} = {}".format(x, round(history[x][epoch], 3))
-            res += ' | ' + kv
-        res += "\n"
-        results += res
-    return results
-
-
 def get_dir_name(models_dir):
     """Gets a directory to save the model.
 
@@ -108,3 +88,61 @@ def get_dir_name(models_dir):
         return os.path.join(models_dir, str(existing_dirs.max() + 1))
     else:
         return os.path.join(models_dir, '1')
+
+
+class Logger(Callback):
+    """A logging callback that tracks how well our model is doing over time.
+    """
+
+    def __init__(self, total_epochs):
+        """Constructor for the Logger.
+
+        Args:
+            total_epochs: The number of epochs we will train for.
+        """
+        self.total_epochs = total_epochs
+        self.epoch = 1
+
+
+    def format_logs(self, history):
+        """Format the history into a readable string.
+
+        Args:
+            history: Object containing all the events that we are monitoring.
+
+        Returns:
+            A string that is human readable and can be used for logging.
+        """
+        res = "epoch %2d/%2d : " % (self.epoch, self.total_epochs)
+        for x in history.keys():
+            kv = " %s = %3.3f" % (x, round(history[x], 3))
+            res += ' | ' + kv
+        return res
+
+
+    def on_train_end(self, logs={}):
+        """Log the best validation loss at the end of training.
+
+        Args:
+            logs: The training logs.
+        """
+        logging.info('Best validation loss: {}'.format(
+            round(np.min(logs['val_loss']), 4)))
+
+    def on_epoch_end(self, epoch, logs={}):
+        """Update the epoch count.
+
+        Args:
+            logs: The training logs.
+        """
+        self.epoch += 1
+        logging.info("="*30)
+
+    def on_batch_end(self, batch, logs={}):
+        """Log the progress of our training.
+
+        Args:
+            batch: The batch we are training on.
+            logs: The training logs.
+        """
+        logging.info(self.format_logs(logs))

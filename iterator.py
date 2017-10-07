@@ -103,7 +103,7 @@ class RefRelDataIterator(Iterator):
             batch_o_regions[i] = o_region.flatten()
 
         # Preprocess the images
-        batch_image = preprocess_input(batch_img)
+        batch_image = preprocess_input(batch_image)
 
         # Choose the inputs based on the parts of the relationship we will use.
         inputs = [batch_image]
