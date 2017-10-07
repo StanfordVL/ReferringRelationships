@@ -10,6 +10,8 @@ from keras.layers.embeddings import Embedding
 from keras.layers.merge import Multiply, Dot
 from keras.models import Model
 
+import numpy as np
+
 from config import parse_args
 
 
@@ -75,14 +77,13 @@ class ReferringRelationshipsModel():
                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
-        output = base_model.get_layer('activation_40').output
-        output = Dense(self.hidden_dim)(output)
+        output = base_model.get_layer('activation_49').output 
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
         return im_features
 
     def build_map_transform_layer_dense(self, att_weights, pred_features):
-        att_weights_flat = Reshape((1, 196))(att_weights) # N x H
+        att_weights_flat = Reshape((1, self.feat_map_dim**2))(att_weights) # N x H
         pred_matrix = Reshape((self.feat_map_dim**2, self.feat_map_dim**2))(pred_features) # H x H
         att_transformed = Multiply()([att_weights_flat, pred_matrix])
         att_transformed = Lambda(lambda x: K.sum(x, axis=2))(att_transformed)
@@ -112,12 +113,12 @@ class ReferringRelationshipsModel():
         return res
 
     def build_upsampling_layer(self, feature_map, layer_name):
-        att = Dense(1, activation='relu')(feature_map)
-        upsampled = self.build_frac_strided_transposed_conv_layer(att)
-        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
-        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
-        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
-        predictions = Activation('sigmoid', name=layer_name)(upsampled)
+        upsampling_factor = self.input_dim / self.feat_map_dim
+        k = int(np.log(upsampling_factor) / np.log(2))
+        res = feature_map
+        for i in range(k):
+            res = self.build_frac_strided_transposed_conv_layer(res)
+        predictions = Activation('sigmoid', name=layer_name)(res)
         return predictions
     
 
