@@ -41,7 +41,8 @@ class VRDDataset():
         """Rescales the bbox coords according to the `im_dim`.
 
         Args:
-            obj: object containing.
+            bbox: A tuple of (top, left, bottom, right) coordinates of the
+              object of interest.
             height: original image height.
             width: original image width.
         Returns:
@@ -49,7 +50,7 @@ class VRDDataset():
         """
         h_ratio = self.im_dim * 1. / height
         w_ratio = self.im_dim * 1. / width
-        y_min, y_max, x_min, x_max = obj['bbox']
+        y_min, y_max, x_min, x_max = bbox
         y0 = max(y_min * h_ratio, 0)
         x0 = max(x_min * w_ratio, 0)
         y1 = min(y_max * h_ratio, self.im_dim - 1)
@@ -225,7 +226,7 @@ if __name__ == '__main__':
                         default='data/VRD/annotations_train.json',
                         help='Json with relationships for each image.')
     parser.add_argument('--image-metadata', type=str,
-                        default='data/VRD/image_metadata.json',
+                        default='data/VRD/train_image_metadata.json',
                         help='Image metadata json file.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
@@ -233,10 +234,10 @@ if __name__ == '__main__':
 
     # Make sure that the required fields are present.
     if args.save_dir is None:
-        print '--save-dir not specified. Exiting!'
+        print('--save-dir not specified. Exiting!')
         sys.exit(0)
     if args.img_dir is None:
-        print '--img-dir not specified. Exiting!'
+        print('--img-dir not specified. Exiting!')
         sys.exit(0)
 
     # set the random seed.
