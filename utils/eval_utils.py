@@ -1,5 +1,4 @@
 from keras import backend as K
-from ReferringRelationships.config import parse_args
 
 import tensorflow as tf
 
