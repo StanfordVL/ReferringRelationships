@@ -16,15 +16,13 @@ class VRDDataset():
     """Parses the VRD dataset into a format used for training.
     """
 
-    def __init__(self, data_path, img_dir, im_metadata_path, num_predicates=70, num_objects=100, im_dim=224):
+    def __init__(self, data_path, img_dir, im_metadata_path, im_dim=224):
         """Constructor for the VRD dataset object.
 
         Args:
             data_path: Annotations in the VRD dataset.
             img_dir: Location of the images.
             im_metadata_path: Location of the file containing image metadata.
-            num_predicates: Number of predicate categories.
-            num_objects: Number of object categories.
             im_dim: The size of images.
         """
         self.data = json.load(open(data_path))
@@ -35,14 +33,12 @@ class VRDDataset():
         self.img_dir = img_dir
         self.train_image_ids = []
         self.val_image_ids = []
-        self.num_predicates = num_predicates
-        self.num_objects = num_objects
 
     def rescale_bbox_coordinates(self, bbox, height, width):
         """Rescales the bbox coords according to the `im_dim`.
 
         Args:
-            obj: object containing.
+            bbox: bbox coordinates..
             height: original image height.
             width: original image width.
         Returns:
@@ -50,7 +46,7 @@ class VRDDataset():
         """
         h_ratio = self.im_dim * 1. / height
         w_ratio = self.im_dim * 1. / width
-        y_min, y_max, x_min, x_max = obj['bbox']
+        y_min, y_max, x_min, x_max = bbox
         y0 = max(y_min * h_ratio, 0)
         x0 = max(x_min * w_ratio, 0)
         y1 = min(y_max * h_ratio, self.im_dim - 1)
@@ -72,7 +68,7 @@ class VRDDataset():
                        (self.col_template < right)).repeat(self.im_dim, 0)
         row_indexes = (1 * (self.row_template > top) *
                        (self.row_template < bottom)).repeat(self.im_dim, 1)
-        return col_indexes * row_indexes
+        return (col_indexes * row_indexes).reshape((self.im_dim, self.im_dim))
 
     def get_train_val_splits(self, val_percent, shuffle=True):
         """Splits the dataset into train and val splits.
@@ -101,17 +97,13 @@ class VRDDataset():
             save_dir: Location to save the data.
             image_ids: List of image ids.
         """
-        (relationships, object2cat, cat2object,
-         predicate2cat, cat2predicate) = self.build_dataset(save_dir,
-                                                            image_ids=image_ids)
-        self.save_dataset(relationships, object2cat, cat2object,
-                          predicate2cat, cat2predicate)
+        relationships = self.build_dataset(image_ids=image_ids)
+        self.save_dataset(save_dir, relationships)
 
-    def build_dataset(self, save_dir, image_ids=None):
+    def build_dataset(self, image_ids=None):
         """Converts the dataset into a list of relationships and categories.
 
         Args:
-            save_dir: Location to save the data.
             image_ids: List of image ids.
 
         Returns:
@@ -119,61 +111,107 @@ class VRDDataset():
                 - 'image': The numpy image representation.
                 - 'subject': The numpy subject location mask.
                 - 'object': The numpy object location mask.
-                - 'categories': A list of subject, object and predicate indices.
+                - 'subject_cat': Int index of the subject category.
+                - 'predicate_cat': Int index of the predicate category.
+                - 'object_cat': Int index of the object category.
         """
-        # TODO
+        # Initialize output and logging variables.
+        relationships = []
+        total_relationships = 0
+
+        # Grab the image ids.
         if not image_ids:
             image_ids = self.data.keys()
+        num_images = len(image_ids)
 
-    def save_dataset(self, relationships, object2cat, cat2object,
-                     predicate2cat, cat2predicate):
+        # Iterate over all the images
+        for i, image_id in enumerate(image_ids):
+            seen = {}
+            im_data = self.im_metadata[image_id]
+            image = self.get_image_from_img_id(image_id)
+            total_relationships += len(self.data[image_id])
+
+            # Iterate over all the relationships in the image
+            for j, relationship in enumerate(self.data[image_id]):
+                subject_cat = relationship['subject']['category']
+                predicate_cat = relationship['predicate']
+                object_cat = relationship['object']['category']
+                s_bbox = self.rescale_bbox_coordinates(
+                    relationship['subject']['bbox'],
+                    im_data['height'],
+                    im_data['width'])
+                o_bbox= self.rescale_bbox_coordinates(
+                    relationship['object']['bbox'],
+                    im_data['height'],
+                    im_data['width'])
+                s_region = self.get_regions_from_bbox(s_bbox)
+                o_region = self.get_regions_from_bbox(o_bbox)
+                seen_key = '_'.join([str(x) for x in
+                                     [subject_cat, predicate_cat, object_cat]])
+                if seen_key not in seen:
+                    rel = {'image': image,
+                           'subject': s_region,
+                           'object': o_region,
+                           'subject_cat': subject_cat,
+                           'predicate_cat': predicate_cat,
+                           'object_cat': object_cat}
+                    seen[seen_key] = rel
+                else:
+                    rel = seen[seen_key]
+                    rel['subject'] = (rel['subject'] + s_region
+                                      - np.multiply(rel['subject'], s_region))
+                    rel['object'] = (rel['object'] + o_region
+                                     - np.multiply(rel['object'], o_region))
+
+            relationships.extend(seen.values())
+
+            # Log the progress.
+            if i % 100 == 0:
+                print('| {}/{} images processed'.format(i, num_images))
+
+        # Log the number of relationships we have seen.
+        print "Total relationships in dataset: %d" % total_relationships
+        print "Total UNIQUE relationships per image: %d" % len(relationships)
+
+        return relationships
+
+    def save_dataset(self, save_dir, relationships):
         """Converts the dataset into hdf5.
 
         Args:
+            save_dir: Location to save the data.
             relationships: A list containing objects that contain:
                 - 'image': The numpy image representation.
                 - 'subject': The numpy subject location mask.
                 - 'object': The numpy object location mask.
-                - 'categories': A list of subject, object and predicate indices.
-            object2cat: A mapping from object names to categories.
-            cat2object: A mapping from category index to object name.
-            predicate2cat: A mapping from predicate names to categories.
-            cat2predicate: A mapping from category index to predicate name.
+                - 'subject_cat': Int index of the subject category.
+                - 'predicate_cat': Int index of the predicate category.
+                - 'object_cat': Int index of the object category.
         """
-        # TODO
-
         total_relationships = len(relationships)
-        dataset = h5py.File(filename, 'w')
+        dataset = h5py.File(os.path.join(save_dir, 'dataset'), 'w')
         images_db = dataset.create_dataset('images',
-                                           (len(total_relationships),
-                                            self.input_dim, self.input_dim, 3),
+                                           (total_relationships,
+                                            self.im_dim, self.im_dim, 3),
                                            dtype='f')
         categories_db = dataset.create_dataset('categories',
-                                               (len(total_relationships), 3),
+                                               (total_relationships, 3),
                                                dtype='f')
         subject_db = dataset.create_dataset('subject_location',
-                                            (len(total_relationships),
-                                             self.input_dim, self.input_dim),
+                                            (total_relationships,
+                                             self.im_dim, self.im_dim),
                                             dtype='f')
         object_db = dataset.create_dataset('object_location',
-                                           (len(total_relationships),
-                                            self.input_dim, self.input_dim),
+                                           (total_relationships,
+                                            self.im_dim, self.im_dim),
                                            dtype='f')
-        nb_images = len(image_ids)
-        for i, image_id in enumerate(image_ids):
-            im_data = self.im_metadata[image_id]
-            for j, relationship in enumerate(self.data[image_id]):
-                rel_id = image_id.split('.')[0] + '-{}'.format(j)
-                subject_id = relationship['subject']['category']
-                predicate_id = relationship['predicate']
-                object_id = relationship['object']['category']
-                relationships += [(subject_id, predicate_id, object_id)]
-                s_bbox = self.rescale_bbox_coordinates(relationship['subject']['bbox'], im_data['height'], im_data['width'])
-                o_bbox= self.rescale_bbox_coordinates(relationship['object']['bbox'], im_data['height'], im_data['width'])
-                s_region = self.get_regions_from_bbox(s_bbox)
-                o_region = self.get_regions_from_bbox(o_bbox)
-            if i % 100 == 0:
-                print('{}/{} images processed'.format(i, nb_images))
+        for i, rel in enumerate(relationships):
+            images_db[i] = rel['image']
+            subject_db[i] = rel['subject']
+            object_db[i] = rel['object']
+            categories_db[i, 0] = rel['subject_cat']
+            categories_db[i, 1] = rel['predicate_cat']
+            categories_db[i, 2] = rel['object_cat']
 
     def get_image_from_img_id(self, img_id):
         """Reads the image associated with a specific img_id.
@@ -255,6 +293,8 @@ if __name__ == '__main__':
     parser.add_argument('--image-metadata', type=str,
                         default='data/VRD/image_metadata.json',
                         help='Image metadata json file.')
+    parser.add_argument('--image-dim', type=int, default=224,
+                        help='The size the images should be saved as.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
     args = parser.parse_args()
@@ -266,30 +306,35 @@ if __name__ == '__main__':
     if args.img_dir is None:
         print '--img-dir not specified. Exiting!'
         sys.exit(0)
+    if not os.path.isdir(args.save_dir):
+        os.mkdir(args.save_dir)
 
     # set the random seed.
     np.random.seed(args.seed)
 
     dataset = VRDDataset(args.annotations, args.img_dir,
-                             args.image_metadata)
+                         args.image_metadata, im_dim=args.image_dim)
     if args.test:
         # Build the test dataset.
         test_dir = os.path.join(args.save_dir, 'test')
-        os.mkdir(test_dir)
+        if not os.path.isdir(test_dir):
+            os.mkdir(test_dir)
         dataset.build_and_save_dataset(test_dir)
     else:
         # Split the images into train and val datasets.
         train_split, val_split = dataset.get_train_val_splits(
             args.val_percent)
 
-        # Build the training dataset.
-        os.mkdir(train_dir)
-        train_dir = os.path.join(args.save_dir, 'train')
-        print('| Building training data...')
-        dataset.build_and_save_dataset(train_dir, image_ids=train_split)
-
         # Build the validation dataset.
         val_dir = os.path.join(args.save_dir, 'val')
-        os.mkdir(val_dir)
+        if not os.path.isdir(val_dir):
+            os.mkdir(val_dir)
         print('| Building validation data...')
         dataset.build_and_save_dataset(val_dir, image_ids=val_split)
+
+        # Build the training dataset.
+        train_dir = os.path.join(args.save_dir, 'train')
+        if not os.path.isdir(train_dir):
+            os.mkdir(train_dir)
+        print('| Building training data...')
+        dataset.build_and_save_dataset(train_dir, image_ids=train_split)
