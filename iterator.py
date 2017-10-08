@@ -6,6 +6,7 @@ from keras.preprocessing.image import Iterator
 from keras.preprocessing.image import img_to_array
 from keras.preprocessing.image import load_img
 
+import h5py
 import os
 import keras.backend as K
 import numpy as np
@@ -30,16 +31,19 @@ class RefRelDataIterator(Iterator):
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
-        self.target_size = (args.input_dim, args.input_dim)
-        self.data_format = K.image_data_format()
-        if self.data_format == 'channels_last':
-            self.rgb_image_shape = self.target_size + (3,)
-        else:
-            self.rgb_image_shape = (3,) + self.target_size
-        self.rel_ids = np.load(os.path.join(self.data_dir, 'rel_ids.npy'))
-        self.relationships = np.load(os.path.join(self.data_dir,
-                                                  'relationships.npy'))
-        self.samples = self.rel_ids.shape[0]
+
+        # Set the sizes of targets and images.
+        self.target_size = args.input_dim * args.input_dim
+        self.image_size = (args.input_dim, args.input_dim, 3)
+        self.data_format = K.set_image_data_format('channels_last')
+
+        # Load the dataset
+        dataset = h5py.File(os.path.join(self.data_dir, 'dataset.hdf5'), 'r')
+        self.images = dataset['images']
+        self.categories = dataset['categories']
+        self.subjects = dataset['subject_locations']
+        self.objects = dataset['object_locations']
+        self.samples = self.dataset['images'].shape[0]
         super(RefRelDataIterator, self).__init__(
             self.samples, args.batch_size, shuffle, args.seed)
 
@@ -53,57 +57,26 @@ class RefRelDataIterator(Iterator):
             with. The second element of the tuple contains the output masks we
             want the model to predict.
         """
+        # Grab the indices for this batch.
         with self.lock:
-            index_array, current_index, current_batch_size = next(
-                self.index_generator)
-        batch_image = np.zeros((current_batch_size,) + self.rgb_image_shape,
+            index_array = next(self.index_generator)
+        current_batch_size = len(index_array)
+
+        # Create the batches.
+        batch_image = np.zeros((current_batch_size,) + self.image_shape,
                                dtype=K.floatx())
         batch_rel = np.zeros((current_batch_size,) + (3,), dtype=K.floatx())
-        im_size = self.input_dim * self.input_dim
-        batch_s_regions = np.zeros((current_batch_size,) + (im_size,),
+        batch_s_regions = np.zeros((current_batch_size,) + (self.target_size,),
                                    dtype=K.floatx())
-        batch_o_regions = np.zeros((current_batch_size,) + (im_size,),
+        batch_o_regions = np.zeros((current_batch_size,) + (self.target_size,),
                                    dtype=K.floatx())
 
         # build batch of image data.
         for i, j in enumerate(index_array):
-            rel_id = self.rel_ids[j]
-            rel = self.relationships[j]
-            image_fname = ''.join(rel_id.split('-')[:-1])
-            subject_fname = rel_id + '-s.jpg'
-            object_fname = rel_id + '-o.jpg'
-
-            # Load the image.
-            try:
-                img_path = os.path.join(self.image_dir, image_fname + '.jpg')
-                img = load_img(img_path, grayscale=False,
-                               target_size=self.target_size)
-            except IOError:
-                img_path = os.path.join(self.image_dir, image_fname + '.png')
-                img = load_img(img_path, grayscale=False,
-                               target_size=self.target_size)
-            img = img_to_array(img, data_format=self.data_format)
-
-            # Load the subject.
-            sub_path = os.path.join(self.data_dir, subject_fname)
-            s_region = load_img(sub_path, grayscale=True,
-                                target_size=self.target_size)
-            s_region = img_to_array(s_region, data_format=self.data_format)
-
-            # Load the object.
-            obj_path = os.path.join(self.data_dir, object_fname)
-            o_region = load_img(obj_path, grayscale=True,
-                                target_size=self.target_size)
-            o_region = img_to_array(o_region, data_format=self.data_format)
-
-            # Create the batch.
-            batch_image[i] = img
-            batch_rel[i] = rel
-            batch_s_regions[i] = s_region.flatten()
-            batch_o_regions[i] = o_region.flatten()
-
-        # Preprocess the images
-        batch_image = preprocess_input(batch_image)
+            batch_image[i] = self.images[j]
+            batch_rel[i] = self.categories[j]
+            batch_s_regions[i] = self.subjects[j].flatten()
+            batch_o_regions[i] = self.objects[j].flatten()
 
         # Choose the inputs based on the parts of the relationship we will use.
         inputs = [batch_image]
