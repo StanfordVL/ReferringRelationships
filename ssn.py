@@ -47,6 +47,8 @@ class ReferringRelationshipsModel():
         input_pred = Input(shape=(1,))
         input_obj = Input(shape=(1,))
         im_features = self.build_image_model(input_im)
+        im_features = Conv2D(self.hidden_dim, 1, padding='same')(im_features)
+        im_features = Activation("relu")(im_features)
         obj_subj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         predicate_embedding = self.build_embedding_layer(self.num_predicates, (self.feat_map_dim)**4)
         embedded_subject = obj_subj_embedding(input_subj)
@@ -59,6 +61,31 @@ class ReferringRelationshipsModel():
         subject_regions = self.build_upsampling_layer(subject_att, "subject_att")
         subject_regions_flat = Flatten(name="subject")(subject_regions)
         object_regions = self.build_upsampling_layer(object_att, "object_att")
+        object_regions_flat = Flatten(name="object")(object_regions)
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions_flat, object_regions_flat])
+        return model
+
+    def _build_model(self):
+        """Initializes the SSN model.
+
+        Returns:
+            The Keras model.
+        """
+        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_subj = Input(shape=(1,))
+        input_pred = Input(shape=(1,))
+        input_obj = Input(shape=(1,))
+        im_features = self.build_image_model(input_im)
+        im_features = Conv2D(self.hidden_dim, 1, padding='same')(im_features)
+        im_features = Activation("relu")(im_features)
+        obj_subj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
+        embedded_subject = obj_subj_embedding(input_subj)
+        embedded_object = obj_subj_embedding(input_obj)
+        subject_att = self.build_attention_layer(im_features, embedded_subject)
+        object_att = self.build_attention_layer(im_features, embedded_object)
+        subject_regions = self.build_upsampling_layer(subject_att, "subject_att")
+        object_regions = self.build_upsampling_layer(object_att, "object_att")
+        subject_regions_flat = Flatten(name="subject")(subject_regions)
         object_regions_flat = Flatten(name="object")(object_regions)
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions_flat, object_regions_flat])
         return model
@@ -77,7 +104,7 @@ class ReferringRelationshipsModel():
                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
-        output = base_model.get_layer('activation_49').output 
+        output = base_model.get_layer('activation_40').output 
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
         return im_features
@@ -102,6 +129,7 @@ class ReferringRelationshipsModel():
         return Embedding(num_categories, emb_dim, input_length=1)
 
     def build_attention_layer(self, feature_map, query):
+        query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation('sigmoid')(attention_weights)
