@@ -190,7 +190,7 @@ class VRDDataset():
                 - 'object_cat': Int index of the object category.
         """
         total_relationships = len(relationships)
-        dataset = h5py.File(os.path.join(save_dir, 'dataset'), 'w')
+        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
         images_db = dataset.create_dataset('images',
                                            (total_relationships,
                                             self.im_dim, self.im_dim, 3),
@@ -198,11 +198,11 @@ class VRDDataset():
         categories_db = dataset.create_dataset('categories',
                                                (total_relationships, 3),
                                                dtype='f')
-        subject_db = dataset.create_dataset('subject_location',
+        subject_db = dataset.create_dataset('subject_locations',
                                             (total_relationships,
                                              self.im_dim, self.im_dim),
                                             dtype='f')
-        object_db = dataset.create_dataset('object_location',
+        object_db = dataset.create_dataset('object_locations',
                                            (total_relationships,
                                             self.im_dim, self.im_dim),
                                            dtype='f')
