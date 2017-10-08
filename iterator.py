@@ -34,7 +34,7 @@ class RefRelDataIterator(Iterator):
 
         # Set the sizes of targets and images.
         self.target_size = args.input_dim * args.input_dim
-        self.image_size = (args.input_dim, args.input_dim, 3)
+        self.image_shape = (args.input_dim, args.input_dim, 3)
         self.data_format = K.set_image_data_format('channels_last')
 
         # Load the dataset
@@ -43,7 +43,7 @@ class RefRelDataIterator(Iterator):
         self.categories = dataset['categories']
         self.subjects = dataset['subject_locations']
         self.objects = dataset['object_locations']
-        self.samples = self.dataset['images'].shape[0]
+        self.samples = self.images.shape[0]
         super(RefRelDataIterator, self).__init__(
             self.samples, args.batch_size, shuffle, args.seed)
 
@@ -59,8 +59,7 @@ class RefRelDataIterator(Iterator):
         """
         # Grab the indices for this batch.
         with self.lock:
-            index_array = next(self.index_generator)
-        current_batch_size = len(index_array)
+            index_array, _, current_batch_size = next(self.index_generator)
 
         # Create the batches.
         batch_image = np.zeros((current_batch_size,) + self.image_shape,
