@@ -126,6 +126,7 @@ class Logger(Callback):
         Args:
             logs: The training logs.
         """
+        # TODO: fix key error
         logging.info('Best validation loss: {}'.format(
             round(np.min(logs['val_loss']), 4)))
 

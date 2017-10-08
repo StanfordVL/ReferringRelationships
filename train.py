@@ -102,4 +102,5 @@ if __name__=='__main__':
                         epochs=args.epochs,
                         validation_data=val_generator,
                         validation_steps=val_steps,
+                        verbose=2,
                         callbacks=[checkpointer, tb_callback, logging_callback])

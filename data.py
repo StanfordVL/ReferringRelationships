@@ -38,7 +38,8 @@ class VRDDataset():
         """Rescales the bbox coords according to the `im_dim`.
 
         Args:
-            bbox: bbox coordinates..
+            bbox: A tuple of (top, left, bottom, right) coordinates of the
+                object of interest.
             height: original image height.
             width: original image width.
         Returns:
@@ -291,7 +292,7 @@ if __name__ == '__main__':
                         default='data/VRD/annotations_train.json',
                         help='Json with relationships for each image.')
     parser.add_argument('--image-metadata', type=str,
-                        default='data/VRD/image_metadata.json',
+                        default='data/VRD/train_image_metadata.json',
                         help='Image metadata json file.')
     parser.add_argument('--image-dim', type=int, default=224,
                         help='The size the images should be saved as.')
@@ -301,10 +302,10 @@ if __name__ == '__main__':
 
     # Make sure that the required fields are present.
     if args.save_dir is None:
-        print '--save-dir not specified. Exiting!'
+        print('--save-dir not specified. Exiting!')
         sys.exit(0)
     if args.img_dir is None:
-        print '--img-dir not specified. Exiting!'
+        print('--img-dir not specified. Exiting!')
         sys.exit(0)
     if not os.path.isdir(args.save_dir):
         os.mkdir(args.save_dir)
