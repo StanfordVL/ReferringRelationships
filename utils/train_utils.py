@@ -116,9 +116,9 @@ class Logger(Callback):
         Returns:
             A string that is human readable and can be used for logging.
         """
-        res = "epoch %2d/%2d : " % (self.epoch, self.total_epochs)
+        res = "epoch %2d/%2d, " % (self.epoch, self.total_epochs)
         for x in history.keys():
-            kv = " %s = %3.3f" % (x, round(history[x], 3))
+            kv = " %s: %3.3f" % (x, round(history[x], 3))
             res += ', ' + kv
         return res
 
@@ -151,7 +151,7 @@ class Logger(Callback):
         self.epoch += 1
         if self.log_every_batch:
             logging.info("="*30)
-        logging.info("Epoch took %2.3f% seconds" % epoch_time)
+        logging.info("Epoch took %2.3f seconds" % epoch_time)
         logging.info(self.format_logs(logs))
         if self.log_every_batch:
             logging.info("="*30)

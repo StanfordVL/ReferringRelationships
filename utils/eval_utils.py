@@ -3,6 +3,22 @@ from keras import backend as K
 import tensorflow as tf
 
 
+def format_results(names, scalars):
+    """Formats the results of training.
+
+    Args:
+        names: The names of the metrics.
+        scalars: The values of the metrics.
+
+    Returns:
+        A string that contains the formatted scalars.
+    """
+    res = []
+    for name, scalar in zip(names, scalars):
+        res.append('%s: %2.3f' % (name, scalar))
+    return ', '.join(res)
+
+
 def iou(y_true, y_pred, heatmap_threshold):
     """Measures the mean IoU of our predictions with ground truth.
 
@@ -20,6 +36,7 @@ def iou(y_true, y_pred, heatmap_threshold):
     union = K.cast(K.greater(y_true + pred, 0), "float32")
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
+
 
 def iou_acc(y_true, y_pred, heatmap_threshold):
     """Measures the mean accuracy of our predictions with ground truth.
@@ -42,6 +59,7 @@ def iou_acc(y_true, y_pred, heatmap_threshold):
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     acc = K.cast(K.greater(iou_values, 0.5), "float32")
     return K.mean(acc)
+
 
 def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
     """Measures the mean IoU of our bbox predictions with ground truth.
@@ -69,6 +87,7 @@ def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
     union = K.cast(K.greater(y_true + mask, 0), "float32")
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
+
 
 if __name__ == "__main__":
     import numpy as np;

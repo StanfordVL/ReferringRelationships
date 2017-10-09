@@ -8,6 +8,7 @@ from keras.optimizers import Adam
 
 from config import parse_args
 from iterator import RefRelDataIterator
+from utils.eval_utils import format_results
 from utils.eval_utils import iou
 from utils.eval_utils import iou_acc
 from utils.eval_utils import iou_bbox
@@ -54,10 +55,8 @@ if __name__=='__main__':
     logging.info(format_args(args))
 
     # Setup the training and validation data iterators
-    train_generator = RefRelDataIterator(args.train_data_dir,
-                                         args)
-    val_generator = RefRelDataIterator(args.val_data_dir,
-                                       args)
+    train_generator = RefRelDataIterator(args.train_data_dir, args)
+    val_generator = RefRelDataIterator(args.val_data_dir, args)
     logging.info('Train on {} samples'.format(train_generator.samples))
     logging.info('Validate on {} samples'.format(val_generator.samples))
 
@@ -68,7 +67,8 @@ if __name__=='__main__':
     iou_bbox_metric.__name__ = 'iou_bbox'
     for metric_func in [iou, iou_acc, iou_bbox_metric]:
         for thresh in args.heatmap_threshold:
-            metric = lambda gt, pred: metric_func(gt, pred, thresh)
+            metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
+                metric_func, thresh)
             metric.__name__ = metric_func.__name__ + '_' + str(thresh)
             metrics.append(metric)
 
@@ -95,13 +95,36 @@ if __name__=='__main__':
         save_best_only=args.save_best_only,
         monitor='val_loss')
 
-    # Start training
+    # Start training.
     train_steps = int(train_generator.samples/args.batch_size)
-    val_steps = int(val_generator.samples/args.batch_size)
     model.fit_generator(train_generator,
                         steps_per_epoch=train_steps,
                         epochs=args.epochs,
                         validation_data=val_generator,
-                        validation_steps=val_steps,
+                        validation_steps=args.eval_steps,
                         verbose=2,
+                        use_multiprocessing=True,
+                        workers=args.workers,
                         callbacks=[checkpointer, tb_callback, logging_callback])
+
+    # Run Evaluation.
+    val_steps = int(val_generator.samples/args.batch_size)
+    outputs = model.evaluate_generator(val_generator,
+                                       val_steps,
+                                       use_multiprocessing=True,
+                                       workers=args.workers)
+    logging.info('*'*30)
+    logging.info('Evaluation results - ' + format_results(model.metrics_names,
+                                                          outputs))
+
+
+    # Run Testing.
+    test_generator = RefRelDataIterator(args.test_data_dir, args)
+    test_steps = int(test_generator.samples/args.batch_size)
+    outputs = model.evaluate_generator(test_generator,
+                                       test_steps,
+                                       use_multiprocessing=True,
+                                       workers=args.workers)
+    logging.info('*'*30)
+    logging.info('Test results - ' + format_results(model.metrics_names,
+                                                    outputs))
