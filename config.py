@@ -35,6 +35,10 @@ def parse_args():
     parser.add_argument('--log-every-batch', action='store_true',
                         help='Logs every batch when used. Otherwise it '
                         'logs every epoch.')
+    parser.add_argument('--eval-steps', type=int, default=10,
+                        help='Number of eval steps to evaluate every batch.')
+    parser.add_argument('--workers', type=int, default=4,
+                        help='Number workers used to load the data.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
@@ -80,9 +84,9 @@ def parse_args():
     parser.add_argument('--val-data-dir', type=str,
                         default='/data/chami/VRD/09_20_2017/val/',
                         help='Location of the validation data.')
-    parser.add_argument('--image-data-dir', type=str,
-                        default='/data/chami/VRD/sg_dataset/sg_train_images/',
-                        help='Location of the images.')
+    parser.add_argument('--test-data-dir', type=str,
+                        default='/data/chami/VRD/09_20_2017/test/',
+                        help='Location of the validation data.')
 
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
