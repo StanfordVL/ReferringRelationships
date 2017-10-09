@@ -171,8 +171,8 @@ class VRDDataset():
                 print('| {}/{} images processed'.format(i, num_images))
 
         # Log the number of relationships we have seen.
-        print "Total relationships in dataset: %d" % total_relationships
-        print "Total UNIQUE relationships per image: %d" % len(relationships)
+        print("Total relationships in dataset: %d" % total_relationships)
+        print("Total UNIQUE relationships per image: %d" % len(relationships))
 
         return relationships
 

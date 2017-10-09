@@ -133,10 +133,7 @@ class ReferringRelationshipsModel():
 
     def build_attention_layer(self, images, relationships, layer_name):
         merged = Multiply()([images, relationships])
-        merged = Lambda(lambda x: K.sum(x, axis=3))(merged)
-        merged = Reshape(target_shape=(self.feat_map_dim,
-                                       self.feat_map_dim,
-                                       1))(merged)
+        merged = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(merged)
         upsampled = self.build_frac_strided_transposed_conv_layer(merged)
         upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
         upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
