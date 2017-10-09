@@ -44,7 +44,8 @@ if __name__=='__main__':
 
     # Setup logging.
     logfile = os.path.join(args.save_dir, 'train.log')
-    logging.basicConfig(level=logging.INFO, filename=logfile)
+    logging.basicConfig(format='%(message)s', level=logging.INFO,
+                        filename=logfile)
 
     # Store the arguments used in this training process.
     args_file = open(os.path.join(args.save_dir, 'args.json'), 'w')
@@ -86,7 +87,7 @@ if __name__=='__main__':
 
     # Setup callbacks for tensorboard, logging and checkpoints.
     tb_callback = TensorBoard(log_dir=args.save_dir)
-    logging_callback = Logger(args.epochs)
+    logging_callback = Logger(args)
     checkpointer = ModelCheckpoint(
         filepath=os.path.join(
             args.save_dir, 'model{epoch:02d}-{val_loss:.2f}.h5'),

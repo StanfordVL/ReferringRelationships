@@ -32,6 +32,9 @@ def parse_args():
     parser.add_argument('--overwrite', action='store_true',
                         help='Train even if that folder already contains '
                         'an existing model.')
+    parser.add_argument('--log-every-batch', action='store_true',
+                        help='Logs every batch when used. Otherwise it '
+                        'logs every epoch.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
