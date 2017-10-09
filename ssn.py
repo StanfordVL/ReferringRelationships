@@ -1,6 +1,7 @@
-"""Define the referring relationship model.
+"""Defines the shifting attention referring relationship model.
 """
 
+from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation
@@ -12,7 +13,6 @@ from keras.models import Model
 
 import numpy as np
 
-from config import parse_args
 
 
 class ReferringRelationshipsModel():
@@ -104,7 +104,7 @@ class ReferringRelationshipsModel():
                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
-        output = base_model.get_layer('activation_40').output 
+        output = base_model.get_layer('activation_40').output
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
         return im_features
@@ -117,7 +117,7 @@ class ReferringRelationshipsModel():
         att_transformed = Activation('sigmoid')(att_transformed)
         att_transformed = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att_transformed)
         return att_transformed
-    
+
     def build_map_transform_layer_conv(self, att_weights, query):
         conv_map = Conv2D(self.hidden_dim, 3, padding='same')(att_weights)
         att_transformed = Multiply()([conv_map, query])
@@ -148,7 +148,7 @@ class ReferringRelationshipsModel():
             res = self.build_frac_strided_transposed_conv_layer(res)
         predictions = Activation('sigmoid', name=layer_name)(res)
         return predictions
-    
+
 
 if __name__ == "__main__":
     args = parse_args()
