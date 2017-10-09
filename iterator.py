@@ -26,7 +26,6 @@ class RefRelDataIterator(Iterator):
               data when sampling for the next batch.
         """
         self.data_dir = data_dir
-        self.image_dir = args.image_data_dir
         self.input_dim = args.input_dim
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
