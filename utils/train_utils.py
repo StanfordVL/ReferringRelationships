@@ -131,8 +131,6 @@ class Logger(Callback):
         total_train_time = time.time() - self.train_start_time
         logging.info('Total training time for %d epochs was %2.3f' % (
             self.total_epochs, total_train_time))
-        logging.info('Best validation loss: {}'.format(
-            round(np.min(logs['val_loss']), 4)))
 
     def on_epoch_begin(self, epoch, logs=None):
         """Record the time when it starts.
