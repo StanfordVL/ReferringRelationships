@@ -17,14 +17,12 @@ class DatasetIterator(Sequence):
     """Extends Keras backend implementation of an Iterator.
     """
 
-    def __init__(self, data_dir, args, shuffle=True):
+    def __init__(self, data_dir, args):
         """Constructor for the iterator.
 
         Args:
             data_dir: Location of the annotations.
             args: The arguments from the `config.py` file.
-            shuffle: Boolean deciding whether we should be shuffling the
-              data when sampling for the next batch.
         """
         self.data_dir = data_dir
         self.input_dim = args.input_dim
@@ -94,14 +92,12 @@ class RefRelDataIterator(Iterator):
     """Iterator capable of reading images from a directory on disk.
     """
 
-    def __init__(self, data_dir, args, shuffle=True):
+    def __init__(self, data_dir, args):
         """Constructor for the iterator.
 
         Args:
             data_dir: Location of the annotations.
             args: The arguments from the `config.py` file.
-            shuffle: Boolean deciding whether we should be shuffling the
-              data when sampling for the next batch.
         """
         self.data_dir = data_dir
         self.input_dim = args.input_dim
@@ -124,7 +120,7 @@ class RefRelDataIterator(Iterator):
         self.samples = self.images.shape[0]
         self.length = int(float(self.samples) /  self.batch_size)
         super(RefRelDataIterator, self).__init__(
-            self.samples, args.batch_size, shuffle, args.seed)
+            self.samples, args.batch_size, args.shuffle, args.seed)
 
     def __len__(self):
         """The number of items in the dataset.

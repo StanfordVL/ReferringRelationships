@@ -37,8 +37,10 @@ def parse_args():
                         'logs every epoch.')
     parser.add_argument('--eval-steps', type=int, default=10,
                         help='Number of eval steps to evaluate every batch.')
-    parser.add_argument('--workers', type=int, default=4,
+    parser.add_argument('--workers', type=int, default=1,
                         help='Number workers used to load the data.')
+    parser.add_argument('--shuffle', action='store_true', default=True,
+                        help='Shuffle the dataset.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
@@ -108,8 +110,8 @@ def parse_args():
         raise ValueError('At least one of the 3 components of the '
             'relationship should be included in training.')
 
-    # Set flags for multithreading.
-    args.multithreading = args.workers > 1
+    # Set flags for multiprocessing.
+    args.multiprocessing = args.workers > 1
 
     return args
 

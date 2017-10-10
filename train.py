@@ -103,15 +103,16 @@ if __name__=='__main__':
                         validation_data=val_generator,
                         validation_steps=args.eval_steps,
                         verbose=2,
-                        use_multiprocessing=args.multithreading,
+                        use_multiprocessing=args.multiprocessing,
                         workers=args.workers,
+                        shuffle=args.shuffle,
                         callbacks=[checkpointer, tb_callback, logging_callback])
 
     # Run Evaluation.
     val_steps = len(val_generator)
     outputs = model.evaluate_generator(generator=val_generator,
                                        step=val_steps,
-                                       use_multiprocessing=args.multithreading,
+                                       use_multiprocessing=args.multiprocessing,
                                        workers=args.workers)
     logging.info('*'*30)
     logging.info('Evaluation results - ' + format_results(model.metrics_names,
@@ -123,7 +124,7 @@ if __name__=='__main__':
     test_steps = len(test_generator)
     outputs = model.evaluate_generator(generator=test_generator,
                                        steps=test_steps,
-                                       use_multiprocessing=args.multithreading,
+                                       use_multiprocessing=args.multiprocessing,
                                        workers=args.workers)
     logging.info('*'*30)
     logging.info('Test results - ' + format_results(model.metrics_names,
