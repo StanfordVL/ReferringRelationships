@@ -5,7 +5,7 @@ from keras.applications.resnet50 import preprocess_input
 from keras.preprocessing.image import Iterator
 from keras.preprocessing.image import img_to_array
 from keras.preprocessing.image import load_img
-from keras.utils.data_utils import Sequence
+from keras.utils import Sequence
 
 import h5py
 import os
@@ -38,11 +38,8 @@ class DatasetIterator(Sequence):
 
         # Load the dataset
         dataset = h5py.File(os.path.join(self.data_dir, 'dataset.hdf5'), 'r')
-        self.images = dataset['images']
-        self.categories = dataset['categories']
-        self.subjects = dataset['subject_locations']
-        self.objects = dataset['object_locations']
-        self.samples = self.images.shape[0]
+        images = dataset['images']
+        self.samples = images.shape[0]
         self.length = int(float(self.samples) /  self.batch_size)
 
     def __len__(self):
@@ -52,6 +49,9 @@ class DatasetIterator(Sequence):
             The number of items in the dataset.
         """
         return self.length
+
+    def on_epoch_end(self):
+        return
 
     def __getitem__(self, idx):
         """Grab the next batch of data for training.
@@ -66,15 +66,21 @@ class DatasetIterator(Sequence):
             with. The second element of the tuple contains the output masks we
             want the model to predict.
         """
+        dataset = h5py.File(os.path.join(self.data_dir, 'dataset.hdf5'), 'r')
+        images = dataset['images']
+        categories = dataset['categories']
+        subjects = dataset['subject_locations']
+        objects = dataset['object_locations']
+
         start_idx = idx * self.batch_size
         end_idx = min(self.samples, (idx + 1) * self.batch_size)
 
         # Create the batches.
-        batch_image = self.images[start_idx:end_idx]
-        batch_rel = self.categories[start_idx:end_idx]
-        batch_s_regions = self.subjects[start_idx:end_idx].reshape(
+        batch_image = images[start_idx:end_idx]
+        batch_rel = categories[start_idx:end_idx]
+        batch_s_regions = subjects[start_idx:end_idx].reshape(
             self.batch_size, self.target_size)
-        batch_o_regions = self.objects[start_idx:end_idx].reshape(
+        batch_o_regions = objects[start_idx:end_idx].reshape(
             self.batch_size, self.target_size)
 
         # Choose the inputs based on the parts of the relationship we will use.

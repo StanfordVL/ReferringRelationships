@@ -122,8 +122,16 @@ class Logger(Callback):
             res += ', ' + kv
         return res
 
+    def on_train_begin(self, logs={}):
+        """Function called before training starts.
+
+        Args:
+            logs: The training logs.
+        """
+        self.train_start_time = time.time()
+
     def on_train_end(self, logs={}):
-        """Log the best validation loss at the end of training.
+        """Log the time it took to train.
 
         Args:
             logs: The training logs.
