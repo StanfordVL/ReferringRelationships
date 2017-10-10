@@ -111,10 +111,10 @@ if __name__=='__main__':
     # Run Evaluation.
     val_steps = len(val_generator)
     outputs = model.evaluate_generator(generator=val_generator,
-                                       step=val_steps,
+                                       steps=val_steps,
                                        use_multiprocessing=args.multiprocessing,
                                        workers=args.workers)
-    logging.info('*'*30)
+    logging.info('='*30)
     logging.info('Evaluation results - ' + format_results(model.metrics_names,
                                                           outputs))
 
@@ -126,6 +126,6 @@ if __name__=='__main__':
                                        steps=test_steps,
                                        use_multiprocessing=args.multiprocessing,
                                        workers=args.workers)
-    logging.info('*'*30)
+    logging.info('='*30)
     logging.info('Test results - ' + format_results(model.metrics_names,
                                                     outputs))

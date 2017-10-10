@@ -66,21 +66,22 @@ class DatasetIterator(Sequence):
             with. The second element of the tuple contains the output masks we
             want the model to predict.
         """
-        dataset = h5py.File(os.path.join(self.data_dir, 'dataset.hdf5'), 'r')
-        images = dataset['images']
-        categories = dataset['categories']
-        subjects = dataset['subject_locations']
-        objects = dataset['object_locations']
+        if not hasattr(self, 'images'):
+            dataset = h5py.File(os.path.join(self.data_dir, 'dataset.hdf5'), 'r')
+            self.images = dataset['images']
+            self.categories = dataset['categories']
+            self.subjects = dataset['subject_locations']
+            self.objects = dataset['object_locations']
 
         start_idx = idx * self.batch_size
         end_idx = min(self.samples, (idx + 1) * self.batch_size)
 
         # Create the batches.
-        batch_image = images[start_idx:end_idx]
-        batch_rel = categories[start_idx:end_idx]
-        batch_s_regions = subjects[start_idx:end_idx].reshape(
+        batch_image = self.images[start_idx:end_idx]
+        batch_rel = self.categories[start_idx:end_idx]
+        batch_s_regions = self.subjects[start_idx:end_idx].reshape(
             self.batch_size, self.target_size)
-        batch_o_regions = objects[start_idx:end_idx].reshape(
+        batch_o_regions = self.objects[start_idx:end_idx].reshape(
             self.batch_size, self.target_size)
 
         # Choose the inputs based on the parts of the relationship we will use.
