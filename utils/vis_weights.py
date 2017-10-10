@@ -68,6 +68,7 @@ class objdict(dict):
 if __name__ == "__main__": 
     args = parse_args()
     params = objdict(json.load(open(os.path.join(os.path.dirname(args.model), "args.json"), "r")))
+    params.shuffle = True
     input_dim = params.input_dim
     params.batch_size = args.num_examples
     val_generator = RefRelDataIterator(params.val_data_dir, params)
@@ -75,7 +76,7 @@ if __name__ == "__main__":
     x_val, y_val = val_generator.next()
     predicates, obj_subj = get_dict(args.vocab_dir)
     font = cv2.FONT_HERSHEY_SIMPLEX
-    model = load_model(args.model, custom_objects={'iou_0.3': iou_3, "iou_5": iou_5, "iou_7":iou_7, "iou_acc_5":iou_acc_5, 'iou_acc_0.3': iou_acc_3, 'iou_bbox_0.3': iou_bbox_3, 'iou_bbox_5': iou_bbox_5, 'iou_bbox_6': iou_bbox_6})
+    model = load_model(args.model, custom_objects={'iou_0.3': iou_3, "iou_0.5": iou_5, "iou_0.7":iou_7, "iou_acc_0.5":iou_acc_5, 'iou_acc_0.3': iou_acc_3, 'iou_bbox_0.3': iou_bbox_3, 'iou_bbox_0.5': iou_bbox_5, 'iou_bbox_0.6': iou_bbox_6})
     preds = model.predict(x_val)
     model_name = os.path.basename(args.model)
     for i in range(len(x_val[0])):

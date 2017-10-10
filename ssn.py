@@ -47,22 +47,24 @@ class ReferringRelationshipsModel():
         input_pred = Input(shape=(1,))
         input_obj = Input(shape=(1,))
         im_features = self.build_image_model(input_im)
+        im_features = Dropout(self.dropout)(im_features)
         im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="relu")(im_features)
         subj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         predicate_embedding = self.build_embedding_layer(self.num_predicates, (self.feat_map_dim)**4)
         embedded_subject = subj_embedding(input_subj)
+        embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_predicate = predicate_embedding(input_pred)
+        embedded_predicate = Dropout(self.dropout)(embedded_predicate)
         embedded_object = obj_embedding(input_obj)
+        embedded_object = Dropout(self.dropout)(embedded_object)
         subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred")
-        subject_regions = self.build_upsampling_layer(subject_att)
-        subject_regions_flat = Reshape((self.input_dim*self.input_dim,), name="subject")(subject_regions)
+        subject_regions = self.build_upsampling_layer(subject_att, "subject")
         predicate_att = self.build_map_transform_layer_dense(subject_att, embedded_predicate, "after-pred")
         new_im_feature_map = Multiply()([im_features, predicate_att])
         object_att = self.build_attention_layer(new_im_feature_map, embedded_object)
-        object_regions = self.build_upsampling_layer(object_att)
-        object_regions_flat = Reshape((self.input_dim*self.input_dim,), name="object")(object_regions)
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions_flat, object_regions_flat])
+        object_regions = self.build_upsampling_layer(object_att, "object")
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 
 
@@ -179,13 +181,14 @@ class ReferringRelationshipsModel():
         res = Conv2DTranspose(1, 3, padding='same')(res)
         return res
 
-    def build_upsampling_layer(self, feature_map):
+    def build_upsampling_layer(self, feature_map, name):
         upsampling_factor = self.input_dim / self.feat_map_dim
         k = int(np.log(upsampling_factor) / np.log(2))
         res = feature_map
-        for i in range(k-1):
+        for i in range(k):
             res = self.build_frac_strided_transposed_conv_layer(res)
-        predictions = Activation('sigmoid', name=layer_name)(res)
+        predictions = Activation('sigmoid')(res)
+        predictions = Flatten(name=name)(predictions)
         return predictions
 
 
