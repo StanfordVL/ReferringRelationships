@@ -45,7 +45,7 @@ class DatasetIterator(Sequence):
         self.subjects = dataset['subject_locations']
         self.objects = dataset['object_locations']
         self.samples = self.images.shape[0]
-        self.length = float(self.samples) /  self.batch_size
+        self.length = int(float(self.samples) /  self.batch_size)
 
     def __len__(self):
         """The number of items in the dataset.
@@ -74,8 +74,10 @@ class DatasetIterator(Sequence):
         # Create the batches.
         batch_image = self.images[start_idx:end_idx]
         batch_rel = self.categories[start_idx:end_idx]
-        batch_s_regions = self.subjects[start_idx:end_idx]
-        batch_o_regions = self.objects[start_idx:end_idx]
+        batch_s_regions = self.subjects[start_idx:end_idx].reshape(
+            self.batch_size, self.target_size)
+        batch_o_regions = self.objects[start_idx:end_idx].reshape(
+            self.batch_size, self.target_size)
 
         # Choose the inputs based on the parts of the relationship we will use.
         inputs = [batch_image]
@@ -106,6 +108,7 @@ class RefRelDataIterator(Iterator):
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
+        self.batch_size = args.batch_size
 
         # Set the sizes of targets and images.
         self.target_size = args.input_dim * args.input_dim
@@ -119,8 +122,17 @@ class RefRelDataIterator(Iterator):
         self.subjects = dataset['subject_locations']
         self.objects = dataset['object_locations']
         self.samples = self.images.shape[0]
+        self.length = int(float(self.samples) /  self.batch_size)
         super(RefRelDataIterator, self).__init__(
             self.samples, args.batch_size, shuffle, args.seed)
+
+    def __len__(self):
+        """The number of items in the dataset.
+
+        Returns:
+            The number of items in the dataset.
+        """
+        return self.length
 
     def next(self):
         """Grab the next batch of data for training.

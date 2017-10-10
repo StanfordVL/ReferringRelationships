@@ -96,22 +96,22 @@ if __name__=='__main__':
         monitor='val_loss')
 
     # Start training.
-    train_steps = int(train_generator.samples/args.batch_size)
-    model.fit_generator(train_generator,
+    train_steps = len(train_generator)
+    model.fit_generator(generator=train_generator,
                         steps_per_epoch=train_steps,
                         epochs=args.epochs,
                         validation_data=val_generator,
                         validation_steps=args.eval_steps,
                         verbose=2,
-                        use_multiprocessing=True,
+                        use_multiprocessing=args.multithreading,
                         workers=args.workers,
                         callbacks=[checkpointer, tb_callback, logging_callback])
 
     # Run Evaluation.
-    val_steps = int(val_generator.samples/args.batch_size)
-    outputs = model.evaluate_generator(val_generator,
-                                       val_steps,
-                                       use_multiprocessing=True,
+    val_steps = len(val_generator)
+    outputs = model.evaluate_generator(generator=val_generator,
+                                       step=val_steps,
+                                       use_multiprocessing=args.multithreading,
                                        workers=args.workers)
     logging.info('*'*30)
     logging.info('Evaluation results - ' + format_results(model.metrics_names,
@@ -120,10 +120,10 @@ if __name__=='__main__':
 
     # Run Testing.
     test_generator = DatasetIterator(args.test_data_dir, args)
-    test_steps = int(test_generator.samples/args.batch_size)
-    outputs = model.evaluate_generator(test_generator,
-                                       test_steps,
-                                       use_multiprocessing=True,
+    test_steps = len(test_generator)
+    outputs = model.evaluate_generator(generator=test_generator,
+                                       steps=test_steps,
+                                       use_multiprocessing=args.multithreading,
                                        workers=args.workers)
     logging.info('*'*30)
     logging.info('Test results - ' + format_results(model.metrics_names,

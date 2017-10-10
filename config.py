@@ -108,6 +108,9 @@ def parse_args():
         raise ValueError('At least one of the 3 components of the '
             'relationship should be included in training.')
 
+    # Set flags for multithreading.
+    args.multithreading = args.workers > 1
+
     return args
 
 
