@@ -7,7 +7,7 @@ from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
 
 from config import parse_args
-from iterator import RefRelDataIterator
+from iterator import DatasetIterator
 from utils.eval_utils import format_results
 from utils.eval_utils import iou
 from utils.eval_utils import iou_acc
@@ -55,8 +55,8 @@ if __name__=='__main__':
     logging.info(format_args(args))
 
     # Setup the training and validation data iterators
-    train_generator = RefRelDataIterator(args.train_data_dir, args)
-    val_generator = RefRelDataIterator(args.val_data_dir, args)
+    train_generator = DatasetIterator(args.train_data_dir, args)
+    val_generator = DatasetIterator(args.val_data_dir, args)
     logging.info('Train on {} samples'.format(train_generator.samples))
     logging.info('Validate on {} samples'.format(val_generator.samples))
 
@@ -119,7 +119,7 @@ if __name__=='__main__':
 
 
     # Run Testing.
-    test_generator = RefRelDataIterator(args.test_data_dir, args)
+    test_generator = DatasetIterator(args.test_data_dir, args)
     test_steps = int(test_generator.samples/args.batch_size)
     outputs = model.evaluate_generator(test_generator,
                                        test_steps,
