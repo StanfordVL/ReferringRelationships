@@ -82,7 +82,7 @@ def parse_args():
                         help='The dropout probability used in training.')
     parser.add_argument('--conv-predicate-kernel', type=int, default=3,
                         help='The kernel size when using convolutions in the ssn model to move heatmaps')
-    parser.add_argument('--use-conv-ssn', type=int, default=1,
+    parser.add_argument('--use-conv-ssn', type=int, default=0,
                         help='Whether to use convolutions or dense layer to move heatmaps in ssn model')
 
     # Data parameters.

@@ -69,21 +69,15 @@ if __name__=='__main__':
         from ssn import ReferringRelationshipsModel
     else:
         from model import ReferringRelationshipsModel
-    if not args.model_checkpoint:
-        # create a new instance model
-        relationships_model = ReferringRelationshipsModel(args)
-        model = relationships_model.build_model()
-        model.summary(print_fn=lambda x: logging.info(x + '\n'))
-        optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
-        model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
-    else:
-        # reload checkpoint 
-        # TODO: make sure that metrics are the same between runs 
-        metrics_dict = {}
-        for metric in metrics:
-            metrics_dict[metric.__name__] = metric
-        with CustomObjectScope(metrics_dict):
-            model = load_model(args.model_checkpoint)
+    # create a new instance model
+    relationships_model = ReferringRelationshipsModel(args)
+    model = relationships_model.build_model()
+    model.summary(print_fn=lambda x: logging.info(x + '\n'))
+    optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
+    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
+    if args.model_checkpoint:
+         # load model weights from checkpoint 
+         model.load_weights(args.model_checkpoint)
 
     # Setup callbacks for tensorboard, logging and checkpoints.
     tb_callback = TensorBoard(log_dir=args.save_dir)
@@ -92,6 +86,7 @@ if __name__=='__main__':
         filepath=os.path.join(
             args.save_dir, 'model{epoch:02d}-{val_loss:.2f}.h5'),
         verbose=1,
+        save_weights_only=True,
         save_best_only=args.save_best_only,
         monitor='val_loss')
 

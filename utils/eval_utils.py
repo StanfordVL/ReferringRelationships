@@ -3,7 +3,7 @@ from keras import backend as K
 import tensorflow as tf
 
 
-def get_metrics(input_dim, heatmap_threshold)
+def get_metrics(input_dim, heatmap_threshold):
     metrics = []
     iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, input_dim)
     iou_bbox_metric.__name__ = 'iou_bbox'
