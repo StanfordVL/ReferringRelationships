@@ -10,6 +10,7 @@ import cv2
 import logging
 import numpy as np
 import os
+import time
 
 
 def save_weights(img_path, model_path, save_path, target_size=(224, 224)):
@@ -94,15 +95,17 @@ class Logger(Callback):
     """A logging callback that tracks how well our model is doing over time.
     """
 
-    def __init__(self, total_epochs):
+    def __init__(self, args):
         """Constructor for the Logger.
 
         Args:
-            total_epochs: The number of epochs we will train for.
+            args: Arguments passed in by the user.
         """
-        self.total_epochs = total_epochs
+        self.total_epochs = args.epochs
+        self.log_every_batch = args.log_every_batch
         self.epoch = 1
-
+        self.epoch_start_time = None
+        self.batch_start_time = None
 
     def format_logs(self, history):
         """Format the history into a readable string.
@@ -113,22 +116,38 @@ class Logger(Callback):
         Returns:
             A string that is human readable and can be used for logging.
         """
-        res = "epoch %2d/%2d : " % (self.epoch, self.total_epochs)
+        res = "epoch %2d/%2d, " % (self.epoch, self.total_epochs)
         for x in history.keys():
-            kv = " %s = %3.3f" % (x, round(history[x], 3))
-            res += ' | ' + kv
+            kv = " %s: %3.3f" % (x, round(history[x], 3))
+            res += ', ' + kv
         return res
 
-
-    def on_train_end(self, logs={}):
-        """Log the best validation loss at the end of training.
+    def on_train_begin(self, logs={}):
+        """Function called before training starts.
 
         Args:
             logs: The training logs.
         """
-        # TODO: fix key error
-        logging.info('Best validation loss: {}'.format(
-            round(np.min(logs['val_loss']), 4)))
+        self.train_start_time = time.time()
+
+    def on_train_end(self, logs={}):
+        """Log the time it took to train.
+
+        Args:
+            logs: The training logs.
+        """
+        total_train_time = time.time() - self.train_start_time
+        logging.info('Total training time for %d epochs was %2.3f' % (
+            self.total_epochs, total_train_time))
+
+    def on_epoch_begin(self, epoch, logs=None):
+        """Record the time when it starts.
+
+        Args:
+            epoch: The epoch that is starting.
+            logs: The training logs.
+        """
+        self.epoch_start_time = time.time()
 
     def on_epoch_end(self, epoch, logs={}):
         """Update the epoch count.
@@ -136,8 +155,24 @@ class Logger(Callback):
         Args:
             logs: The training logs.
         """
+        epoch_time = time.time() - self.epoch_start_time
         self.epoch += 1
-        logging.info("="*30)
+        if self.log_every_batch:
+            logging.info("="*30)
+        logging.info("Epoch took %2.3f seconds" % epoch_time)
+        logging.info(self.format_logs(logs))
+        if self.log_every_batch:
+            logging.info("="*30)
+
+    def on_batch_begin(self, batch, logs=None):
+        """Record the time when it starts.
+
+        Args:
+            batch: The batch we are training on.
+            logs: The training logs.
+        """
+        if self.log_every_batch:
+            self.batch_start_time = time.time()
 
     def on_batch_end(self, batch, logs={}):
         """Log the progress of our training.
@@ -146,4 +181,7 @@ class Logger(Callback):
             batch: The batch we are training on.
             logs: The training logs.
         """
-        logging.info(self.format_logs(logs))
+        if self.log_every_batch:
+            batch_time = time.time() - self.batch_start_time
+            time_string = 'Time: %2.3f, ' % batch_time
+            logging.info(time_string + self.format_logs(logs))

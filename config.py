@@ -32,6 +32,15 @@ def parse_args():
     parser.add_argument('--overwrite', action='store_true',
                         help='Train even if that folder already contains '
                         'an existing model.')
+    parser.add_argument('--log-every-batch', action='store_true',
+                        help='Logs every batch when used. Otherwise it '
+                        'logs every epoch.')
+    parser.add_argument('--eval-steps', type=int, default=10,
+                        help='Number of eval steps to evaluate every batch.')
+    parser.add_argument('--workers', type=int, default=1,
+                        help='Number workers used to load the data.')
+    parser.add_argument('--shuffle', action='store_true', default=True,
+                        help='Shuffle the dataset.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
@@ -77,9 +86,9 @@ def parse_args():
     parser.add_argument('--val-data-dir', type=str,
                         default='/data/chami/VRD/09_20_2017/val/',
                         help='Location of the validation data.')
-    parser.add_argument('--image-data-dir', type=str,
-                        default='/data/chami/VRD/sg_dataset/sg_train_images/',
-                        help='Location of the images.')
+    parser.add_argument('--test-data-dir', type=str,
+                        default='/data/chami/VRD/09_20_2017/test/',
+                        help='Location of the validation data.')
 
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
@@ -100,6 +109,9 @@ def parse_args():
     if not (args.use_subject or args.use_predicate or args.use_object):
         raise ValueError('At least one of the 3 components of the '
             'relationship should be included in training.')
+
+    # Set flags for multiprocessing.
+    args.multiprocessing = args.workers > 1
 
     return args
 

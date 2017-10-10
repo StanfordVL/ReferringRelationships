@@ -128,8 +128,12 @@ class VRDDataset():
         # Iterate over all the images
         for i, image_id in enumerate(image_ids):
             seen = {}
-            im_data = self.im_metadata[image_id]
-            image = self.get_image_from_img_id(image_id)
+            try:
+                im_data = self.im_metadata[image_id]
+                image = self.get_image_from_img_id(image_id)
+            except KeyError:
+                print('Image %s not found' % str(image_id))
+                continue
             total_relationships += len(self.data[image_id])
 
             # Iterate over all the relationships in the image

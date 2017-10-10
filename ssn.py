@@ -1,6 +1,7 @@
-"""Define the referring relationship model.
+"""Defines the shifting attention referring relationship model.
 """
 
+from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation
@@ -12,7 +13,6 @@ from keras.models import Model
 
 import numpy as np
 
-from config import parse_args
 
 
 class ReferringRelationshipsModel():
@@ -35,10 +35,10 @@ class ReferringRelationshipsModel():
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
-    
+
     def build_model(self):
         """Initializes the SSN model.
-        This model uses moving heatmaps with a dense layer 
+        This model uses moving heatmaps with a dense layer
         Returns:
             The Keras model.
         """
@@ -68,9 +68,9 @@ class ReferringRelationshipsModel():
 
     def build_model_1(self):
         """Initializes the SSN model.
-        This model uses refined query for attention. 
-        No predicate 
-        Similar to stacked attention: uses the same image feature map for each attention layer but different query vector 
+        This model uses refined query for attention.
+        No predicate
+        Similar to stacked attention: uses the same image feature map for each attention layer but different query vector
         Returns:
             The Keras model.
         """
@@ -93,7 +93,7 @@ class ReferringRelationshipsModel():
         object_regions_flat = Reshape((self.input_dim*self.input_dim,), name="object")(object_regions)
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions_flat, object_regions_flat])
         return model
-    
+
     def build_refined_query(self, im_features, subject_att, embedded_object):
         x1 = Multiply()([im_features, subject_att])
         x2 = Reshape((self.feat_map_dim*self.feat_map_dim, self.hidden_dim))(x1)
@@ -142,7 +142,7 @@ class ReferringRelationshipsModel():
                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
-        output = base_model.get_layer('activation_40').output 
+        output = base_model.get_layer('activation_40').output
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
         return im_features
@@ -154,7 +154,7 @@ class ReferringRelationshipsModel():
         att_transformed = Lambda(lambda x: K.sum(x, axis=2))(att_transformed)
         att_transformed = Reshape((self.feat_map_dim, self.feat_map_dim, 1), name=name)(att_transformed)
         return att_transformed
-    
+
     def build_map_transform_layer_conv(self, att_weights, query):
         conv_map = Conv2D(self.hidden_dim, 3, padding='same')(att_weights)
         att_transformed = Multiply()([conv_map, query])
@@ -185,10 +185,9 @@ class ReferringRelationshipsModel():
         res = feature_map
         for i in range(k-1):
             res = self.build_frac_strided_transposed_conv_layer(res)
-        res = self.build_frac_strided_transposed_conv_layer(res)
-        res = Activation('sigmoid')(res)
-        return res
-    
+        predictions = Activation('sigmoid', name=layer_name)(res)
+        return predictions
+
 
 if __name__ == "__main__":
     args = parse_args()
