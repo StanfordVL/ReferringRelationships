@@ -3,6 +3,19 @@ from keras import backend as K
 import tensorflow as tf
 
 
+def get_metrics(input_dim, heatmap_threshold)
+    metrics = []
+    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, input_dim)
+    iou_bbox_metric.__name__ = 'iou_bbox'
+    for metric_func in [iou, iou_acc, iou_bbox_metric]:
+        for thresh in heatmap_threshold:
+            metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
+                metric_func, thresh)
+            metric.__name__ = metric_func.__name__ + '_' + str(thresh)
+            metrics.append(metric)
+    return metrics 
+
+
 def format_results(names, scalars):
     """Formats the results of training.
 

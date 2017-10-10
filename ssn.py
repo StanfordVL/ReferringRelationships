@@ -35,6 +35,8 @@ class ReferringRelationshipsModel():
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
+        self.conv_predicate_kernel = args.conv_predicate_kernel
+        self.use_conv = args.use_conv_ssn
 
     def build_model(self):
         """Initializes the SSN model.
@@ -51,7 +53,10 @@ class ReferringRelationshipsModel():
         im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="relu")(im_features)
         subj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        predicate_embedding = self.build_embedding_layer(self.num_predicates, (self.feat_map_dim)**4)
+        if self.use_conv==1:
+            predicate_embedding = self.build_embedding_layer(self.num_predicates, self.conv_predicate_kernel**2)
+        else:
+            predicate_embedding = self.build_embedding_layer(self.num_predicates, self.feat_map_dim**4)
         embedded_subject = subj_embedding(input_subj)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_predicate = predicate_embedding(input_pred)
@@ -60,7 +65,10 @@ class ReferringRelationshipsModel():
         embedded_object = Dropout(self.dropout)(embedded_object)
         subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred")
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
-        predicate_att = self.build_map_transform_layer_dense(subject_att, embedded_predicate, "after-pred")
+        if self.use_conv==1:
+            predicate_att = self.build_map_transform_layer_conv(subject_att, embedded_predicate, "after-pred")
+        else:
+            predicate_att = self.build_map_transform_layer_dense(subject_att, embedded_predicate, "after-pred")
         new_im_feature_map = Multiply()([im_features, predicate_att])
         object_att = self.build_attention_layer(new_im_feature_map, embedded_object)
         object_regions = self.build_upsampling_layer(object_att, "object")
@@ -157,11 +165,11 @@ class ReferringRelationshipsModel():
         att_transformed = Reshape((self.feat_map_dim, self.feat_map_dim, 1), name=name)(att_transformed)
         return att_transformed
 
-    def build_map_transform_layer_conv(self, att_weights, query):
-        conv_map = Conv2D(self.hidden_dim, 3, padding='same')(att_weights)
-        att_transformed = Multiply()([conv_map, query])
-        att_transformed = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_transformed)
-        att_transformed = Activation('relu')(att_transformed)
+    def build_map_transform_layer_conv(self, att_map, kernel, name):
+        # TODO: write a custom conv layer that has different filters as input 
+        # or group same relationship in a batch (tmp fix)
+        kernel = Reshape((self.conv_predicate_kernel, self.conv_predicate_kernel, 1, 1))(kernel)
+        att_transformed = Lambda(lambda x: K.conv2d(x[0], x[1], padding='same'))([att_map, kernel])
         return att_transformed
 
     def build_embedding_layer(self, num_categories, emb_dim):
