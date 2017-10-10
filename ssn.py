@@ -54,10 +54,10 @@ class ReferringRelationshipsModel():
         embedded_subject = subj_embedding(input_subj)
         embedded_predicate = predicate_embedding(input_pred)
         embedded_object = obj_embedding(input_obj)
-        subject_att = self.build_attention_layer(im_features, embedded_subject)
+        subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred")
         subject_regions = self.build_upsampling_layer(subject_att)
         subject_regions_flat = Reshape((self.input_dim*self.input_dim,), name="subject")(subject_regions)
-        predicate_att = self.build_map_transform_layer_dense(subject_att, embedded_predicate, "moved-att")
+        predicate_att = self.build_map_transform_layer_dense(subject_att, embedded_predicate, "after-pred")
         new_im_feature_map = Multiply()([im_features, predicate_att])
         object_att = self.build_attention_layer(new_im_feature_map, embedded_object)
         object_regions = self.build_upsampling_layer(object_att)
@@ -87,7 +87,7 @@ class ReferringRelationshipsModel():
         subject_att = self.build_attention_layer(im_features, embedded_subject)
         subject_regions = self.build_upsampling_layer(subject_att)
         subject_regions_flat = Reshape((self.input_dim*self.input_dim,), name="subject")(subject_regions)
-        refined_query = self.build_refined_query(im_features, subject_att, embedded_object)
+        refined_query = self.build_refined_query(im_features, subject_att, embedded_object, "after-pred")
         object_att = self.build_attention_layer(im_features, refined_query)
         object_regions = self.build_upsampling_layer(object_att)
         object_regions_flat = Reshape((self.input_dim*self.input_dim,), name="object")(object_regions)
@@ -165,10 +165,13 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def build_attention_layer(self, feature_map, query):
+    def build_attention_layer(self, feature_map, query, name=None):
         query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
-        attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
+        if not name:
+            attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
+        else:
+             attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
         return attention_weights
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
