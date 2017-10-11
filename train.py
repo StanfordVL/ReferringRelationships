@@ -8,14 +8,14 @@ from keras.optimizers import Adam
 from keras.models import load_model
 from keras.utils import CustomObjectScope
 
-from ReferringRelationships.config import parse_args
-from ReferringRelationships.iterator import DatasetIterator
-from ReferringRelationships.utils.eval_utils import format_results
-from ReferringRelationships.utils.eval_utils import get_metrics
-from ReferringRelationships.utils.train_utils import Logger
-from ReferringRelationships.utils.train_utils import get_dir_name
-from ReferringRelationships.utils.train_utils import get_opt
-from ReferringRelationships.utils.train_utils import format_args
+from config import parse_args
+from iterator import SmartIterator
+from utils.eval_utils import format_results
+from utils.eval_utils import get_metrics
+from utils.train_utils import Logger
+from utils.train_utils import get_dir_name
+from utils.train_utils import get_opt
+from utils.train_utils import format_args
 
 import json
 import logging
@@ -55,8 +55,8 @@ if __name__=='__main__':
     logging.info(format_args(args))
 
     # Setup the training and validation data iterators
-    train_generator = DatasetIterator(args.train_data_dir, args)
-    val_generator = DatasetIterator(args.val_data_dir, args)
+    train_generator = SmartIterator(args.train_data_dir, args)
+    val_generator = SmartIterator(args.val_data_dir, args)
     logging.info('Train on {} samples'.format(train_generator.samples))
     logging.info('Validate on {} samples'.format(val_generator.samples))
 
@@ -76,7 +76,7 @@ if __name__=='__main__':
     optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
     model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
     if args.model_checkpoint:
-         # load model weights from checkpoint 
+         # load model weights from checkpoint
          model.load_weights(args.model_checkpoint)
 
     # Setup callbacks for tensorboard, logging and checkpoints.
@@ -115,7 +115,7 @@ if __name__=='__main__':
 
 
     # Run Testing.
-    test_generator = DatasetIterator(args.test_data_dir, args)
+    test_generator = SmartIterator(args.test_data_dir, args)
     test_steps = len(test_generator)
     outputs = model.evaluate_generator(generator=test_generator,
                                        steps=test_steps,
