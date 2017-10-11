@@ -13,23 +13,6 @@ import os
 import time
 
 
-def save_weights(img_path, model_path, save_path, target_size=(224, 224)):
-    model = load_model(model_path)
-    img = load_img(os.path.join(img_path, target_size=target_size))
-    img = img.reshape((1,) + img.shape)
-    # pred = model.predict
-
-
-def visualize_weights(orig_image, pred, input_dim, epoch, name, res_dir):
-    # saving attention heatmaps for one example
-    pred = pred.reshape(input_dim, input_dim, 1)
-    pred = 1. * (pred > 0.9)
-    image_pred = np.zeros((input_dim, input_dim, 3))
-    image_pred += pred * 255
-    attention_viz = cv2.addWeighted(orig_image, 0.6, image_pred, 0.4, 0)
-    cv2.imwrite(os.path.join(res_dir, 'attention-' + name + '-' + str(epoch) + '.png'), attention_viz)
-
-
 def get_opt(opt, lr, lr_decay):
     """Initializes the opt that we want to train with.
 
@@ -116,7 +99,7 @@ class Logger(Callback):
         Returns:
             A string that is human readable and can be used for logging.
         """
-        res = "epoch %2d/%2d, " % (self.epoch, self.total_epochs)
+        res = "epoch %2d/%2d" % (self.epoch, self.total_epochs)
         for x in history.keys():
             kv = " %s: %3.3f" % (x, round(history[x], 3))
             res += ', ' + kv
@@ -156,13 +139,13 @@ class Logger(Callback):
             logs: The training logs.
         """
         epoch_time = time.time() - self.epoch_start_time
-        self.epoch += 1
         if self.log_every_batch:
             logging.info("="*30)
         logging.info("Epoch took %2.3f seconds" % epoch_time)
         logging.info(self.format_logs(logs))
         if self.log_every_batch:
             logging.info("="*30)
+        self.epoch += 1
 
     def on_batch_begin(self, batch, logs=None):
         """Record the time when it starts.

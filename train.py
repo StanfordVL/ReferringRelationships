@@ -5,13 +5,13 @@ from keras import backend as K
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
+from keras.models import load_model
+from keras.utils import CustomObjectScope
 
 from config import parse_args
 from iterator import DatasetIterator
 from utils.eval_utils import format_results
-from utils.eval_utils import iou
-from utils.eval_utils import iou_acc
-from utils.eval_utils import iou_bbox
+from utils.eval_utils import get_metrics
 from utils.train_utils import Logger
 from utils.train_utils import get_dir_name
 from utils.train_utils import get_opt
@@ -62,28 +62,22 @@ if __name__=='__main__':
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
-    metrics = []
-    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, args.input_dim)
-    iou_bbox_metric.__name__ = 'iou_bbox'
-    for metric_func in [iou, iou_acc, iou_bbox_metric]:
-        for thresh in args.heatmap_threshold:
-            metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
-                metric_func, thresh)
-            metric.__name__ = metric_func.__name__ + '_' + str(thresh)
-            metrics.append(metric)
+    metrics = get_metrics(args.input_dim, args.heatmap_threshold)
 
     # Prepare the model.
     if args.model == 'ssn':
         from ssn import ReferringRelationshipsModel
     else:
         from model import ReferringRelationshipsModel
+    # create a new instance model
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
     optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
-    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
-                  optimizer=optimizer,
-                  metrics=metrics)
+    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
+    if args.model_checkpoint:
+         # load model weights from checkpoint 
+         model.load_weights(args.model_checkpoint)
 
     # Setup callbacks for tensorboard, logging and checkpoints.
     tb_callback = TensorBoard(log_dir=args.save_dir)
@@ -92,6 +86,7 @@ if __name__=='__main__':
         filepath=os.path.join(
             args.save_dir, 'model{epoch:02d}-{val_loss:.2f}.h5'),
         verbose=1,
+        save_weights_only=True,
         save_best_only=args.save_best_only,
         monitor='val_loss')
 

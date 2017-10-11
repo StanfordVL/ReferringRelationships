@@ -53,6 +53,8 @@ def parse_args():
                         ' models directory set by --models-dir.')
     parser.add_argument('--save-best-only', action='store_true',
                         help='Saves only the best model checkpoint.')
+    parser.add_argument('--model-checkpoint', type=str, default=None,
+                        help='The location of the last checkpoint to reload')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
@@ -78,6 +80,10 @@ def parse_args():
                         help='The number of objects in the dataset.')
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='The dropout probability used in training.')
+    parser.add_argument('--conv-predicate-kernel', type=int, default=3,
+                        help='The kernel size when using convolutions in the ssn model to move heatmaps')
+    parser.add_argument('--use-conv-ssn', type=int, default=0,
+                        help='Whether to use convolutions or dense layer to move heatmaps in ssn model')
 
     # Data parameters.
     parser.add_argument('--train-data-dir', type=str,

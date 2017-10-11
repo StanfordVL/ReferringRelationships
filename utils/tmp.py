@@ -1,46 +1,16 @@
 from keras import backend as K
+from ReferringRelationships.config import parse_args
 
 import tensorflow as tf
 
 
-def get_metrics(input_dim, heatmap_threshold):
-    metrics = []
-    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, input_dim)
-    iou_bbox_metric.__name__ = 'iou_bbox'
-    for metric_func in [iou, iou_acc, iou_bbox_metric]:
-        for thresh in heatmap_threshold:
-            metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
-                metric_func, thresh)
-            metric.__name__ = metric_func.__name__ + '_' + str(thresh)
-            metrics.append(metric)
-    return metrics 
-
-
-def format_results(names, scalars):
-    """Formats the results of training.
-
-    Args:
-        names: The names of the metrics.
-        scalars: The values of the metrics.
-
-    Returns:
-        A string that contains the formatted scalars.
-    """
-    res = []
-    for name, scalar in zip(names, scalars):
-        res.append('%s: %2.3f' % (name, scalar))
-    return ', '.join(res)
-
-
 def iou(y_true, y_pred, heatmap_threshold):
     """Measures the mean IoU of our predictions with ground truth.
-
     Args:
         y_true: The ground truth bounding box locations.
         y_pred: Our heatmap predictions.
         heatmap_threshold: Config specified theshold above which we consider
           a prediction to contain an object.
-
     Returns:
         A float containing the mean IoU of our predictions.
     """
@@ -50,19 +20,15 @@ def iou(y_true, y_pred, heatmap_threshold):
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
 
-
 def iou_acc(y_true, y_pred, heatmap_threshold):
     """Measures the mean accuracy of our predictions with ground truth.
-
     Here we consider an object localization to be correct if it contains an
     IoU > 0.5 with the ground truth box.
-
     Args:
         y_true: The ground truth bounding box locations.
         y_pred: Our heatmap predictions.
         heatmap_threshold: Config specified theshold above which we consider
           a prediction to contain an object.
-
     Returns:
         A float containing the mean accuracy of our predictions.
     """
@@ -73,16 +39,13 @@ def iou_acc(y_true, y_pred, heatmap_threshold):
     acc = K.cast(K.greater(iou_values, 0.5), "float32")
     return K.mean(acc)
 
-
-def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
+def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim=224):
     """Measures the mean IoU of our bbox predictions with ground truth.
-
     Args:
         y_true: The ground truth bounding box locations.
         y_pred: Our heatmap predictions.
         heatmap_threshold: Config specified theshold above which we consider
           a prediction to contain an object.
-
     Returns:
         A float containing the mean accuracy of our bbox predictions.
     """
@@ -100,6 +63,33 @@ def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
     union = K.cast(K.greater(y_true + mask, 0), "float32")
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
+
+def iou_bbox_3(y_true, y_pred):
+    return iou_bbox(y_true, y_pred, 0.3)
+    
+def iou_bbox_5(y_true, y_pred):
+    return iou_bbox(y_true, y_pred, 0.5)
+
+def iou_bbox_6(y_true, y_pred):
+    return iou_bbox(y_true, y_pred, 0.6)
+
+def iou_3(y_true, y_pred):
+    return iou(y_true, y_pred, 0.3)
+
+def iou_5(y_true, y_pred):
+    return iou(y_true, y_pred, 0.5)
+
+def iou_7(y_true, y_pred):
+    return iou(y_true, y_pred, 0.7)
+
+def iou_9(y_true, y_pred):
+    return iou(y_true, y_pred, 0.9)
+
+def iou_acc_3(y_true, y_pred):
+    return iou_acc(y_true, y_pred, 0.3)
+
+def iou_acc_5(y_true, y_pred):
+    return iou_acc(y_true, y_pred, 0.5)
 
 
 if __name__ == "__main__":
