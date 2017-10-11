@@ -84,7 +84,9 @@ def parse_args():
                         help='The kernel size when using convolutions in the ssn model to move heatmaps')
     parser.add_argument('--use-conv-ssn', type=int, default=0,
                         help='Whether to use convolutions or dense layer to move heatmaps in ssn model')
-
+    parser.add_argument('--nb-conv-move-map', type=int, default=1,
+                        help='Number of convolution layers to use to move heatmaps in ssn model')   
+    
     # Data parameters.
     parser.add_argument('--train-data-dir', type=str,
                         default='/data/chami/VRD/09_20_2017/train/',
