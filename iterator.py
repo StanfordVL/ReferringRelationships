@@ -80,10 +80,10 @@ class SmartIterator(Sequence):
         batch_o_regions = self.objects[start_idx:end_idx].reshape(
             self.batch_size, self.target_size)
         image_indices = batch_rel[: , 3]
-        current_batch_size = end_idx - start-idx
+        current_batch_size = end_idx - start_idx
         batch_image = np.zeros((current_batch_size,) + self.image_shape,
                                dtype=K.floatx())
-        for i, image_index in enumerate(image_indices):
+        for i, image_index in enumerate(range(current_batch_size)):
             batch_image[image_index] = self.images[image_index]
 
         # Choose the inputs based on the parts of the relationship we will use.
