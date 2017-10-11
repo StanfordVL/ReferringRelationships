@@ -235,7 +235,7 @@ class SmartDataset(Dataset):
                 seen_key = '_'.join([str(x) for x in
                                      [subject_cat, predicate_cat, object_cat]])
                 if seen_key not in seen:
-                    rel = {'image_index': i,
+                    rel = {'image_index': image_index,
                            'subject': s_region,
                            'object': o_region,
                            'subject_cat': subject_cat,

@@ -37,6 +37,7 @@ class ReferringRelationshipsModel():
         self.use_object = args.use_object
         self.conv_predicate_kernel = args.conv_predicate_kernel
         self.use_conv = args.use_conv_ssn
+        self.nb_conv_move_map = args.nb_conv_move_map
 
     def build_model(self):
         """Initializes the SSN model.
@@ -166,10 +167,12 @@ class ReferringRelationshipsModel():
         return att_transformed
 
     def build_map_transform_layer_conv(self, att_map, kernel, name):
-        # TODO: write a custom conv layer that has different filters as input 
-        # or group same relationship in a batch (tmp fix)
-        kernel = Reshape((self.conv_predicate_kernel, self.conv_predicate_kernel, 1, 1))(kernel)
-        att_transformed = Lambda(lambda x: K.conv2d(x[0], x[1], padding='same'))([att_map, kernel])
+        # This function assumes that all predicates are the same within a batch
+        kernel = Lambda(lambda x: K.mean(x, axis=0))(kernel)
+        kernel = Lambda(lambda x: K.reshape(x, (self.conv_predicate_kernel, self.conv_predicate_kernel, 1, 1)))(kernel)
+        for i in range(self.nb_conv_move_map-1):
+            att_map = Lambda(lambda x: K.conv2d(x[0], x[1], padding='same'))([att_map, kernel])
+        att_transformed = Lambda(lambda x: K.conv2d(x[0], x[1], padding='same'), name=name)([att_map, kernel])
         return att_transformed
 
     def build_embedding_layer(self, num_categories, emb_dim):
