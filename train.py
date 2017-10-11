@@ -8,14 +8,14 @@ from keras.optimizers import Adam
 from keras.models import load_model
 from keras.utils import CustomObjectScope
 
-from config import parse_args
-from iterator import DatasetIterator
-from utils.eval_utils import format_results
-from utils.eval_utils import get_metrics
-from utils.train_utils import Logger
-from utils.train_utils import get_dir_name
-from utils.train_utils import get_opt
-from utils.train_utils import format_args
+from ReferringRelationships.config import parse_args
+from ReferringRelationships.iterator import DatasetIterator
+from ReferringRelationships.utils.eval_utils import format_results
+from ReferringRelationships.utils.eval_utils import get_metrics
+from ReferringRelationships.utils.train_utils import Logger
+from ReferringRelationships.utils.train_utils import get_dir_name
+from ReferringRelationships.utils.train_utils import get_opt
+from ReferringRelationships.utils.train_utils import format_args
 
 import json
 import logging

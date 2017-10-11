@@ -1,10 +1,7 @@
 """Iterator class that reads the data and batches it for training.
 """
 
-from keras.applications.resnet50 import preprocess_input
 from keras.preprocessing.image import Iterator
-from keras.preprocessing.image import img_to_array
-from keras.preprocessing.image import load_img
 from keras.utils import Sequence
 
 import h5py

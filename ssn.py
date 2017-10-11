@@ -1,7 +1,7 @@
 """Defines the shifting attention referring relationship model.
 """
 
-from config import parse_args
+from ReferringRelationships.config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation
