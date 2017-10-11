@@ -4,6 +4,7 @@
 from keras.applications.resnet50 import preprocess_input
 from keras.preprocessing import image
 
+import abc
 import argparse
 import cv2
 import h5py
@@ -12,8 +13,9 @@ import numpy as np
 import sys
 import os
 
-class VRDDataset():
-    """Parses the VRD dataset into a format used for training.
+
+class Dataset(object):
+    """Implements helper functions for parsing dataset.
     """
 
     def __init__(self, data_path, img_dir, im_metadata_path, im_dim=224):
@@ -31,8 +33,6 @@ class VRDDataset():
         self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
         self.row_template = np.arange(self.im_dim).reshape(self.im_dim, 1)
         self.img_dir = img_dir
-        self.train_image_ids = []
-        self.val_image_ids = []
 
     def rescale_bbox_coordinates(self, bbox, height, width):
         """Rescales the bbox coords according to the `im_dim`.
@@ -71,7 +71,7 @@ class VRDDataset():
                        (self.row_template < bottom)).repeat(self.im_dim, 1)
         return (col_indexes * row_indexes).reshape((self.im_dim, self.im_dim))
 
-    def get_train_val_splits(self, val_percent, shuffle=True):
+    def get_train_val_splits(self, val_percent):
         """Splits the dataset into train and val splits.
 
         Args:
@@ -80,13 +80,197 @@ class VRDDataset():
         Returns:
             A tuple containing the image ids in the train and val sets.
         """
-        image_ids = list(self.data.keys())
-        if shuffle:
-            np.random.shuffle(image_ids)
+        image_ids = list(sorted(self.data.keys()))
         thresh = int(len(image_ids) * (1. - val_percent))
-        self.train_image_ids = image_ids[:thresh]
-        self.val_image_ids = image_ids[thresh:]
-        return self.train_image_ids, self.val_image_ids
+        train_image_ids = image_ids[:thresh]
+        val_image_ids = image_ids[thresh:]
+        return train_image_ids, val_image_ids
+
+    def get_image_from_img_id(self, img_id):
+        """Reads the image associated with a specific img_id.
+
+        Args:
+            img_id: The if of the image to be read.
+
+        Returns:
+            The image as a numpy array.
+        """
+        img_path = os.path.join(self.img_dir, img_id)
+        img = image.load_img(img_path, target_size=(224, 224))
+        img_array = image.img_to_array(img)
+
+        # Preprocess the image according to the network we are using.
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = preprocess_input(img_array)
+        return img_array[0]
+
+    def get_images(self, image_ids):
+        """Loads all the images in the list of image_ids.
+
+        Args:
+            image_ids: A list of image ids.
+
+        Returns:
+            images: A list of numpy representations of the images.
+        """
+        images = np.zeros((len(image_ids), self.im_dim, self.im_dim, 3))
+        for i, image_id in enumerate(image_ids):
+            images[i] = self.get_image_from_img_id(image_id)
+        return images
+
+    def get_images_and_regions(self, image_ids, subject_bboxs, object_bboxs):
+        """Grabs the image and subject-object locations.
+
+        Args:
+            image_ids: A list of image ids to load.
+            subject_bboxes: A list of subject bboxes.
+            object_bboxes: A list of object bboxes.
+
+        Returns:
+            A tuple containing a numpy representation of all the images,
+            a numpy representation of all the subject locations,
+            a numpry representation of all the object locations.
+        """
+        num_images = len(image_ids)
+        images = np.zeros((num_images, self.im_dim, self.im_dim, 3))
+        s_regions = np.zeros((num_images, self.im_dim * self.im_dim))
+        o_regions = np.zeros((num_images, self.im_dim * self.im_dim))
+        for i, image_id in enumerate(image_ids):
+            s_bbox = subject_bboxes[i]
+            o_bbox = object_bboxes[i]
+            images[i] = self.get_image_from_img_id(image_id)
+            s_regions[i] = self.get_regions_from_bbox(s_bbox)
+            o_regions[i] = self.get_regions_from_bbox(o_bbox)
+        return images, s_regions, o_regions
+
+    @abc.abstractmethod
+    def build_and_save_dataset(self, save_dir, image_ids=None):
+        """Converts the dataset into format we will use for training.
+
+        Converts the dataset into a series of images, relationship labels
+        and heatmaps.
+
+        Args:
+            save_dir: Location to save the data.
+            image_ids: List of image ids.
+        """
+        raise NotImplementedError
+
+
+class SmartDataset(Dataset):
+    """Parses the dataset into a format used for training.
+    """
+
+    def build_and_save_dataset(self, save_dir, image_ids=None):
+        """Converts the dataset into format we will use for training.
+
+        Converts the dataset into a series of images, relationship labels
+        and heatmaps.
+
+        Args:
+            save_dir: Location to save the data.
+            image_ids: List of image ids.
+        """
+        total_relationships = 0
+
+        # Grab the image ids.
+        if not image_ids:
+            image_ids = sorted(self.data.keys())
+        num_images = len(image_ids)
+
+        # Create the image dataset.
+        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
+        images_db = dataset.create_dataset('images',
+                                           (num_images,
+                                            self.im_dim, self.im_dim, 3),
+                                           dtype='f')
+
+        # Iterate and save all the images first.
+        for image_index, image_id in enumerate(image_ids):
+            try:
+                im_data = self.im_metadata[image_id]
+                image = self.get_image_from_img_id(image_id)
+            except KeyError:
+                print('Image %s not found' % str(image_id))
+                continue
+            images_db[image_index] = image
+            total_relationships += len(self.data[image_id])
+
+            # Log the progress.
+            if image_index % 100 == 0:
+                print('| {}/{} images saved'.format(image_index, num_images))
+
+        # Build the category and heatmap datasets.
+        categories_db = dataset.create_dataset('categories',
+                                               (total_relationships, 4),
+                                               dtype='f')
+        subject_db = dataset.create_dataset('subject_locations',
+                                            (total_relationships,
+                                             self.im_dim, self.im_dim),
+                                            dtype='f')
+        object_db = dataset.create_dataset('object_locations',
+                                           (total_relationships,
+                                            self.im_dim, self.im_dim),
+                                           dtype='f')
+
+        # Now save all the relationships.
+        for image_index, image_id in enumerate(image_ids):
+            seen = {}
+
+            # Iterate over all the relationships in the image
+            for j, relationship in enumerate(self.data[image_id]):
+                subject_cat = relationship['subject']['category']
+                predicate_cat = relationship['predicate']
+                object_cat = relationship['object']['category']
+                s_bbox = self.rescale_bbox_coordinates(
+                    relationship['subject']['bbox'],
+                    im_data['height'],
+                    im_data['width'])
+                o_bbox= self.rescale_bbox_coordinates(
+                    relationship['object']['bbox'],
+                    im_data['height'],
+                    im_data['width'])
+                s_region = self.get_regions_from_bbox(s_bbox)
+                o_region = self.get_regions_from_bbox(o_bbox)
+                seen_key = '_'.join([str(x) for x in
+                                     [subject_cat, predicate_cat, object_cat]])
+                if seen_key not in seen:
+                    rel = {'image_index': i,
+                           'subject': s_region,
+                           'object': o_region,
+                           'subject_cat': subject_cat,
+                           'predicate_cat': predicate_cat,
+                           'object_cat': object_cat}
+                    seen[seen_key] = rel
+                else:
+                    rel = seen[seen_key]
+                    rel['subject'] = (rel['subject'] + s_region
+                                      - np.multiply(rel['subject'], s_region))
+                    rel['object'] = (rel['object'] + o_region
+                                     - np.multiply(rel['object'], o_region))
+
+            for rel in seen.values():
+                subject_db[i] = rel['subject']
+                object_db[i] = rel['object']
+                categories_db[i, 0] = rel['subject_cat']
+                categories_db[i, 1] = rel['predicate_cat']
+                categories_db[i, 2] = rel['object_cat']
+                categories_db[i, 3] = rel['image_index']
+
+            # Log the progress.
+            if image_index % 100 == 0:
+                print('| {}/{} images processed'.format(image_index, num_images))
+
+        # Log the number of relationships we have seen.
+        print("Total relationships in dataset: %d" % total_relationships)
+        print("Total UNIQUE relationships per image: %d" % len(relationships))
+
+        return relationships
+
+
+class DuplicatedDataset(Dataset):
+    """Parses the dataset into a format used for training.
+    """
 
     def build_and_save_dataset(self, save_dir, image_ids=None):
         """Converts the dataset into format we will use for training.
@@ -122,7 +306,7 @@ class VRDDataset():
 
         # Grab the image ids.
         if not image_ids:
-            image_ids = self.data.keys()
+            image_ids = sorted(self.data.keys())
         num_images = len(image_ids)
 
         # Iterate over all the images
@@ -218,63 +402,6 @@ class VRDDataset():
             categories_db[i, 1] = rel['predicate_cat']
             categories_db[i, 2] = rel['object_cat']
 
-    def get_image_from_img_id(self, img_id):
-        """Reads the image associated with a specific img_id.
-
-        Args:
-            img_id: The if of the image to be read.
-
-        Returns:
-            The image as a numpy array.
-        """
-        img_path = os.path.join(self.img_dir, img_id)
-        img = image.load_img(img_path, target_size=(224, 224))
-        img_array = image.img_to_array(img)
-
-        # Preprocess the image according to the network we are using.
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = preprocess_input(img_array)
-        return img_array[0]
-
-    def get_images(self, image_ids):
-        """Loads all the images in the list of image_ids.
-
-        Args:
-            image_ids: A list of image ids.
-
-        Returns:
-            images: A list of numpy representations of the images.
-        """
-        images = np.zeros((len(image_ids), self.im_dim, self.im_dim, 3))
-        for i, image_id in enumerate(image_ids):
-            images[i] = self.get_image_from_img_id(image_id)
-        return images
-
-    def get_images_and_regions(self, image_ids, subject_bboxs, object_bboxs):
-        """Grabs the image and subject-object locations.
-
-        Args:
-            image_ids: A list of image ids to load.
-            subject_bboxes: A list of subject bboxes.
-            object_bboxes: A list of object bboxes.
-
-        Returns:
-            A tuple containing a numpy representation of all the images,
-            a numpy representation of all the subject locations,
-            a numpry representation of all the object locations.
-        """
-        num_images = len(image_ids)
-        images = np.zeros((num_images, self.im_dim, self.im_dim, 3))
-        s_regions = np.zeros((num_images, self.im_dim * self.im_dim))
-        o_regions = np.zeros((num_images, self.im_dim * self.im_dim))
-        for i, image_id in enumerate(image_ids):
-            s_bbox = subject_bboxes[i]
-            o_bbox = object_bboxes[i]
-            images[i] = self.get_image_from_img_id(image_id)
-            s_regions[i] = self.get_regions_from_bbox(s_bbox)
-            o_regions[i] = self.get_regions_from_bbox(o_bbox)
-        return images, s_regions, o_regions
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Dataset creation for Visual '
@@ -317,7 +444,7 @@ if __name__ == '__main__':
     # set the random seed.
     np.random.seed(args.seed)
 
-    dataset = VRDDataset(args.annotations, args.img_dir,
+    dataset = SmartDataset(args.annotations, args.img_dir,
                          args.image_metadata, im_dim=args.image_dim)
     if args.test:
         # Build the test dataset.
