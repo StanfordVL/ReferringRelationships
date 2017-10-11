@@ -235,7 +235,7 @@ class SmartDataset(Dataset):
                 seen_key = '_'.join([str(x) for x in
                                      [subject_cat, predicate_cat, object_cat]])
                 if seen_key not in seen:
-                    rel = {'image_index': i,
+                    rel = {'image_index': image_index,
                            'subject': s_region,
                            'object': o_region,
                            'subject_cat': subject_cat,
@@ -249,13 +249,13 @@ class SmartDataset(Dataset):
                     rel['object'] = (rel['object'] + o_region
                                      - np.multiply(rel['object'], o_region))
 
-            for rel in seen.values():
-                subject_db[i] = rel['subject']
-                object_db[i] = rel['object']
-                categories_db[i, 0] = rel['subject_cat']
-                categories_db[i, 1] = rel['predicate_cat']
-                categories_db[i, 2] = rel['object_cat']
-                categories_db[i, 3] = rel['image_index']
+            for rel_id, rel in enumerate(seen.values()):
+                subject_db[rel_id] = rel['subject']
+                object_db[rel_id] = rel['object']
+                categories_db[rel_id, 0] = rel['subject_cat']
+                categories_db[rel_id, 1] = rel['predicate_cat']
+                categories_db[rel_id, 2] = rel['object_cat']
+                categories_db[rel_id, 3] = rel['image_index']
 
             # Log the progress.
             if image_index % 100 == 0:
@@ -263,9 +263,6 @@ class SmartDataset(Dataset):
 
         # Log the number of relationships we have seen.
         print("Total relationships in dataset: %d" % total_relationships)
-        print("Total UNIQUE relationships per image: %d" % len(relationships))
-
-        return relationships
 
 
 class DuplicatedDataset(Dataset):
