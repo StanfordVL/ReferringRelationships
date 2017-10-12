@@ -1,9 +1,22 @@
+"""Util functions used for evaluating the model.
+"""
+
 from keras import backend as K
 
 import tensorflow as tf
 
 
 def get_metrics(input_dim, heatmap_threshold):
+    """Returns all the metrics with the corresponding thresholds.
+
+    Args:
+        input_dim: The input size of the image.
+        heatmap_threshold: The heatmap thresholds we are evaluating with.
+
+    Returns:
+        A list of metric functions that take in the ground truth and the
+        predictins to evaluate the model.
+    """
     metrics = []
     iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, input_dim)
     iou_bbox_metric.__name__ = 'iou_bbox'
@@ -13,7 +26,7 @@ def get_metrics(input_dim, heatmap_threshold):
                 metric_func, thresh)
             metric.__name__ = metric_func.__name__ + '_' + str(thresh)
             metrics.append(metric)
-    return metrics 
+    return metrics
 
 
 def format_results(names, scalars):
