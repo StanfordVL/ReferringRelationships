@@ -271,6 +271,8 @@ if __name__=='__main__':
                         help='Size of the input image.')
     parser.add_argument('--batch-size', type=int, default=1,
                         help='The batch size used in training.')
+    parser.add_argument('--num-print', type=int, default=1,
+                        help='Number of entries to print.')
     args = parser.parse_args()
 
     args.use_subject = True
@@ -280,7 +282,9 @@ if __name__=='__main__':
     dataset = SmartIterator(args.data_dir, args)
     print('Length of dataset: %d' % len(dataset))
     print('Samples in dataset: %d'% dataset.samples)
+    count = 0
     for inputs, outputs in dataset:
+        print('-'*20)
         print('Image size: %d, %d, %d, %d' % inputs[0].shape)
         print('Image avg pixel: %f' % np.average(inputs[0]))
         print('Subject category: %d' % inputs[1][0])
@@ -288,4 +292,6 @@ if __name__=='__main__':
         print('Object category: %d' % inputs[3][0])
         print('Average subject heatmap pixels: %f' % np.average(outputs[0]))
         print('Average object heatmap pixels: %f' % np.average(outputs[0]))
-        break
+        if count >= args.num_print:
+            break
+        count += 1
