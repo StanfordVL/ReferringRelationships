@@ -175,7 +175,8 @@ class SmartDataset(Dataset):
 
         # Grab the image ids.
         if not image_ids:
-            image_ids = sorted(self.data.keys())
+            image_ids = self.data.keys()
+        image_ids = sorted(image_ids)
         num_images = len(image_ids)
 
         # Create the image dataset.
@@ -214,6 +215,7 @@ class SmartDataset(Dataset):
                                            dtype='f')
 
         # Now save all the relationships.
+        db_index = 0
         for image_index, image_id in enumerate(image_ids):
             seen = {}
 
@@ -249,13 +251,14 @@ class SmartDataset(Dataset):
                     rel['object'] = (rel['object'] + o_region
                                      - np.multiply(rel['object'], o_region))
 
-            for rel_id, rel in enumerate(seen.values()):
-                subject_db[rel_id] = rel['subject']
-                object_db[rel_id] = rel['object']
-                categories_db[rel_id, 0] = rel['subject_cat']
-                categories_db[rel_id, 1] = rel['predicate_cat']
-                categories_db[rel_id, 2] = rel['object_cat']
-                categories_db[rel_id, 3] = rel['image_index']
+            for rel in seen.values():
+                subject_db[db_index] = rel['subject']
+                object_db[db_index] = rel['object']
+                categories_db[db_index, 0] = rel['subject_cat']
+                categories_db[db_index, 1] = rel['predicate_cat']
+                categories_db[db_index, 2] = rel['object_cat']
+                categories_db[db_index, 3] = rel['image_index']
+                db_index += 1
 
             # Log the progress.
             if image_index % 100 == 0:
@@ -442,7 +445,7 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
 
     dataset = SmartDataset(args.annotations, args.img_dir,
-                         args.image_metadata, im_dim=args.image_dim)
+                           args.image_metadata, im_dim=args.image_dim)
     if args.test:
         # Build the test dataset.
         test_dir = os.path.join(args.save_dir, 'test')
