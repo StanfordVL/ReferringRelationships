@@ -84,8 +84,8 @@ class SmartIterator(Sequence):
         current_batch_size = end_idx - start_idx
         batch_image = np.zeros((current_batch_size,) + self.image_shape,
                                dtype=K.floatx())
-        for i, image_index in enumerate(range(current_batch_size)):
-            batch_image[image_index] = self.images[image_index]
+        for i, image_index in enumerate(batch_rel[:, 3]):
+            batch_image[i] = self.images[image_index]
 
         # Choose the inputs based on the parts of the relationship we will use.
         inputs = [batch_image]
