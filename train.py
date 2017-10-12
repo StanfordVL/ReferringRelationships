@@ -1,12 +1,10 @@
 """Training script for referring relationships.
 """
 
-from keras import backend as K
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
 from keras.models import load_model
-from keras.utils import CustomObjectScope
 
 from config import parse_args
 from iterator import SmartIterator
@@ -74,7 +72,8 @@ if __name__=='__main__':
     model = relationships_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
     optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
-    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
+    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
+                  optimizer=optimizer, metrics=metrics)
     if args.model_checkpoint:
          # load model weights from checkpoint
          model.load_weights(args.model_checkpoint)
