@@ -4,6 +4,7 @@
 from keras.preprocessing.image import Iterator
 from keras.utils import Sequence
 
+import argparse
 import h5py
 import os
 import keras.backend as K
@@ -95,8 +96,6 @@ class SmartIterator(Sequence):
         if self.use_object:
             inputs.append(batch_rel[:, 2])
         return inputs, [batch_s_regions, batch_o_regions]
-
-
 
 
 class DatasetIterator(Sequence):
@@ -262,3 +261,31 @@ class RefRelDataIterator(Iterator):
         if self.use_object:
             inputs.append(batch_rel[:, 2])
         return inputs, [batch_s_regions, batch_o_regions]
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser(description='Iterator test.')
+    parser.add_argument('--data-dir', type=str,
+                        default='data/vrd-10-10-2017/test/',
+                        help='Location of the dataset.')
+    parser.add_argument('--input-dim', type=int, default=224,
+                        help='Size of the input image.')
+    parser.add_argument('--batch-size', type=int, default=1,
+                        help='The batch size used in training.')
+    args = parser.parse_args()
+
+    args.use_subject = True
+    args.use_predicate = True
+    args.use_object = True
+
+    dataset = SmartIterator(args.data_dir, args)
+    print('Length of dataset: %d' % len(dataset))
+    print('Samples in dataset: %d'% dataset.samples)
+    for inputs, outputs in dataset:
+        print('Image size: %d, %d, %d, %d' % inputs[0].shape)
+        print('Image avg pixel: %f' % np.average(inputs[0]))
+        print('Subject category: %d' % inputs[1][0])
+        print('Predicate category: %d' % inputs[2][0])
+        print('Object category: %d' % inputs[3][0])
+        print('Average subject heatmap pixels: %f' % np.average(outputs[0]))
+        print('Average object heatmap pixels: %f' % np.average(outputs[0]))
+        break
