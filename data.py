@@ -18,7 +18,8 @@ class Dataset(object):
     """Implements helper functions for parsing dataset.
     """
 
-    def __init__(self, data_path, img_dir, im_metadata_path, im_dim=224):
+    def __init__(self, data_path, img_dir, im_metadata_path,
+                 im_dim=224, num_images=None):
         """Constructor for the VRD dataset object.
 
         Args:
@@ -26,8 +27,14 @@ class Dataset(object):
             img_dir: Location of the images.
             im_metadata_path: Location of the file containing image metadata.
             im_dim: The size of images.
+            num_images: The number of images to save.
         """
-        self.data = json.load(open(data_path))
+        data = json.load(open(data_path))
+        if num_images is not None:
+            self.data = dict(sorted(data.items(),
+                                    key=lambda x: x[0])[:num_images])
+        else:
+            self.data = data
         self.im_metadata = json.load(open(im_metadata_path))
         self.im_dim = im_dim
         self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
@@ -429,6 +436,8 @@ if __name__ == '__main__':
                         help='The size the images should be saved as.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
+    parser.add_argument('--num-images', type=int, default=None,
+                        help='The random seed used to reproduce results.')
     args = parser.parse_args()
 
     # Make sure that the required fields are present.
@@ -445,7 +454,8 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
 
     dataset = SmartDataset(args.annotations, args.img_dir,
-                           args.image_metadata, im_dim=args.image_dim)
+                           args.image_metadata, im_dim=args.image_dim,
+                           num_images=args.num_images)
     if args.test:
         # Build the test dataset.
         test_dir = os.path.join(args.save_dir, 'test')
