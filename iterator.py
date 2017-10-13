@@ -291,7 +291,7 @@ if __name__=='__main__':
         print('Predicate category: %d' % inputs[2][0])
         print('Object category: %d' % inputs[3][0])
         print('Average subject heatmap pixels: %f' % np.average(outputs[0]))
-        print('Average object heatmap pixels: %f' % np.average(outputs[0]))
+        print('Average object heatmap pixels: %f' % np.average(outputs[1]))
         if count >= args.num_print:
             break
         count += 1
