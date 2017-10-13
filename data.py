@@ -150,6 +150,40 @@ class Dataset(object):
             o_regions[i] = self.get_regions_from_bbox(o_bbox)
         return images, s_regions, o_regions
 
+    def save_images(self, save_dir, image_ids=None):
+        """Preprocesses and saves the images.
+
+        Args:
+            save_dir: Location to save the data.
+            image_ids: List of image ids.
+        """
+        # Grab the image ids.
+        if not image_ids:
+            image_ids = self.data.keys()
+        image_ids = sorted(image_ids)
+        num_images = len(image_ids)
+
+        # Create the image dataset.
+        dataset = h5py.File(os.path.join(save_dir, 'images.hdf5'), 'w')
+        images_db = dataset.create_dataset('images',
+                                           (num_images,
+                                            self.im_dim, self.im_dim, 3),
+                                           dtype='f')
+
+        # Iterate and save all the images first.
+        for image_index, image_id in enumerate(image_ids):
+            try:
+                im_data = self.im_metadata[image_id]
+                image = self.get_image_from_img_id(image_id)
+            except KeyError:
+                print('Image %s not found' % str(image_id))
+                continue
+            images_db[image_index] = image
+
+            # Log the progress.
+            if image_index % 100 == 0:
+                print('| {}/{} images saved'.format(image_index, num_images))
+
     @abc.abstractmethod
     def build_and_save_dataset(self, save_dir, image_ids=None):
         """Converts the dataset into format we will use for training.
@@ -186,29 +220,26 @@ class SmartDataset(Dataset):
         image_ids = sorted(image_ids)
         num_images = len(image_ids)
 
-        # Create the image dataset.
-        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
-        images_db = dataset.create_dataset('images',
-                                           (num_images,
-                                            self.im_dim, self.im_dim, 3),
-                                           dtype='f')
-
-        # Iterate and save all the images first.
+        # Iterate and count the number of relationships.
         for image_index, image_id in enumerate(image_ids):
             try:
                 im_data = self.im_metadata[image_id]
-                image = self.get_image_from_img_id(image_id)
-            except KeyError:
+            except:
                 print('Image %s not found' % str(image_id))
                 continue
-            images_db[image_index] = image
-            total_relationships += len(self.data[image_id])
+            seen = {}
+            for j, relationship in enumerate(self.data[image_id]):
+                subject_cat = relationship['subject']['category']
+                predicate_cat = relationship['predicate']
+                object_cat = relationship['object']['category']
+                seen_key = '_'.join([str(x) for x in
+                                     [subject_cat, predicate_cat, object_cat]])
+                seen[seen_key] = 0
+            total_relationships += len(seen)
+        print("Found %d relationship instances to save" % total_relationships)
 
-            # Log the progress.
-            if image_index % 100 == 0:
-                print('| {}/{} images saved'.format(image_index, num_images))
-
-        # Build the category and heatmap datasets.
+        # Create the dataset.
+        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
         categories_db = dataset.create_dataset('categories',
                                                (total_relationships, 4),
                                                dtype='f')
@@ -224,6 +255,11 @@ class SmartDataset(Dataset):
         # Now save all the relationships.
         db_index = 0
         for image_index, image_id in enumerate(image_ids):
+            try:
+                im_data = self.im_metadata[image_id]
+            except:
+                print('Image %s not found' % str(image_id))
+                continue
             seen = {}
 
             # Iterate over all the relationships in the image
@@ -438,6 +474,9 @@ if __name__ == '__main__':
                         help='The random seed used to reproduce results.')
     parser.add_argument('--num-images', type=int, default=None,
                         help='The random seed used to reproduce results.')
+    parser.add_argument('--save-images', action='store_true',
+                        help='Use this flag to specify that the images '
+                        'should also be saved.')
     args = parser.parse_args()
 
     # Make sure that the required fields are present.
@@ -461,6 +500,8 @@ if __name__ == '__main__':
         test_dir = os.path.join(args.save_dir, 'test')
         if not os.path.isdir(test_dir):
             os.mkdir(test_dir)
+        if args.save_images:
+            dataset.save_images(test_dir)
         dataset.build_and_save_dataset(test_dir)
     else:
         # Split the images into train and val datasets.
@@ -472,6 +513,8 @@ if __name__ == '__main__':
         if not os.path.isdir(val_dir):
             os.mkdir(val_dir)
         print('| Building validation data...')
+        if args.save_images:
+            dataset.save_images(val_dir, image_ids=val_split)
         dataset.build_and_save_dataset(val_dir, image_ids=val_split)
 
         # Build the training dataset.
@@ -479,4 +522,6 @@ if __name__ == '__main__':
         if not os.path.isdir(train_dir):
             os.mkdir(train_dir)
         print('| Building training data...')
+        if args.save_images:
+            dataset.save_images(train_dir, image_ids=train_split)
         dataset.build_and_save_dataset(train_dir, image_ids=train_split)
