@@ -21,7 +21,7 @@ def parse_args():
                         ' supports rms, adam, adagrad and adadelta.')
     parser.add_argument('--lr', type=float, default=0.0001,
                         help='The learning rate for training.')
-    parser.add_argument('--lr_decay', type=float, default=0,
+    parser.add_argument('--lr-decay', type=float, default=0,
                         help='The learning rate decay.')
     parser.add_argument('--batch-size', type=int, default=128,
                         help='The batch size used in training.')
@@ -72,6 +72,8 @@ def parse_args():
     parser.add_argument('--feat-map-dim', type=int, default=14,
                         help='The size of the feature map extracted from the '
                         'image.')
+    parser.add_argument('--feat-map-layer', type=str, default='activation_40',
+                        help='The feature map to use in resnet (activation_40 for 14x14 and activation 22 for 28x28)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
     parser.add_argument('--num-predicates', type=int, default=70,
@@ -80,10 +82,12 @@ def parse_args():
                         help='The number of objects in the dataset.')
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='The dropout probability used in training.')
-    parser.add_argument('--conv-predicate-kernel', type=int, default=3,
-                        help='The kernel size when using convolutions in the ssn model to move heatmaps')
+    parser.add_argument('--w1', type=float, default=2.,
+                        help='The coefficient to use on the positive examples in the CE loss')
     parser.add_argument('--use-conv-ssn', type=int, default=0,
                         help='Whether to use convolutions or dense layer to move heatmaps in ssn model')
+    parser.add_argument('--conv-predicate-kernel', type=int, default=3,
+                        help='The kernel size when using convolutions in the ssn model to move heatmaps')
     parser.add_argument('--nb-conv-move-map', type=int, default=1,
                         help='Number of convolution layers to use to move heatmaps in ssn model')
 
