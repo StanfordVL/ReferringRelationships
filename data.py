@@ -45,7 +45,7 @@ class Dataset(object):
         """Rescales the bbox coords according to the `im_dim`.
 
         Args:
-            bbox: A tuple of (top, left, bottom, right) coordinates of the
+            bbox: A tuple of (top, bottom, left, right) coordinates of the
                 object of interest.
             height: original image height.
             width: original image width.
@@ -55,10 +55,10 @@ class Dataset(object):
         h_ratio = self.im_dim * 1. / height
         w_ratio = self.im_dim * 1. / width
         y_min, y_max, x_min, x_max = bbox
-        y0 = max(y_min * h_ratio, 0)
-        x0 = max(x_min * w_ratio, 0)
-        y1 = min(y_max * h_ratio, self.im_dim - 1)
-        x1 = min(x_max * w_ratio, self.im_dim - 1)
+        y0 = max(int(y_min * h_ratio), 0)
+        x0 = max(int(x_min * w_ratio), 0)
+        y1 = min(int(y_max * h_ratio), self.im_dim - 1)
+        x1 = min(int(x_max * w_ratio), self.im_dim - 1)
         return y0, x0, y1, x1
 
     def get_regions_from_bbox(self, bbox):
