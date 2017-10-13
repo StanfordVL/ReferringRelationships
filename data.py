@@ -198,6 +198,23 @@ class Dataset(object):
         raise NotImplementedError
 
 
+class PredicateDataset(Dataset):
+    """Create individual datasets for each predicate.
+    """
+
+    def build_and_save_dataset(self, save_dir, image_ids=None):
+        """Converts the dataset into format we will use for training.
+
+        Converts the dataset into a series of images, relationship labels
+        and heatmaps.
+
+        Args:
+            save_dir: Location to save the data.
+            image_ids: List of image ids.
+        """
+        pass # TODO
+
+
 class SmartDataset(Dataset):
     """Parses the dataset into a format used for training.
     """
