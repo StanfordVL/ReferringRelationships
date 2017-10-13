@@ -65,8 +65,9 @@ class SmartIterator(Sequence):
             want the model to predict.
         """
         if not hasattr(self, 'images'):
+            images = h5py.File(os.path.join(self.data_dir, 'images.hdf5'), 'r')
             dataset = h5py.File(os.path.join(self.data_dir, 'dataset.hdf5'), 'r')
-            self.images = dataset['images']
+            self.images = images['images']
             self.categories = dataset['categories']
             self.subjects = dataset['subject_locations']
             self.objects = dataset['object_locations']
