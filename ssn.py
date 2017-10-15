@@ -52,7 +52,7 @@ class ReferringRelationshipsModel():
         input_obj = Input(shape=(1,))
         im_features = self.build_image_model(input_im)
         im_features = Dropout(self.dropout)(im_features)
-        im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="tanh")(im_features)
+        im_features = Conv2D(self.hidden_dim, 2, padding='same', activation="tanh")(im_features)
         im_features = Dropout(self.dropout)(im_features)
         subj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)

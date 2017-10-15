@@ -7,8 +7,7 @@ from keras.optimizers import RMSprop, Adam, Adagrad, Adadelta
 from keras.callbacks import Callback
 from keras import backend as K
 
-import tensorflow as tf
-import cv2
+
 import logging
 import numpy as np
 import os

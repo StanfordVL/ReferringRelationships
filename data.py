@@ -6,7 +6,7 @@ from keras.preprocessing import image
 
 import abc
 import argparse
-import cv2
+import collections
 import h5py
 import json
 import numpy as np
@@ -212,7 +212,108 @@ class PredicateDataset(Dataset):
             save_dir: Location to save the data.
             image_ids: List of image ids.
         """
-        pass # TODO
+        total_relationships = collections.Counter()
+
+        # Grab the image ids.
+        if not image_ids:
+            image_ids = self.data.keys()
+        image_ids = sorted(image_ids)
+        num_images = len(image_ids)
+
+        # Iterate and count the number of relationships.
+        for image_index, image_id in enumerate(image_ids):
+            try:
+                im_data = self.im_metadata[image_id]
+            except:
+                print('Image %s not found' % str(image_id))
+                continue
+            seen = {}
+            for j, relationship in enumerate(self.data[image_id]):
+                subject_cat = relationship['subject']['category']
+                predicate_cat = relationship['predicate']
+                object_cat = relationship['object']['category']
+                seen_key = '_'.join([str(x) for x in
+                                     [subject_cat, predicate_cat, object_cat]])
+                seen[seen_key] = predicate_cat
+            for predicate_cat in seen.values():
+                total_relationships[predicate_cat] += 1
+        print('predicate counts: ', total_relationships)
+
+        # Create the dataset.
+        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
+        dbs = {}
+        for predicate_cat in total_relationships.keys():
+            size = total_relationships[predicate_cat]
+            group = dataset.create_group(str(predicate_cat))
+            categories_db = group.create_dataset('categories',
+                                                 (size, 4),
+                                                 dtype='f')
+            subject_db = group.create_dataset('subject_locations',
+                                              (size, self.im_dim, self.im_dim),
+                                              dtype='f')
+            object_db = group.create_dataset('object_locations',
+                                             (size, self.im_dim, self.im_dim),
+                                             dtype='f')
+            dbs[predicate_cat] = {'subject_db': subject_db,
+                                  'object_db': object_db,
+                                  'categories_db': categories_db}
+
+        # Now save all the relationships.
+        db_index = {predicate_cat: 0 for predicate_cat in total_relationships}
+        for image_index, image_id in enumerate(image_ids):
+            try:
+                im_data = self.im_metadata[image_id]
+            except:
+                print('Image %s not found' % str(image_id))
+                continue
+            seen = {}
+
+            # Iterate over all the relationships in the image
+            for j, relationship in enumerate(self.data[image_id]):
+                subject_cat = relationship['subject']['category']
+                predicate_cat = relationship['predicate']
+                object_cat = relationship['object']['category']
+                s_bbox = self.rescale_bbox_coordinates(
+                    relationship['subject']['bbox'],
+                    im_data['height'],
+                    im_data['width'])
+                o_bbox= self.rescale_bbox_coordinates(
+                    relationship['object']['bbox'],
+                    im_data['height'],
+                    im_data['width'])
+                s_region = self.get_regions_from_bbox(s_bbox)
+                o_region = self.get_regions_from_bbox(o_bbox)
+                seen_key = '_'.join([str(x) for x in
+                                     [subject_cat, predicate_cat, object_cat]])
+                if seen_key not in seen:
+                    rel = {'image_index': image_index,
+                           'subject': s_region,
+                           'object': o_region,
+                           'subject_cat': subject_cat,
+                           'predicate_cat': predicate_cat,
+                           'object_cat': object_cat}
+                    seen[seen_key] = rel
+                else:
+                    rel = seen[seen_key]
+                    rel['subject'] = (rel['subject'] + s_region
+                                      - np.multiply(rel['subject'], s_region))
+                    rel['object'] = (rel['object'] + o_region
+                                     - np.multiply(rel['object'], o_region))
+
+            for rel in seen.values():
+                cat_db = dbs[rel['predicate_cat']]
+                index = db_index[rel['predicate_cat']]
+                cat_db['subject_db'][index] = rel['subject']
+                cat_db['object_db'][index] = rel['object']
+                cat_db['categories_db'][index, 0] = rel['subject_cat']
+                cat_db['categories_db'][index, 1] = rel['predicate_cat']
+                cat_db['categories_db'][index, 2] = rel['object_cat']
+                cat_db['categories_db'][index, 3] = rel['image_index']
+                db_index[rel['predicate_cat']] += 1
+
+            # Log the progress.
+            if image_index % 100 == 0:
+                print('| {}/{} images processed'.format(image_index, num_images))
 
 
 class SmartDataset(Dataset):
@@ -494,6 +595,8 @@ if __name__ == '__main__':
     parser.add_argument('--save-images', action='store_true',
                         help='Use this flag to specify that the images '
                         'should also be saved.')
+    parser.add_argument('--dataset-type', type=str, default='smart',
+                        help='Choice between [smart/predicate].')
     args = parser.parse_args()
 
     # Make sure that the required fields are present.
@@ -509,9 +612,11 @@ if __name__ == '__main__':
     # set the random seed.
     np.random.seed(args.seed)
 
-    dataset = SmartDataset(args.annotations, args.img_dir,
-                           args.image_metadata, im_dim=args.image_dim,
-                           num_images=args.num_images)
+    dataset_type_map = {'smart': SmartDataset, 'predicate': PredicateDataset}
+
+    dataset = dataset_type_map[args.dataset_type](
+        args.annotations, args.img_dir, args.image_metadata,
+        im_dim=args.image_dim, num_images=args.num_images)
     if args.test:
         # Build the test dataset.
         test_dir = os.path.join(args.save_dir, 'test')
