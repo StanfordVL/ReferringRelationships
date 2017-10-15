@@ -51,6 +51,15 @@ class PredicateIterator(Sequence):
             self.sample_list.append(batches)
             self.length += batches
 
+    def get_image_dataset(self):
+        """Retrieves the image dataset.
+
+        Returns:
+            The image hdf5 dataset.
+        """
+        dataset = h5py.File(os.path.join(self.data_dir, 'images.hdf5'), 'r')
+        return dataset['images']
+
     def __len__(self):
         """The number of items in the dataset.
 
@@ -82,24 +91,24 @@ class PredicateIterator(Sequence):
 
         # Figure out the indices.
         for i, l in enumerate(self.sample_list):
-            if idx < i:
+            if idx < l:
                 group_idx = self.group_keys[i]
                 start_idx = int(idx % l)
-                end_idx = min(self.sample_list[idx],
-                              start_idx + self.batch_size)
+                end_idx = min(l, start_idx + self.batch_size)
                 break
             else:
                 idx -= l
         if group_idx is None:
             raise ValueError('Iterator index out of range: %d / %d' % (
                 idx, self.length))
+        current_batch_size = end_idx - start_idx
 
         # Create the batches.
         batch_rel = self.dataset[group_idx]['categories'][start_idx:end_idx]
         batch_s_regions = self.dataset[group_idx]['subject_locations'][
-            start_idx:end_idx].reshape(self.batch_size, self.target_size)
+            start_idx:end_idx].reshape(current_batch_size, self.target_size)
         batch_o_regions = self.dataset[group_idx]['object_locations'][
-            start_idx:end_idx].reshape(self.batch_size, self.target_size)
+            start_idx:end_idx].reshape(current_batch_size, self.target_size)
         image_indices = batch_rel[: , 3]
         current_batch_size = end_idx - start_idx
         batch_image = np.zeros((current_batch_size,) + self.image_shape,

@@ -7,7 +7,6 @@ from keras.preprocessing import image
 import abc
 import argparse
 import collections
-import cv2
 import h5py
 import json
 import numpy as np

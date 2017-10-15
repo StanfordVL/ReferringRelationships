@@ -6,7 +6,6 @@ from keras.preprocessing.image import load_img
 from keras.optimizers import RMSprop, Adam, Adagrad, Adadelta
 from keras.callbacks import Callback
 
-import cv2
 import logging
 import numpy as np
 import os
