@@ -40,9 +40,9 @@ class ReferringRelationshipsModel():
         self.nb_conv_move_map = args.nb_conv_move_map
         self.feat_map_layer = args.feat_map_layer
 
-    def build_model(self):
+    def _build_model(self):
         """Initializes the SSN model.
-        This model uses moving heatmaps with a dense layer
+        This model uses moving heatmaps with a dense or conv layer
         Returns:
             The Keras model.
         """
@@ -52,7 +52,7 @@ class ReferringRelationshipsModel():
         input_obj = Input(shape=(1,))
         im_features = self.build_image_model(input_im)
         im_features = Dropout(self.dropout)(im_features)
-        im_features = Conv2D(self.hidden_dim, 2, padding='same', activation="tanh")(im_features)
+        im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="relu")(im_features)
         im_features = Dropout(self.dropout)(im_features)
         subj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
@@ -76,6 +76,54 @@ class ReferringRelationshipsModel():
         new_im_feature_map = Multiply()([im_features, predicate_att])
         object_att = self.build_attention_layer(new_im_feature_map, embedded_object)
         object_regions = self.build_upsampling_layer(object_att, "object")
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
+        return model
+
+    def build_model(self): 
+        """Initializes the SSN model.
+        This model uses moving heatmaps with a dense layer
+        Returns:
+            The Keras model.
+        """
+        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_subj = Input(shape=(1,))
+        input_pred = Input(shape=(1,))
+        input_obj = Input(shape=(1,))
+        im_features = self.build_image_model(input_im)
+        im_features = Dropout(self.dropout)(im_features)
+        im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="relu")(im_features)
+        im_features = Dropout(self.dropout)(im_features)
+        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
+        if self.use_conv==1:
+            predicate_embedding = self.build_embedding_layer(self.num_predicates, self.conv_predicate_kernel**2)
+            inverse_predicate_embedding = self.build_embedding_layer(self.num_predicates, self.conv_predicate_kernel**2)
+        else:
+            predicate_embedding = self.build_embedding_layer(self.num_predicates, self.feat_map_dim**4)
+            inverse_predicate_embedding = self.build_embedding_layer(self.num_predicates, self.feat_map_dim**4)
+        embedded_subject = subj_obj_embedding(input_subj)
+        embedded_subject = Dropout(self.dropout)(embedded_subject)
+        embedded_predicate = predicate_embedding(input_pred)
+        embedded_predicate = Dropout(self.dropout)(embedded_predicate)
+        embedded_inverse_predicate = inverse_predicate_embedding(input_pred)
+        embedded_inverse_predicate = Dropout(self.dropout)(embedded_inverse_predicate)
+        embedded_object = subj_obj_embedding(input_obj)
+        embedded_object = Dropout(self.dropout)(embedded_object)
+        subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred-subj")
+        object_att = self.build_attention_layer(im_features, embedded_object, "before-pred-obj")
+        if self.use_conv==1:
+            subj_predicate_att = self.build_map_transform_layer_conv(subject_att, embedded_predicate, "after-pred-subj")
+            obj_predicate_att = self.build_map_transform_layer_conv(object_att, embedded_inverse_predicate, "after-pred-obj")
+        else:
+            subj_predicate_att = self.build_map_transform_layer_dense(subject_att, embedded_predicate, "after-pred-subj")
+            obj_predicate_att = self.build_map_transform_layer_dense(object_att, embedded_inverse_predicate, "after-pred-obj")
+        subj_predicate_att = Activation("tanh")(subj_predicate_att)
+        obj_predicate_att = Activation("tanh")(obj_predicate_att)
+        attended_im_subj = Multiply()([im_features, subj_predicate_att])
+        attended_im_obj = Multiply()([im_features, obj_predicate_att])
+        object_att = self.build_attention_layer(attended_im_subj, embedded_object)
+        subject_att = self.build_attention_layer(attended_im_obj, embedded_subject)
+        object_regions = self.build_upsampling_layer(object_att, "object")
+        subject_regions = self.build_upsampling_layer(subject_att, "subject")
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 

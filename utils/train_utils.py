@@ -14,7 +14,7 @@ import os
 import time
 
 
-def weighted_sigmoid_cross_entropy(target, output, w1, eps=10e-8):
+def weighted_sigmoid_cross_entropy(y_true, y_pred, w1, eps=10e-8):
     # my implementation
     loss_weights = 1. + (w1 - 1.) * y_true
     s_ce_values = - y_true * K.log(y_pred + eps) - (1. - y_true) * K.log(1. - y_pred + eps)

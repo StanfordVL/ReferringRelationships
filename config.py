@@ -84,6 +84,8 @@ def parse_args():
                         help='The dropout probability used in training.')
     parser.add_argument('--w1', type=float, default=2.,
                         help='The coefficient to use on the positive examples in the CE loss')
+    parser.add_argument('--use-sym-ssn', type=int, default=0,
+                        help='Whether to use the symmetric or asymmetric ssn model')
     parser.add_argument('--use-conv-ssn', type=int, default=0,
                         help='Whether to use convolutions or dense layer to move heatmaps in ssn model')
     parser.add_argument('--conv-predicate-kernel', type=int, default=3,
