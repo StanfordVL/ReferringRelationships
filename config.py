@@ -4,16 +4,13 @@
 import argparse
 import numpy as np
 
-def parse_args():
-    """Initializes a parser and reads the command line parameters.
 
-    Raises:
-        ValueError: If the parameters are incorrect.
+def parse_training_args(parser):
+    """Add args used for training only.
 
-    Returns:
-        An object containing all the parameters.
+    Args:
+        parse: An argparse object.
     """
-    parser = argparse.ArgumentParser(description='Referring Relationships.')
 
     # Session parameters.
     parser.add_argument('--opt', type=str, default='rms',
@@ -23,12 +20,8 @@ def parse_args():
                         help='The learning rate for training.')
     parser.add_argument('--lr_decay', type=float, default=0,
                         help='The learning rate decay.')
-    parser.add_argument('--batch-size', type=int, default=128,
-                        help='The batch size used in training.')
     parser.add_argument('--epochs', type=int, default=50,
                         help='The number of epochs to train.')
-    parser.add_argument('--seed', type=int, default=1234,
-                        help='The random seed used to reproduce results.')
     parser.add_argument('--overwrite', action='store_true',
                         help='Train even if that folder already contains '
                         'an existing model.')
@@ -37,10 +30,6 @@ def parse_args():
                         'logs every epoch.')
     parser.add_argument('--eval-steps', type=int, default=10,
                         help='Number of eval steps to evaluate every batch.')
-    parser.add_argument('--workers', type=int, default=1,
-                        help='Number workers used to load the data.')
-    parser.add_argument('--shuffle', action='store_true', default=True,
-                        help='Shuffle the dataset.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
@@ -55,6 +44,58 @@ def parse_args():
                         help='Saves only the best model checkpoint.')
     parser.add_argument('--model-checkpoint', type=str, default=None,
                         help='The location of the last checkpoint to reload')
+
+    # Data parameters.
+    parser.add_argument('--train-data-dir', type=str,
+                        default='/data/chami/VRD/09_20_2017/train/',
+                        help='Location of the training data.')
+    parser.add_argument('--val-data-dir', type=str,
+                        default='/data/chami/VRD/09_20_2017/val/',
+                        help='Location of the validation data.')
+    parser.add_argument('--test-data-dir', type=str,
+                        default='/data/chami/VRD/09_20_2017/test/',
+                        help='Location of the validation data.')
+
+
+def parse_evaluation_args(parser):
+    """Add args used for evaulating a model only.
+
+    Args:
+        parse: An argparse object.
+    """
+    parser.add_argument('--model', type=str, default=None,
+                        help='The model to evaluate.')
+    parser.add_argument('--model-dir', type=str, default=None,
+                        help='Location of where the logs should be stored.')
+    parser.add_argument('--data-dir', type=str,
+                        default='data/pred-vrd/test/',
+                        help='Location of the data to evluate with.')
+
+
+def parse_args(evaluation=False):
+    """Initializes a parser and reads the command line parameters.
+
+    Args:
+        evaluation: Boolean set to true if we are evaluating instead of
+            training.
+
+    Raises:
+        ValueError: If the parameters are incorrect.
+
+    Returns:
+        An object containing all the parameters.
+    """
+    parser = argparse.ArgumentParser(description='Referring Relationships.')
+
+    # Session parameters.
+    parser.add_argument('--batch-size', type=int, default=128,
+                        help='The batch size used in training.')
+    parser.add_argument('--seed', type=int, default=1234,
+                        help='The random seed used to reproduce results.')
+    parser.add_argument('--workers', type=int, default=1,
+                        help='Number workers used to load the data.')
+    parser.add_argument('--shuffle', action='store_true', default=True,
+                        help='Shuffle the dataset.')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
@@ -81,28 +122,26 @@ def parse_args():
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='The dropout probability used in training.')
     parser.add_argument('--conv-predicate-kernel', type=int, default=3,
-                        help='The kernel size when using convolutions in the ssn model to move heatmaps')
-    parser.add_argument('--use-conv-ssn', type=int, default=0,
-                        help='Whether to use convolutions or dense layer to move heatmaps in ssn model')
+                        help='The kernel size when using convolutions in '
+                        'the ssn model to move heatmaps')
+    parser.add_argument('--use-conv-ssn', action='store_true',
+                        help='Whether to use convolutions or dense layer to '
+                        'move heatmaps in ssn model')
     parser.add_argument('--nb-conv-move-map', type=int, default=1,
-                        help='Number of convolution layers to use to move heatmaps in ssn model')
-
-    # Data parameters.
-    parser.add_argument('--train-data-dir', type=str,
-                        default='/data/chami/VRD/09_20_2017/train/',
-                        help='Location of the training data.')
-    parser.add_argument('--val-data-dir', type=str,
-                        default='/data/chami/VRD/09_20_2017/val/',
-                        help='Location of the validation data.')
-    parser.add_argument('--test-data-dir', type=str,
-                        default='/data/chami/VRD/09_20_2017/test/',
-                        help='Location of the validation data.')
+                        help='Number of convolution layers to use to move '
+                        'heatmaps in ssn model')
 
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],
                         help='The thresholds above which we consider '
                         'a heatmap to contain an object.')
+
+    # Grab the other parameters.
+    if evaluation:
+        parse_evaluation_args(parser)
+    else:
+        parse_training_args(parser)
 
     # Parse arguments.
     args = parser.parse_args()
