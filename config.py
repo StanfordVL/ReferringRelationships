@@ -27,6 +27,8 @@ def parse_args():
                         help='The batch size used in training.')
     parser.add_argument('--epochs', type=int, default=50,
                         help='The number of epochs to train.')
+    parser.add_argument('--steps-per-epoch', type=int, default=-1,
+                        help='The total number of steps (batches of samples) to yield from generator before declaring one epoch finished and starting the next epoch.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
     parser.add_argument('--overwrite', action='store_true',

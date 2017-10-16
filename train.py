@@ -94,7 +94,10 @@ if __name__=='__main__':
         monitor='val_loss')
 
     # Start training.
-    train_steps = len(train_generator)
+    if args.steps_per_epoch < 0:
+        train_steps = len(train_generator)
+    else:
+        train_steps = args.steps_per_epoch
     model.fit_generator(generator=train_generator,
                         steps_per_epoch=train_steps,
                         epochs=args.epochs,
