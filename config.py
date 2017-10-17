@@ -114,9 +114,10 @@ def parse_args(evaluation=False):
                         help='Number of dimensions in the hidden unit.')
     parser.add_argument('--feat-map-dim', type=int, default=14,
                         help='The size of the feature map extracted from the '
-                        'image.')
+                        'image.')  
     parser.add_argument('--feat-map-layer', type=str, default='activation_40',
-                        help='The feature map to use in resnet (activation_40 for 14x14 and activation 22 for 28x28)')
+                        help='The feature map to use in resnet '
+                        '(activation_40 for 14x14 and activation 22 for 28x28)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
     parser.add_argument('--num-predicates', type=int, default=70,
@@ -129,10 +130,12 @@ def parse_args(evaluation=False):
                         help='The coefficient to use on the positive examples in the CE loss')
     parser.add_argument('--use-sym-ssn', type=int, default=0,
                         help='Whether to use the symmetric or asymmetric ssn model')
-    parser.add_argument('--use-conv-ssn', type=int, default=0,
-                        help='Whether to use convolutions or dense layer to move heatmaps in ssn model')
     parser.add_argument('--conv-predicate-kernel', type=int, default=3,
-                        help='The kernel size when using convolutions in the ssn model to move heatmaps')
+                        help='The kernel size when using convolutions in '
+                        'the ssn model to move heatmaps')
+    parser.add_argument('--use-conv-ssn', action='store_true',
+                        help='Whether to use convolutions or dense layer to '
+                        'move heatmaps in ssn model')
     parser.add_argument('--nb-conv-move-map', type=int, default=1,
                         help='Number of convolution layers to use to move '
                         'heatmaps in ssn model')

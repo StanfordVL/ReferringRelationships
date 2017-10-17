@@ -56,7 +56,7 @@ class ReferringRelationshipsModel():
         im_features = Dropout(self.dropout)(im_features)
         subj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        if self.use_conv==1:
+        if self.use_conv:
             predicate_embedding = self.build_embedding_layer(self.num_predicates, self.conv_predicate_kernel**2)
         else:
             predicate_embedding = self.build_embedding_layer(self.num_predicates, self.feat_map_dim**4)
@@ -68,7 +68,7 @@ class ReferringRelationshipsModel():
         embedded_object = Dropout(self.dropout)(embedded_object)
         subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred")
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
-        if self.use_conv==1:
+        if self.use_conv:
             predicate_att = self.build_map_transform_layer_conv(subject_att, embedded_predicate, "after-pred")
         else:
             predicate_att = self.build_map_transform_layer_dense(subject_att, embedded_predicate, "after-pred")
@@ -94,7 +94,7 @@ class ReferringRelationshipsModel():
         im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="relu")(im_features)
         im_features = Dropout(self.dropout)(im_features)
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        if self.use_conv==1:
+        if self.use_conv:
             predicate_embedding = self.build_embedding_layer(self.num_predicates, self.conv_predicate_kernel**2)
             inverse_predicate_embedding = self.build_embedding_layer(self.num_predicates, self.conv_predicate_kernel**2)
         else:
@@ -110,7 +110,7 @@ class ReferringRelationshipsModel():
         embedded_object = Dropout(self.dropout)(embedded_object)
         subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred-subj")
         object_att = self.build_attention_layer(im_features, embedded_object, "before-pred-obj")
-        if self.use_conv==1:
+        if self.use_conv:
             subj_predicate_att = self.build_map_transform_layer_conv(subject_att, embedded_predicate, "after-pred-subj")
             obj_predicate_att = self.build_map_transform_layer_conv(object_att, embedded_inverse_predicate, "after-pred-obj")
         else:
