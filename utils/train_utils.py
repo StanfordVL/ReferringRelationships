@@ -97,7 +97,7 @@ class LrReducer(Callback):
             logs: The training logs.
         """
         current_loss = logs.get('val_loss')
-        if current_loss < self.best_loss:
+        if self.best_loss is None or current_loss < self.best_loss:
             self.best_loss = current_loss
             self.wait = 0
         else:
