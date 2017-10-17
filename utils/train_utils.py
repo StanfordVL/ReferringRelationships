@@ -73,6 +73,40 @@ def get_dir_name(models_dir):
         return os.path.join(models_dir, '1')
 
 
+class LrReducer(Callback):
+    """Lowers the learning rate when the val loss is not decreasing.
+    """
+
+    def __init__(self, args):
+        """Constructor for the Logger.
+
+        Args:
+            args: Arguments passed in by the user.
+        """
+        super(Callback, self).__init__()
+        self.patience = args.patience
+        self.wait = 0
+        self.best_loss = None
+        self.lr_reduce_rate = args.lr_reduce_rate
+
+    def on_epoch_end(self, epoch, logs={}):
+        """Update the epoch count.
+
+        Args:
+            epoch: The epoch number we are on.
+            logs: The training logs.
+        """
+        current_loss = logs.get('val_loss')
+        if current_loss < self.best_loss:
+            self.best_loss = current_loss
+            self.wait = 0
+        else:
+            if self.wait >= self.patience:
+                lr = self.model.optimizer.lr.get_value()
+                self.model.optimizer.lr.set_value(lr*self.lr_reduce_rate)
+            self.wait += 1
+
+
 class Logger(Callback):
     """A logging callback that tracks how well our model is doing over time.
     """
@@ -135,6 +169,7 @@ class Logger(Callback):
         """Update the epoch count.
 
         Args:
+            epoch: The epoch number we are on.
             logs: The training logs.
         """
         epoch_time = time.time() - self.epoch_start_time

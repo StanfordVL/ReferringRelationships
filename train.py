@@ -11,6 +11,7 @@ from iterator import PredicateIterator
 from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics
 from utils.train_utils import Logger
+from utils.train_utils import LrReducer
 from utils.train_utils import get_dir_name
 from utils.train_utils import get_opt
 from utils.train_utils import format_args
@@ -80,6 +81,7 @@ if __name__=='__main__':
 
     # Setup callbacks for tensorboard, logging and checkpoints.
     tb_callback = TensorBoard(log_dir=args.save_dir)
+    lr_reducer_callback = LrReducer(args)
     logging_callback = Logger(args)
     checkpointer = ModelCheckpoint(
         filepath=os.path.join(
@@ -100,7 +102,8 @@ if __name__=='__main__':
                         use_multiprocessing=args.multiprocessing,
                         workers=args.workers,
                         shuffle=args.shuffle,
-                        callbacks=[checkpointer, tb_callback, logging_callback])
+                        callbacks=[checkpointer, tb_callback, logging_callback,
+                                   lr_reducer_callback])
 
     # Run Evaluation.
     val_steps = len(val_generator)

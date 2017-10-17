@@ -30,6 +30,11 @@ def parse_training_args(parser):
                         'logs every epoch.')
     parser.add_argument('--eval-steps', type=int, default=10,
                         help='Number of eval steps to evaluate every batch.')
+    parser.add_argument('--patience', type=int, default=2,
+                        help='The number of epochs to wait if val loss is '
+                        'increasing and decrease the learning rate.')
+    parser.add_argument('--lr-reduce-rate', type=float, default=0.1,
+                        help='Multiple to reduce the learning rate by.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
