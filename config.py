@@ -16,10 +16,6 @@ def parse_training_args(parser):
     parser.add_argument('--opt', type=str, default='rms',
                         help='The optimizer used during training. Currently'
                         ' supports rms, adam, adagrad and adadelta.')
-    parser.add_argument('--lr', type=float, default=0.0001,
-                        help='The learning rate for training.')
-    parser.add_argument('--lr_decay', type=float, default=0,
-                        help='The learning rate decay.')
     parser.add_argument('--epochs', type=int, default=50,
                         help='The number of epochs to train.')
     parser.add_argument('--overwrite', action='store_true',
@@ -30,11 +26,21 @@ def parse_training_args(parser):
                         'logs every epoch.')
     parser.add_argument('--eval-steps', type=int, default=10,
                         help='Number of eval steps to evaluate every batch.')
+
+    # Learning rate parameters.
+    parser.add_argument('--lr', type=float, default=0.0001,
+                        help='The learning rate for training.')
+    parser.add_argument('--lr_decay', type=float, default=0,
+                        help='The learning rate decay.')
     parser.add_argument('--patience', type=int, default=2,
                         help='The number of epochs to wait if val loss is '
                         'increasing and decrease the learning rate.')
     parser.add_argument('--lr-reduce-rate', type=float, default=0.1,
                         help='Multiple to reduce the learning rate by.')
+
+    # Weight regularizer.
+    parser.add_argument('--reg', type=float, default=0.2,
+                        help='Weight regularizer.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
@@ -68,7 +74,7 @@ def parse_evaluation_args(parser):
     Args:
         parse: An argparse object.
     """
-    parser.add_argument('--model', type=str, default=None,
+    parser.add_argument('--model-checkpoint', type=str, default=None,
                         help='The model to evaluate.')
     parser.add_argument('--model-dir', type=str, default=None,
                         help='Location of where the logs should be stored.')
