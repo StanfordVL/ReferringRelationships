@@ -12,6 +12,7 @@ from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics
 from utils.train_utils import Logger
 from utils.train_utils import LrReducer
+from utils.train_utils import get_loss_func
 from utils.train_utils import get_dir_name
 from utils.train_utils import get_opt
 from utils.train_utils import format_args
@@ -73,8 +74,11 @@ if __name__=='__main__':
     model = relationships_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
     optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
-    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
-                  optimizer=optimizer, metrics=metrics)
+
+    # get the loss function and compile the model
+    #loss = get_loss_func(args.w1)
+    #model.compile(loss=[loss, loss], optimizer=optimizer, metrics=metrics)
+    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
     if args.model_checkpoint:
          # load model weights from checkpoint
          model.load_weights(args.model_checkpoint)
@@ -92,7 +96,10 @@ if __name__=='__main__':
         monitor='val_loss')
 
     # Start training.
-    train_steps = len(train_generator)
+    if args.steps_per_epoch < 0:
+        train_steps = len(train_generator)
+    else:
+        train_steps = args.steps_per_epoch
     model.fit_generator(generator=train_generator,
                         steps_per_epoch=train_steps,
                         epochs=args.epochs,

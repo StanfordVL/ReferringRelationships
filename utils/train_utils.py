@@ -5,12 +5,39 @@ from keras.models import load_model
 from keras.preprocessing.image import load_img
 from keras.optimizers import RMSprop, Adam, Adagrad, Adadelta
 from keras.callbacks import Callback
+from keras import backend as K
+
 
 import logging
 import numpy as np
 import os
 import time
 
+
+def weighted_sigmoid_cross_entropy(y_true, y_pred, w1, eps=10e-8):
+    # my implementation
+    loss_weights = 1. + (w1 - 1.) * y_true
+    s_ce_values = - y_true * K.log(y_pred + eps) - (1. - y_true) * K.log(1. - y_pred + eps)
+    loss = K.mean(s_ce_values * loss_weights)
+    # tf implementation
+    # _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+    # output = tf.clip_by_value(output, _epsilon, 1. - _epsilon)
+    # output = tf.log(output / (1 - output))
+    # loss = tf.weighted_cross_entropy_with_logits(targets, output, w1)
+    return loss
+
+def get_loss_func(w1):
+    """Wrapper for weighted sigmoid cross entropy loss.
+
+    Args:
+        w1: The weight.
+
+    Return:
+        The weighted sigmoid cross entropy loss function.
+    """
+    def loss_func(y_true, y_pred):
+        return weighted_sigmoid_cross_entropy(y_true, y_pred, w1)
+    return loss_func
 
 def get_opt(opt, lr, lr_decay):
     """Initializes the opt that we want to train with.

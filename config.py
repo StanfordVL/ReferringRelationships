@@ -18,6 +18,8 @@ def parse_training_args(parser):
                         ' supports rms, adam, adagrad and adadelta.')
     parser.add_argument('--epochs', type=int, default=50,
                         help='The number of epochs to train.')
+    parser.add_argument('--steps-per-epoch', type=int, default=-1,
+                        help='The total number of steps (batches of samples) to yield from generator before declaring one epoch finished and starting the next epoch.')
     parser.add_argument('--overwrite', action='store_true',
                         help='Train even if that folder already contains '
                         'an existing model.')
@@ -124,6 +126,9 @@ def parse_args(evaluation=False):
     parser.add_argument('--feat-map-dim', type=int, default=14,
                         help='The size of the feature map extracted from the '
                         'image.')
+    parser.add_argument('--feat-map-layer', type=str, default='activation_40',
+                        help='The feature map to use in resnet '
+                        '(activation_40 for 14x14 and activation 22 for 28x28)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
     parser.add_argument('--num-predicates', type=int, default=70,
@@ -132,6 +137,10 @@ def parse_args(evaluation=False):
                         help='The number of objects in the dataset.')
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='The dropout probability used in training.')
+    parser.add_argument('--w1', type=float, default=2.,
+                        help='The coefficient to use on the positive examples in the CE loss')
+    parser.add_argument('--use-sym-ssn', type=int, default=0,
+                        help='Whether to use the symmetric or asymmetric ssn model')
     parser.add_argument('--conv-predicate-kernel', type=int, default=3,
                         help='The kernel size when using convolutions in '
                         'the ssn model to move heatmaps')

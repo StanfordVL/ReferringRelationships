@@ -6,12 +6,13 @@ from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, Flatten, UpSampling2D, Reshape, Input, Activation
 from keras.layers.core import Lambda, Dropout
-from keras.layers.convolutional import Conv2DTranspose
+from keras.layers.convolutional import Conv2D, Conv2DTranspose
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Dot, Concatenate, Multiply
 from keras.models import Model
 from keras.regularizers import l2
 
+import numpy as np
 
 class ReferringRelationshipsModel():
     """Given a relationship, this model locatlizes them.
@@ -34,6 +35,7 @@ class ReferringRelationshipsModel():
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
         self.reg = args.reg
+        self.feat_map_layer = args.feat_map_layer
 
     def build_model(self):
         """Initializes the ReferringRelationshipModel.
@@ -61,22 +63,21 @@ class ReferringRelationshipsModel():
 
         # Map the inputs to the outputs.
         im_features = self.build_image_model(input_im)
-        rel_features = self.build_relationship_model(relationship_inputs,
-                                                     num_classes)
+        im_features = Dropout(self.dropout)(im_features)
+        im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="tanh")(im_features)
+        im_features = Dropout(self.dropout)(im_features)
+        rel_features = self.build_relationship_model(relationship_inputs, num_classes)
         rel_features = Dropout(self.dropout)(rel_features)
-        subjects_att = Dense(self.hidden_dim, activation='relu',
+        subjects_att = Dense(self.hidden_dim, activation='tanh',
                              kernel_regularizer=l2(self.reg))(rel_features)
-        objects_att = Dense(self.hidden_dim, activation='relu',
+        objects_att = Dense(self.hidden_dim, activation='tanh',
                             kernel_regularizer=l2(self.reg))(rel_features)
         subjects_att = Dropout(self.dropout)(subjects_att)
         objects_att = Dropout(self.dropout)(objects_att)
-        subject_regions = self.build_attention_layer(im_features, subjects_att,
-                                               "subject")
-        object_regions = self.build_attention_layer(im_features, objects_att,
-                                              "object")
+        subject_regions = self.build_attention_layer(im_features, subjects_att, "subject")
+        object_regions = self.build_attention_layer(im_features, objects_att, "object")
         model_inputs = [input_im] + relationship_inputs
-        model = Model(inputs=model_inputs,
-                      outputs=[subject_regions, object_regions])
+        model = Model(inputs=model_inputs, outputs=[subject_regions, object_regions])
         return model
 
     def build_image_model(self, input_im):
@@ -93,9 +94,7 @@ class ReferringRelationshipsModel():
                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
-        output = base_model.get_layer('activation_40').output
-        output = Dense(self.hidden_dim,
-                       kernel_regularizer=l2(self.reg))(output)
+        output = base_model.get_layer(self.feat_map_layer).output
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
         return im_features
@@ -126,7 +125,7 @@ class ReferringRelationshipsModel():
         else:
             concatenated_inputs = embeddings[0]
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
-        rel_features = Dense(self.hidden_dim,
+        rel_features = Dense(self.hidden_dim, activation='relu',
                              kernel_regularizer=l2(self.reg))(
                                      concatenated_inputs)
         return rel_features
@@ -134,19 +133,22 @@ class ReferringRelationshipsModel():
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
         res = UpSampling2D(size=(2, 2))(conv_layer)
         res = Conv2DTranspose(1, 3, padding='same')(res)
-        #res = BatchNormalization(momentum=0.9))(res)
-        #res = Activation('relu')(res)
         return res
+
+    def build_upsampling_layer(self, feature_map, layer_name):
+        upsampling_factor = self.input_dim / self.feat_map_dim
+        k = int(np.log(upsampling_factor) / np.log(2))
+        res = feature_map
+        for i in range(k):
+            res = self.build_frac_strided_transposed_conv_layer(res)
+        predictions = Activation('sigmoid')(res)
+        predictions = Flatten(name=layer_name)(predictions)
+        return predictions
 
     def build_attention_layer(self, images, relationships, layer_name):
         merged = Multiply()([images, relationships])
         merged = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(merged)
-        upsampled = self.build_frac_strided_transposed_conv_layer(merged)
-        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
-        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
-        upsampled = self.build_frac_strided_transposed_conv_layer(upsampled)
-        flattened = Flatten()(upsampled)
-        predictions = Activation('sigmoid', name=layer_name)(flattened)
+        predictions = self.build_upsampling_layer(merged, layer_name)
         return predictions
 
 
