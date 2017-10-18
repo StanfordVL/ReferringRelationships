@@ -10,6 +10,7 @@ from keras.layers.convolutional import Conv2D, Conv2DTranspose
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Dot, Concatenate, Multiply
 from keras.models import Model
+from keras.regularizers import l2
 
 import numpy as np
 
@@ -33,6 +34,7 @@ class ReferringRelationshipsModel():
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
+        self.reg = args.reg
         self.feat_map_layer = args.feat_map_layer
 
     def build_model(self):
@@ -66,8 +68,8 @@ class ReferringRelationshipsModel():
         im_features = Dropout(self.dropout)(im_features)
         rel_features = self.build_relationship_model(relationship_inputs, num_classes)
         rel_features = Dropout(self.dropout)(rel_features)
-        subjects_att = Dense(self.hidden_dim, activation='relu')(rel_features)
-        objects_att = Dense(self.hidden_dim, activation='relu')(rel_features)
+        subjects_att = Dense(self.hidden_dim, activation='relu', kernel_regularizer=l2(self.reg))(rel_features)
+        objects_att = Dense(self.hidden_dim, activation='relu', kernel_regularizer=l2(self.reg))(rel_features)
         subjects_att = Dropout(self.dropout)(subjects_att)
         objects_att = Dropout(self.dropout)(objects_att)
         subject_regions = self.build_attention_layer(im_features, subjects_att, "subject")
@@ -121,7 +123,9 @@ class ReferringRelationshipsModel():
         else:
             concatenated_inputs = embeddings[0]
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
-        rel_features = Dense(self.hidden_dim, activation="relu")(concatenated_inputs)
+        rel_features = Dense(self.hidden_dim, activation='relu',
+                             kernel_regularizer=l2(self.reg))(
+                                     concatenated_inputs)
         return rel_features
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):

@@ -11,6 +11,7 @@ from iterator import PredicateIterator
 from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics
 from utils.train_utils import Logger
+from utils.train_utils import LrReducer
 from utils.train_utils import get_loss_func
 from utils.train_utils import get_dir_name
 from utils.train_utils import get_opt
@@ -74,7 +75,7 @@ if __name__=='__main__':
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
     optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
 
-    # get the loss function and compile the model 
+    # get the loss function and compile the model
     #loss = get_loss_func(args.w1)
     #model.compile(loss=[loss, loss], optimizer=optimizer, metrics=metrics)
     model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
@@ -84,6 +85,7 @@ if __name__=='__main__':
 
     # Setup callbacks for tensorboard, logging and checkpoints.
     tb_callback = TensorBoard(log_dir=args.save_dir)
+    lr_reducer_callback = LrReducer(args)
     logging_callback = Logger(args)
     checkpointer = ModelCheckpoint(
         filepath=os.path.join(
@@ -107,7 +109,8 @@ if __name__=='__main__':
                         use_multiprocessing=args.multiprocessing,
                         workers=args.workers,
                         shuffle=args.shuffle,
-                        callbacks=[checkpointer, tb_callback, logging_callback])
+                        callbacks=[checkpointer, tb_callback, logging_callback,
+                                   lr_reducer_callback])
 
     # Run Evaluation.
     val_steps = len(val_generator)

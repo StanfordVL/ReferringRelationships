@@ -19,15 +19,25 @@ def weighted_sigmoid_cross_entropy(y_true, y_pred, w1, eps=10e-8):
     loss_weights = 1. + (w1 - 1.) * y_true
     s_ce_values = - y_true * K.log(y_pred + eps) - (1. - y_true) * K.log(1. - y_pred + eps)
     loss = K.mean(s_ce_values * loss_weights)
-    # tf implementation 
+    # tf implementation
     # _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
     # output = tf.clip_by_value(output, _epsilon, 1. - _epsilon)
     # output = tf.log(output / (1 - output))
     # loss = tf.weighted_cross_entropy_with_logits(targets, output, w1)
-    return loss 
+    return loss
 
 def get_loss_func(w1):
-    return lambda y_true, y_pred: weighted_sigmoid_cross_entropy(y_true, y_pred, w1)
+    """Wrapper for weighted sigmoid cross entropy loss.
+
+    Args:
+        w1: The weight.
+
+    Return:
+        The weighted sigmoid cross entropy loss function.
+    """
+    def loss_func(y_true, y_pred):
+        return weighted_sigmoid_cross_entropy(y_true, y_pred, w1)
+    return loss_func
 
 def get_opt(opt, lr, lr_decay):
     """Initializes the opt that we want to train with.
@@ -88,6 +98,40 @@ def get_dir_name(models_dir):
         return os.path.join(models_dir, str(existing_dirs.max() + 1))
     else:
         return os.path.join(models_dir, '1')
+
+
+class LrReducer(Callback):
+    """Lowers the learning rate when the val loss is not decreasing.
+    """
+
+    def __init__(self, args):
+        """Constructor for the Logger.
+
+        Args:
+            args: Arguments passed in by the user.
+        """
+        super(Callback, self).__init__()
+        self.patience = args.patience
+        self.wait = 0
+        self.best_loss = None
+        self.lr_reduce_rate = args.lr_reduce_rate
+
+    def on_epoch_end(self, epoch, logs={}):
+        """Update the epoch count.
+
+        Args:
+            epoch: The epoch number we are on.
+            logs: The training logs.
+        """
+        current_loss = logs.get('val_loss')
+        if self.best_loss is None or current_loss < self.best_loss:
+            self.best_loss = current_loss
+            self.wait = 0
+        else:
+            if self.wait >= self.patience:
+                lr = self.model.optimizer.lr.get_value()
+                self.model.optimizer.lr.set_value(lr*self.lr_reduce_rate)
+            self.wait += 1
 
 
 class Logger(Callback):
@@ -152,6 +196,7 @@ class Logger(Callback):
         """Update the epoch count.
 
         Args:
+            epoch: The epoch number we are on.
             logs: The training logs.
         """
         epoch_time = time.time() - self.epoch_start_time
