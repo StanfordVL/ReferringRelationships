@@ -127,7 +127,6 @@ class PredicateIterator(Sequence):
         return inputs, [batch_s_regions, batch_o_regions]
 
 
-
 class SmartIterator(Sequence):
     """Smart version of iterator that corresponds to `data.SmartDataset`.
     """

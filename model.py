@@ -64,13 +64,13 @@ class ReferringRelationshipsModel():
         # Map the inputs to the outputs.
         im_features = self.build_image_model(input_im)
         im_features = Dropout(self.dropout)(im_features)
-        im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="tanh")(im_features)
+        im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="relu")(im_features)
         im_features = Dropout(self.dropout)(im_features)
         rel_features = self.build_relationship_model(relationship_inputs, num_classes)
         rel_features = Dropout(self.dropout)(rel_features)
-        subjects_att = Dense(self.hidden_dim, activation='tanh',
+        subjects_att = Dense(self.hidden_dim, activation='relu',
                              kernel_regularizer=l2(self.reg))(rel_features)
-        objects_att = Dense(self.hidden_dim, activation='tanh',
+        objects_att = Dense(self.hidden_dim, activation='relu',
                             kernel_regularizer=l2(self.reg))(rel_features)
         subjects_att = Dropout(self.dropout)(subjects_att)
         objects_att = Dropout(self.dropout)(objects_att)

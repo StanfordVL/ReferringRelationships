@@ -109,6 +109,8 @@ def parse_args(evaluation=False):
                         help='Number workers used to load the data.')
     parser.add_argument('--shuffle', action='store_true', default=True,
                         help='Shuffle the dataset.')
+    parser.add_argument('--iterator-type', type=str, default='predicate',
+                        help='predicate or smart.')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
