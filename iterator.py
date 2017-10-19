@@ -41,7 +41,14 @@ class PredicateIterator(Sequence):
         self.group_keys = []
         self.sample_list = []
         self.length = 0
+
+        group_names = []
         for i in dataset:
+            group_names.append(int(i))
+        group_names = sorted(group_names)
+
+        for j in group_names:
+            i = str(j)
             self.group_keys.append(i)
             group = dataset[i]
             categories = group['categories']
