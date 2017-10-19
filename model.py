@@ -66,16 +66,22 @@ class ReferringRelationshipsModel():
         im_features = Dropout(self.dropout)(im_features)
         im_features = Conv2D(self.hidden_dim, 1, padding='same')(im_features)
         im_features = Dropout(self.dropout)(im_features)
-        rel_features = self.build_relationship_model(relationship_inputs, num_classes)
+        rel_features = self.build_relationship_model(relationship_inputs,
+                                                     num_classes)
         rel_features = Dropout(self.dropout)(rel_features)
-        subjects_att = Dense(self.hidden_dim, activation='relu', kernel_regularizer=l2(self.reg))(rel_features)
-        objects_att = Dense(self.hidden_dim, activation='relu', kernel_regularizer=l2(self.reg))(rel_features)
+        subjects_att = Dense(self.hidden_dim, activation='relu',
+                             kernel_regularizer=l2(self.reg))(rel_features)
+        objects_att = Dense(self.hidden_dim, activation='relu',
+                            kernel_regularizer=l2(self.reg))(rel_features)
         subjects_att = Dropout(self.dropout)(subjects_att)
         objects_att = Dropout(self.dropout)(objects_att)
-        subject_regions = self.build_attention_layer(im_features, subjects_att, "subject")
-        object_regions = self.build_attention_layer(im_features, objects_att, "object")
+        subject_regions = self.build_attention_layer(
+            im_features, subjects_att, "subject")
+        object_regions = self.build_attention_layer(
+            im_features, objects_att, "object")
         model_inputs = [input_im] + relationship_inputs
-        model = Model(inputs=model_inputs, outputs=[subject_regions, object_regions])
+        model = Model(inputs=model_inputs,
+                      outputs=[subject_regions, object_regions])
         return model
 
     def build_image_model(self, input_im):
