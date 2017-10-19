@@ -4,7 +4,7 @@
 from keras.models import load_model
 
 from config import parse_args
-from iterator import PredicateIterator
+from iterator import PredicateIterator, SmartIterator
 from keras.optimizers import RMSprop
 from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics
@@ -40,7 +40,13 @@ if __name__=='__main__':
     logging.info(format_args(args))
 
     # Setup the training and validation data iterators
-    generator = PredicateIterator(args.data_dir, args)
+    if args.iterator_type == 'smart':
+        IteratorClass = SmartIterator
+    elif args.iterator_type == 'predicate':
+        IteratorClass = PredicateIterator
+    else:
+        raise ValueError('%s iterator not recognized.' % args.iterator_type)
+    generator = IteratorClass(args.data_dir, args)
     logging.info('Evaluating on {} samples'.format(generator.samples))
 
     # Setup all the metrics we want to report. The names of the metrics need to
@@ -62,7 +68,7 @@ if __name__=='__main__':
 
     # Run Evaluation.
     steps = len(generator)
-    outputs = model.evaluate_generator(generator=test_generator,
+    outputs = model.evaluate_generator(generator=generator,
                                        steps=steps,
                                        use_multiprocessing=args.multiprocessing,
                                        workers=args.workers)
