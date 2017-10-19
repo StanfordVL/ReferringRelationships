@@ -40,10 +40,6 @@ def parse_training_args(parser):
     parser.add_argument('--lr-reduce-rate', type=float, default=0.1,
                         help='Multiple to reduce the learning rate by.')
 
-    # Weight regularizer.
-    parser.add_argument('--reg', type=float, default=0.2,
-                        help='Weight regularizer.')
-
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')
@@ -152,6 +148,8 @@ def parse_args(evaluation=False):
     parser.add_argument('--nb-conv-move-map', type=int, default=1,
                         help='Number of convolution layers to use to move '
                         'heatmaps in ssn model')
+    parser.add_argument('--reg', type=float, default=0.2,
+                        help='Weight regularizer.')
 
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
