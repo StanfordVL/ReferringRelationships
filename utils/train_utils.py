@@ -130,7 +130,7 @@ class LrReducer(Callback):
         else:
             if self.wait >= self.patience:
                 lr = self.model.optimizer.lr.get_value()
-                self.model.optimizer.lr.set_value(lr*self.lr_reduce_rate)
+                K.set_value(self.model.optimizer.lr, lr*self.lr_reduce_rate)
             self.wait += 1
 
 

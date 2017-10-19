@@ -32,7 +32,7 @@ def parse_training_args(parser):
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.0001,
                         help='The learning rate for training.')
-    parser.add_argument('--lr_decay', type=float, default=0,
+    parser.add_argument('--lr-decay', type=float, default=0,
                         help='The learning rate decay.')
     parser.add_argument('--patience', type=int, default=2,
                         help='The number of epochs to wait if val loss is '
