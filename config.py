@@ -107,6 +107,8 @@ def parse_args(evaluation=False):
                         help='Shuffle the dataset.')
     parser.add_argument('--iterator-type', type=str, default='predicate',
                         help='predicate or smart.')
+    parser.add_argument('--categorical-predicate', action='store_true', default=True,
+                        help='wheteher to return indexes or masks for the smart iterator')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
@@ -126,7 +128,7 @@ def parse_args(evaluation=False):
                         'image.')
     parser.add_argument('--feat-map-layer', type=str, default='activation_40',
                         help='The feature map to use in resnet '
-                        '(activation_40 for 14x14 and activation 22 for 28x28)')
+                        '(activation_40 for 14x14 and activation_22 for 28x28)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
     parser.add_argument('--num-predicates', type=int, default=70,

@@ -2,7 +2,7 @@
 """
 
 from keras.preprocessing.image import Iterator
-from keras.utils import Sequence
+from keras.utils import Sequence, to_categorical
 
 import argparse
 import h5py
@@ -151,7 +151,8 @@ class SmartIterator(Sequence):
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
         self.batch_size = args.batch_size
-
+        self.categorical_predicate = args.categorical_predicate
+        self.num_predicates = args.num_predicates
         # Set the sizes of targets and images.
         self.target_size = args.input_dim * args.input_dim
         self.image_shape = (args.input_dim, args.input_dim, 3)
@@ -216,7 +217,10 @@ class SmartIterator(Sequence):
         if self.use_subject:
             inputs.append(batch_rel[:, 0])
         if self.use_predicate:
-            inputs.append(batch_rel[:, 1])
+            if self.categorical_predicate:
+                inputs.append(to_categorical(batch_rel[:, 1], num_classes=self.num_predicates))
+            else:
+                inputs.append(batch_rel[:, 1])
         if self.use_object:
             inputs.append(batch_rel[:, 2])
         return inputs, [batch_s_regions, batch_o_regions]

@@ -40,6 +40,33 @@ class ReferringRelationshipsModel():
         self.nb_conv_move_map = args.nb_conv_move_map
         self.feat_map_layer = args.feat_map_layer
 
+    def build_model(self):
+        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_subj = Input(shape=(1,))
+        input_pred = Input(shape=(self.num_predicates,))
+        input_obj = Input(shape=(1,))
+        im_features = self.build_image_model(input_im)
+        im_features = Dropout(self.dropout)(im_features)
+        im_features = Conv2D(self.hidden_dim, 1, padding='same', activation="relu")(im_features)
+        im_features = Dropout(self.dropout)(im_features)
+        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
+        embedded_subject = subj_obj_embedding(input_subj)
+        embedded_subject = Dropout(self.dropout)(embedded_subject)
+        embedded_object = subj_obj_embedding(input_obj)
+        embedded_object = Dropout(self.dropout)(embedded_object)
+        subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred")
+        subject_regions = self.build_upsampling_layer(subject_att, "subject")
+        predicate_conv = Conv2D(self.num_predicates, self.conv_predicate_kernel, strides=(1, 1), padding='same')(subject_att)
+        predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
+        predicate_att = Multiply()([predicate_masks, predicate_conv])
+        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(predicate_att) 
+        predicate_att = Activation("tanh")(predicate_att)
+        new_im_feature_map = Multiply()([im_features, predicate_att])
+        object_att = self.build_attention_layer(new_im_feature_map, embedded_object)
+        object_regions = self.build_upsampling_layer(object_att, "object")
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
+        return model
+
     def _build_model(self):
         """Initializes the SSN model.
         This model uses moving heatmaps with a dense or conv layer
@@ -78,7 +105,7 @@ class ReferringRelationshipsModel():
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 
-    def build_model(self): 
+    def __build_model(self): 
         """Initializes the SSN model.
         This model uses moving heatmaps with a dense layer
         Returns:
