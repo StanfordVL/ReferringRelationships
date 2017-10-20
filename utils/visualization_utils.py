@@ -26,7 +26,7 @@ def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
     """
     image = original_image.resize((input_dim, input_dim))
     image = np.array(image)
-    image = image[:,:,::-1]
+    image = image[:,:,:-1]
     subject_heatmap = subject_heatmap.reshape(input_dim, input_dim) * 255.
     object_heatmap = object_heatmap.reshape(input_dim, input_dim) * 255.
     subject_image = np.zeros((input_dim, input_dim, 3))

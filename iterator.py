@@ -172,6 +172,15 @@ class SmartIterator(Sequence):
         """
         return self.length
 
+    def get_image_dataset(self):
+        """Retrieves the image dataset.
+
+        Returns:
+            The image hdf5 dataset.
+        """
+        dataset = h5py.File(os.path.join(self.data_dir, 'images.hdf5'), 'r')
+        return dataset['images']
+
     def on_epoch_end(self):
         return
 

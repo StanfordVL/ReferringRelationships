@@ -107,7 +107,7 @@ def parse_args(evaluation=False):
                         help='Shuffle the dataset.')
     parser.add_argument('--iterator-type', type=str, default='predicate',
                         help='predicate or smart.')
-    parser.add_argument('--categorical-predicate', action='store_true', default=True,
+    parser.add_argument('--categorical-predicate', action='store_true', default=False,
                         help='wheteher to return indexes or masks for the smart iterator')
 
     # Model parameters.
@@ -139,14 +139,11 @@ def parse_args(evaluation=False):
                         help='The dropout probability used in training.')
     parser.add_argument('--w1', type=float, default=2.,
                         help='The coefficient to use on the positive examples in the CE loss')
-    parser.add_argument('--use-sym-ssn', type=int, default=0,
+    parser.add_argument('--use-sym-ssn', action='store_true', default=False,
                         help='Whether to use the symmetric or asymmetric ssn model')
     parser.add_argument('--conv-predicate-kernel', type=int, default=3,
                         help='The kernel size when using convolutions in '
                         'the ssn model to move heatmaps')
-    parser.add_argument('--use-conv-ssn', action='store_true',
-                        help='Whether to use convolutions or dense layer to '
-                        'move heatmaps in ssn model')
     parser.add_argument('--nb-conv-move-map', type=int, default=1,
                         help='Number of convolution layers to use to move '
                         'heatmaps in ssn model')
