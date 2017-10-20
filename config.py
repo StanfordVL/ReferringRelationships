@@ -141,14 +141,22 @@ def parse_args(evaluation=False):
                         help='The coefficient to use on the positive examples in the CE loss')
     parser.add_argument('--use-sym-ssn', action='store_true', default=False,
                         help='Whether to use the symmetric or asymmetric ssn model')
+    parser.add_argument('--nb-conv-im-map', type=int, default=1,
+                        help='Number of convolution layers to use '
+                        'to learn image feature maps')
+    parser.add_argument('--nb-conv-att-map', type=int, default=1,
+                        help='Number of convolution layers to use to move '
+                        'heatmaps in ssn model')
+    parser.add_argument('--conv-im-kernel', type=int, default=1,
+                        help='The kernel size when using convolutions in '
+                        'the ssn model to compute image feature maps')
     parser.add_argument('--conv-predicate-kernel', type=int, default=3,
                         help='The kernel size when using convolutions in '
                         'the ssn model to move heatmaps')
-    parser.add_argument('--nb-conv-move-map', type=int, default=1,
-                        help='Number of convolution layers to use to move '
-                        'heatmaps in ssn model')
     parser.add_argument('--reg', type=float, default=0.2,
                         help='Weight regularizer.')
+    parser.add_argument('--nb_dense_emb', type=int, default=1,
+                        help='number of dense layers after embedding layer')
 
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',

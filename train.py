@@ -7,6 +7,7 @@ from keras.optimizers import Adam
 from keras.models import load_model
 
 from config import parse_args
+from models import ReferringRelationshipsModel
 from iterator import PredicateIterator
 from iterator import SmartIterator
 from utils.eval_utils import format_results
@@ -73,11 +74,6 @@ if __name__=='__main__':
     # be set so that Keras can log them correctly.
     metrics = get_metrics(args.input_dim, args.heatmap_threshold)
 
-    # Prepare the model.
-    if args.model == 'ssn':
-        from ssn import ReferringRelationshipsModel
-    else:
-        from model import ReferringRelationshipsModel
     # create a new instance model
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
