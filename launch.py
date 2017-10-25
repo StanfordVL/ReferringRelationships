@@ -44,7 +44,6 @@ for _ in range(args.nruns):
         'nb-conv-att-map': np.random.choice([1, 2, 3, 4]),
         'conv-predicate-kernel': np.random.choice([3, 4, 5, 6, 7]),
         'heatmap-threshold': 0.5,
-        'iterator-type': 'smart',
         #'w1': 1.,
     }
     arguments = ' '.join(['--' + k + ' ' + str(params[k]) for k in params])
@@ -56,4 +55,4 @@ for _ in range(args.nruns):
     train += ' ' + arguments
     print('\n' +'*'*89 + '\n')
     print(train)
-    # subprocess.call(train, shell=True)
+    subprocess.call(train, shell=True)
