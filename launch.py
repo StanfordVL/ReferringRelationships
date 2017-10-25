@@ -42,6 +42,7 @@ for _ in range(args.nruns):
         'use-predicate': 1,
         'w1': 1.,
         'iterator-type': 'smart',
+        'patience': 4,
         'embedding-dim': 128
     }
     arguments = ' '.join(['--' + k + ' ' + str(params[k]) for k in params])

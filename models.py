@@ -29,7 +29,6 @@ class ReferringRelationshipsModel():
         self.input_dim = args.input_dim
         self.feat_map_dim = args.feat_map_dim
         self.hidden_dim = args.hidden_dim
-        self.embedding_dim = args.embedding_dim
         self.num_predicates = args.num_predicates
         self.num_objects = args.num_objects
         self.dropout = args.dropout
@@ -244,7 +243,7 @@ class ReferringRelationshipsModel():
         embeddings = []
         for rel_input, num_categories in zip(relationship_inputs, num_classes):
             embedding_layer = Embedding(num_categories,
-                                        self.embedding_dim,
+                                        self.hidden_dim,
                                         input_length=1)
             embeddings.append(embedding_layer(rel_input))
 

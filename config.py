@@ -32,8 +32,6 @@ def parse_training_args(parser):
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.0001,
                         help='The learning rate for training.')
-    parser.add_argument('--lr-decay', type=float, default=0,
-                        help='The learning rate decay.')
     parser.add_argument('--patience', type=int, default=2,
                         help='The number of epochs to wait if val loss is '
                         'increasing and decrease the learning rate.')
@@ -105,22 +103,18 @@ def parse_args(evaluation=False):
                         help='Number workers used to load the data.')
     parser.add_argument('--shuffle', action='store_true', default=True,
                         help='Shuffle the dataset.')
-    parser.add_argument('--iterator-type', type=str, default='predicate',
-                        help='predicate or smart.')
     parser.add_argument('--categorical-predicate', action='store_true', default=False,
-                        help='wheteher to return indexes or masks for the smart iterator')
+                        help='wheteher to return indexes or masks for the smart iterator, should only be used for ssn and sym_ssn models')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
-                        help='Indicates which model to use')
+                        help='Indicates which model to use: ssn, baseline, sym_ssn or baseline_no_predicate')
     parser.add_argument('--use-subject', type=int, default=1,
                         help='1/0 indicating whether to use the subjects.')
     parser.add_argument('--use-predicate', type=int, default=1,
                         help='1/0 indicating whether to use the predicates.')
     parser.add_argument('--use-object', type=int, default=1,
                         help='1/0 indicating whether to use the objects.')
-    parser.add_argument('--embedding-dim', type=int, default=128,
-                        help='Number of dimensions in our class embeddings.')
     parser.add_argument('--hidden-dim', type=int, default=512,
                         help='Number of dimensions in the hidden unit.')
     parser.add_argument('--feat-map-dim', type=int, default=14,
@@ -139,8 +133,6 @@ def parse_args(evaluation=False):
                         help='The dropout probability used in training.')
     parser.add_argument('--w1', type=float, default=2.,
                         help='The coefficient to use on the positive examples in the CE loss')
-    parser.add_argument('--use-sym-ssn', action='store_true', default=False,
-                        help='Whether to use the symmetric or asymmetric ssn model')
     parser.add_argument('--nb-conv-im-map', type=int, default=1,
                         help='Number of convolution layers to use '
                         'to learn image feature maps')
@@ -155,7 +147,7 @@ def parse_args(evaluation=False):
                         'the ssn model to move heatmaps')
     parser.add_argument('--reg', type=float, default=0.2,
                         help='Weight regularizer.')
-    parser.add_argument('--nb_dense_emb', type=int, default=1,
+    parser.add_argument('--nb-dense-emb', type=int, default=1,
                         help='number of dense layers after embedding layer')
 
     # Eval parameters.
