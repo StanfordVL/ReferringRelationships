@@ -39,7 +39,7 @@ def get_loss_func(w1):
         return weighted_sigmoid_cross_entropy(y_true, y_pred, w1)
     return loss_func
 
-def get_opt(opt, lr, lr_decay):
+def get_opt(opt, lr):
     """Initializes the opt that we want to train with.
 
     Args:
@@ -51,13 +51,13 @@ def get_opt(opt, lr, lr_decay):
         The keras optimizer we are going to use.
     """
     if opt=="rms":
-        return RMSprop(lr=lr,decay=lr_decay)
+        return RMSprop(lr=lr)
     elif opt=="adam":
-        return Adam(lr=lr,decay=lr_decay)
+        return Adam(lr=lr)
     elif opt=="adagrad":
-        return Adagrad(lr=lr,decay=lr_decay)
+        return Adagrad(lr=lr)
     elif opt=="adadelta":
-        return Adadelta(lr=lr,decay=lr_decay)
+        return Adadelta(lr=lr)
     else:
         raise ValueError("optimizer name not recognized")
 

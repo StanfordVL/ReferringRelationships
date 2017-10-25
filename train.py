@@ -69,7 +69,7 @@ if __name__=='__main__':
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
-    optimizer = get_opt(opt=args.opt, lr=args.lr, lr_decay=args.lr_decay)
+    optimizer = get_opt(opt=args.opt, lr=args.lr)
 
     # get the loss function and compile the model
     #loss = get_loss_func(args.w1)
@@ -96,7 +96,7 @@ if __name__=='__main__':
         train_steps = len(train_generator)
     else:
         train_steps = args.train_steps_per_epoch
-    if agrs.val_steps_per_epoch < 0:
+    if args.val_steps_per_epoch < 0:
         val_steps = len(val_generator)
     else:
         val_steps = args.val_steps_per_epoch

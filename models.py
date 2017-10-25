@@ -250,7 +250,7 @@ class ReferringRelationshipsModel():
         embeddings = []
         for rel_input, num_categories in zip(relationship_inputs, num_classes):
             embedding_layer = Embedding(num_categories,
-                                        self.hidden_dim/len(relationship_inputs),
+                                        int(self.hidden_dim/len(relationship_inputs)),
                                         input_length=1)
             embeddings.append(embedding_layer(rel_input))
 
