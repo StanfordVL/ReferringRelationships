@@ -162,7 +162,11 @@ class ReferringRelationshipsModel():
         im_features = self.build_image_model(input_im)
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
+        #subjects_features = Dense(self.hidden_dim)(embedded_subject)
+        #subjects_features = Dropout(self.dropout)(subjects_features)
         embedded_object = subj_obj_embedding(input_obj)
+        #objects_features = Dense(self.hidden_dim)(rel_features)
+        #objects_features = Dropout(self.dropout)(objects_features)
         subject_att = self.build_attention_layer(im_features, embedded_subject)
         object_att = self.build_attention_layer(im_features, embedded_object)
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
@@ -189,7 +193,7 @@ class ReferringRelationshipsModel():
         im_features = image_branch(input_im)
         im_features = Dropout(self.dropout)(im_features)
         for i in range(self.nb_conv_im_map):
-            im_features = Conv2D(self.hidden_dim, self.conv_im_kernel, strides=(1, 1), padding='same')(im_features)
+            im_features = Conv2D(self.hidden_dim, self.conv_im_kernel, strides=(1, 1), padding='same', activation='relu')(im_features)
             im_features = Dropout(self.dropout)(im_features)
         return im_features
 
@@ -211,6 +215,7 @@ class ReferringRelationshipsModel():
             att = Conv2D(self.num_predicates, self.conv_predicate_kernel, strides=(1, 1), padding='same')(att)
             att = Multiply()([predicate_masks, att])
             att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
+        # TODO: test sigmoid here
         predicate_att = Activation("tanh", name=name)(att)
         return predicate_att
 
@@ -243,7 +248,7 @@ class ReferringRelationshipsModel():
         embeddings = []
         for rel_input, num_categories in zip(relationship_inputs, num_classes):
             embedding_layer = Embedding(num_categories,
-                                        self.hidden_dim,
+                                        self.hidden_dim/len(relationship_inputs),
                                         input_length=1)
             embeddings.append(embedding_layer(rel_input))
 
@@ -253,7 +258,7 @@ class ReferringRelationshipsModel():
         else:
             concatenated_inputs = embeddings[0]
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
-        rel_features = Dense(self.hidden_dim)(concatenated_inputs)
+        rel_features = Dense(self.hidden_dim, activation='relu')(concatenated_inputs)
         return rel_features
 
     def build_model_1(self):
