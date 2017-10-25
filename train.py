@@ -92,15 +92,19 @@ if __name__=='__main__':
         monitor='val_loss')
 
     # Start training.
-    if args.steps_per_epoch < 0:
+    if args.train_steps_per_epoch < 0:
         train_steps = len(train_generator)
     else:
-        train_steps = args.steps_per_epoch
+        train_steps = args.train_steps_per_epoch
+    if agrs.val_steps_per_epoch < 0:
+        val_steps = len(val_generator)
+    else:
+        val_steps = args.val_steps_per_epoch
     model.fit_generator(generator=train_generator,
                         steps_per_epoch=train_steps,
                         epochs=args.epochs,
                         validation_data=val_generator,
-                        validation_steps=args.eval_steps,
+                        validation_steps=val_steps,
                         verbose=2,
                         use_multiprocessing=args.multiprocessing,
                         workers=args.workers,

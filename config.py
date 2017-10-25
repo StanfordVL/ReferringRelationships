@@ -18,7 +18,7 @@ def parse_training_args(parser):
                         ' supports rms, adam, adagrad and adadelta.')
     parser.add_argument('--epochs', type=int, default=50,
                         help='The number of epochs to train.')
-    parser.add_argument('--steps-per-epoch', type=int, default=-1,
+    parser.add_argument('--train-steps-per-epoch', type=int, default=-1,
                         help='The total number of steps (batches of samples) to yield from generator before declaring one epoch finished and starting the next epoch.')
     parser.add_argument('--overwrite', action='store_true',
                         help='Train even if that folder already contains '
@@ -26,8 +26,8 @@ def parse_training_args(parser):
     parser.add_argument('--log-every-batch', action='store_true',
                         help='Logs every batch when used. Otherwise it '
                         'logs every epoch.')
-    parser.add_argument('--eval-steps', type=int, default=10,
-                        help='Number of eval steps to evaluate every batch.')
+    parser.add_argument('--val-steps-per-epoch', type=int, default=-1,
+                        help='Number of steps to yield from validation generator at the end of every epoch.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.0001,
