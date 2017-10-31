@@ -30,6 +30,7 @@ class SmartIterator(Sequence):
         self.use_object = args.use_object
         self.batch_size = args.batch_size
         self.categorical_predicate = args.categorical_predicate
+        self.use_internal_loss = args.use_internal_loss
         self.num_predicates = args.num_predicates
         # Set the sizes of targets and images.
         self.target_size = args.input_dim * args.input_dim
@@ -110,7 +111,11 @@ class SmartIterator(Sequence):
                 inputs.append(batch_rel[:, 1])
         if self.use_object:
             inputs.append(batch_rel[:, 2])
-        return inputs, [batch_s_regions, batch_o_regions]
+        if self.use_internal_loss: 
+            outputs = [batch_s_regions, batch_o_regions, batch_s_regions, batch_o_regions]
+        else:
+            outputs = [batch_s_regions, batch_o_regions]
+        return inputs, outputs
 
 
 class DatasetIterator(Sequence):

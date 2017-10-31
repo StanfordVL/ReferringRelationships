@@ -43,6 +43,7 @@ class ReferringRelationshipsModel():
         self.model = args.model
         self.reg = args.reg
         self.nb_dense_emb = args.nb_dense_emb
+        self.use_internal_loss = args.use_internal_loss
     
     def build_model(self):
         if self.model=="ssn":
@@ -99,8 +100,11 @@ class ReferringRelationshipsModel():
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Dropout(self.dropout)(embedded_object)
         subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred-subj")
-        subj_predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
         object_att = self.build_attention_layer(im_features, embedded_object, "before-pred-obj")
+        if self.use_internal_loss:
+            subject_regions_int = self.build_upsampling_layer(subject_att, "subject-int")
+            object_regions_int = self.build_upsampling_layer(object_att, "object-int")    
+        subj_predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
         obj_predicate_att = self.build_conv_map_transform(object_att, input_pred, "after-pred-obj")
         attended_im_subj = Multiply()([im_features, subj_predicate_att])
         attended_im_obj = Multiply()([im_features, obj_predicate_att])
@@ -108,7 +112,11 @@ class ReferringRelationshipsModel():
         subject_att = self.build_attention_layer(attended_im_obj, embedded_subject)
         object_regions = self.build_upsampling_layer(object_att, "object")
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
+        if self.use_internal_loss:
+            outputs = [subject_regions_int, object_regions_int, subject_regions, object_regions]
+        else:
+            outputs = [subject_regions, object_regions] 
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=outputs)
         return model
    
     def build_baseline_model(self):
@@ -164,9 +172,11 @@ class ReferringRelationshipsModel():
         im_features = self.build_image_model(input_im)
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
+        embedded_subject = Dropout(self.dropout)(embedded_subject)
         #subjects_features = Dense(self.hidden_dim)(embedded_subject)
         #subjects_features = Dropout(self.dropout)(subjects_features)
         embedded_object = subj_obj_embedding(input_obj)
+        embedded_object = Dropout(self.dropout)(embedded_object)
         #objects_features = Dense(self.hidden_dim)(rel_features)
         #objects_features = Dropout(self.dropout)(objects_features)
         subject_att = self.build_attention_layer(im_features, embedded_subject)
