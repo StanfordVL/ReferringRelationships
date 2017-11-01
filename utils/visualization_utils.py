@@ -26,7 +26,6 @@ def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
     """
     image = original_image.resize((input_dim, input_dim))
     image = np.array(image)
-    image = image[:,:,:-1]
     subject_heatmap = subject_heatmap.reshape(input_dim, input_dim) * 255.
     object_heatmap = object_heatmap.reshape(input_dim, input_dim) * 255.
     subject_image = np.zeros((input_dim, input_dim, 3))
@@ -40,12 +39,13 @@ def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
     together = np.concatenate((image, subject_attention, object_attention),
                               axis=1)
     together = Image.fromarray(together.astype('uint8'), 'RGB')
-    txt = Image.new('RGBA', together.size, (255,255,255,0))
-    fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 24)
-    d = ImageDraw.Draw(txt)
-    d.text((10,input_dim-30), ' - '.join(relationship), font=fnt, fill=(255,0,255,255))
-    out = Image.alpha_composite(together.convert('RGBA'), txt)
-    return out
+    #txt = Image.new('RGBA', together.size, (255,255,255,0))
+    #fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 24)
+    #d = ImageDraw.Draw(txt)
+    #d.text((10,input_dim-30), ' - '.join(relationship), font=fnt, fill=(255,0,255,255))
+    #out = Image.alpha_composite(together.convert('RGBA'), txt)
+    #return out
+    return together
 
 def get_dict(vocab_dir):
     """Returns the mapping from categories to names of objects and predicates.
