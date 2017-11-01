@@ -74,7 +74,11 @@ if __name__=='__main__':
     # get the loss function and compile the model
     #loss = get_loss_func(args.w1)
     #model.compile(loss=[loss, loss], optimizer=optimizer, metrics=metrics)
-    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'], optimizer=optimizer, metrics=metrics)
+    if args.use_internal_loss:
+        losses = ['binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy']
+    else:
+        losses = ['binary_crossentropy', 'binary_crossentropy']
+    model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
     if args.model_checkpoint:
          # load model weights from checkpoint
          model.load_weights(args.model_checkpoint)
