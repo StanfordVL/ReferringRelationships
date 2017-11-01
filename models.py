@@ -174,12 +174,8 @@ class ReferringRelationshipsModel():
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
-        #subjects_features = Dense(self.hidden_dim)(embedded_subject)
-        #subjects_features = Dropout(self.dropout)(subjects_features)
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Dropout(self.dropout)(embedded_object)
-        #objects_features = Dense(self.hidden_dim)(rel_features)
-        #objects_features = Dropout(self.dropout)(objects_features)
         subject_att = self.build_attention_layer(im_features, embedded_subject)
         object_att = self.build_attention_layer(im_features, embedded_object)
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
@@ -235,8 +231,12 @@ class ReferringRelationshipsModel():
         elif self.att_activation == "tanh+relu":
             predicate_att = Activation("tanh")(att)
             predicate_att = Activation("relu", name=name)(predicate_att)
+        elif self.att_activation == "norm":
+            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
+            att = Lambda(lambda x: K.l2_normalize(x, axis=1))(att)
+            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
         else:
-            predicate_att =  Lambda(lambda x: K.cast(x> 0, K.floatx()))(att)
+            predicate_att =  Lambda(lambda x: K.cast(K.greater(x, 0), K.floatx()))(att)
         return predicate_att
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
