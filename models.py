@@ -44,7 +44,8 @@ class ReferringRelationshipsModel():
         self.reg = args.reg
         self.nb_dense_emb = args.nb_dense_emb
         self.use_internal_loss = args.use_internal_loss
-    
+        self.att_activation = args.att_activation
+
     def build_model(self):
         if self.model=="ssn":
             return self.build_ssn_model()
@@ -204,9 +205,11 @@ class ReferringRelationshipsModel():
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
         im_features = Dropout(self.dropout)(im_features)
-        for i in range(self.nb_conv_im_map):
+        for i in range(self.nb_conv_im_map-1):
             im_features = Conv2D(self.hidden_dim, self.conv_im_kernel, strides=(1, 1), padding='same', activation='relu')(im_features)
             im_features = Dropout(self.dropout)(im_features)
+        im_features = Conv2D(self.hidden_dim, self.conv_im_kernel, strides=(1, 1), padding='same')(im_features)
+        im_features = Dropout(self.dropout)(im_features)
         return im_features
 
     def build_embedding_layer(self, num_categories, emb_dim):
@@ -227,8 +230,13 @@ class ReferringRelationshipsModel():
             att = Conv2D(self.num_predicates, self.conv_predicate_kernel, strides=(1, 1), padding='same')(att)
             att = Multiply()([predicate_masks, att])
             att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
-        # TODO: test sigmoid here
-        predicate_att = Activation("tanh", name=name)(att)
+        if self.att_activation == "tanh":
+            predicate_att = Activation("tanh", name=name)(att)
+        elif self.att_activation == "tanh+relu":
+            predicate_att = Activation("tanh")(att)
+            predicate_att = Activation("relu", name=name)(predicate_att)
+        else:
+            predicate_att =  Lambda(lambda x: K.cast(x> 0, K.floatx()))(att)
         return predicate_att
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):

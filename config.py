@@ -150,7 +150,9 @@ def parse_args(evaluation=False):
     parser.add_argument('--nb-dense-emb', type=int, default=1,
                         help='number of dense layers after embedding layer')
     parser.add_argument('--use-internal-loss', action='store_true', default=False, 
-                        help='Whether to add intermediate losses in the sym_ssn model') 
+                        help='Whether to add intermediate losses in the sym_ssn model')
+    parser.add_argument('--att-activation', default='tanh',
+                        help='whether to use tanh or tanh+relu or binary activation after moving heatmaps.')
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],
