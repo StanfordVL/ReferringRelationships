@@ -233,7 +233,7 @@ class ReferringRelationshipsModel():
             predicate_att = Activation("relu", name=name)(predicate_att)
         elif self.att_activation == "norm":
             att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
-            att = Lambda(lambda x: K.l2_normalize(x, axis=1))(att)
+            att = Lambda(lambda x: x/K.max(K.abs(x), axis=1))(att)
             predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
         else:
             predicate_att =  Lambda(lambda x: K.cast(K.greater(x, 0), K.floatx()))(att)
