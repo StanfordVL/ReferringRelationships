@@ -165,8 +165,6 @@ def parse_args(evaluation=False):
                         help='Weight regularizer.')
     parser.add_argument('--nb-dense-emb', type=int, default=1,
                         help='number of dense layers after embedding layer')
-    parser.add_argument('--use-internal-loss', action='store_true', default=False,
-                        help='Whether to add intermediate losses in the sym_ssn model')
     parser.add_argument('--att-activation', default='norm', type=str,
                         help='Whether to use tanh or tanh+relu or binary or norm activation after moving heatmaps.')
     parser.add_argument('--conv-predicate-channels', default=1, type=int,
