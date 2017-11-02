@@ -153,10 +153,12 @@ def parse_args(evaluation=False):
                         help='number of dense layers after embedding layer')
     parser.add_argument('--use-internal-loss', action='store_true', default=False,
                         help='Whether to add intermediate losses in the sym_ssn model')
-    parser.add_argument('--att-activation', default='tanh', type=str,
-                        help='Whether to use tanh or tanh+relu or binary activation after moving heatmaps.')
+    parser.add_argument('--att-activation', default='norm', type=str,
+                        help='Whether to use tanh or tanh+relu or binary or norm activation after moving heatmaps.')
     parser.add_argument('--conv-predicate-channels', default=1, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
+    parser.add_argument('--att-mechanism', default="dot", type=str,
+                        help='Whether to use a dot product (dot) or only multiply (mul) for attention')
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],
