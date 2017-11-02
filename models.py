@@ -46,6 +46,7 @@ class ReferringRelationshipsModel():
         self.nb_dense_emb = args.nb_dense_emb
         self.use_internal_loss = args.use_internal_loss
         self.att_activation = args.att_activation
+        self.internal_loss_weight = args.internal_loss_weight
 
     def build_model(self):
         if self.model=="ssn":
@@ -115,9 +116,9 @@ class ReferringRelationshipsModel():
         object_regions = self.build_upsampling_layer(object_att, "object")
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
         if self.use_internal_loss:
-            outputs = [subject_regions_int, object_regions_int, subject_regions, object_regions]
-        else:
-            outputs = [subject_regions, object_regions]
+            subject_regions = subject_regions + self.internal_loss_weight * subject_regions_int
+            object_regions = object_regions + self.internal_loss_weight * object_regions_int
+        outputs = [subject_regions, object_regions]
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=outputs)
         return model
 

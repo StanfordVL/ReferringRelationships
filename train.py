@@ -76,10 +76,7 @@ if __name__=='__main__':
         loss_func = get_loss_func(args.w1)
     else:
         loss_func = 'binary_crossentropy'
-    if args.use_internal_loss:
-        losses = [loss_func, loss_func, loss_func, loss_func]
-    else:
-        losses = [loss_func, loss_func]
+    losses = [loss_func, loss_func]
     model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
 
     # load model weights from checkpoint

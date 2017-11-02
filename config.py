@@ -19,7 +19,9 @@ def parse_training_args(parser):
     parser.add_argument('--epochs', type=int, default=50,
                         help='The number of epochs to train.')
     parser.add_argument('--train-steps-per-epoch', type=int, default=-1,
-                        help='The total number of steps (batches of samples) to yield from generator before declaring one epoch finished and starting the next epoch.')
+                        help='The total number of steps (batches of samples) '
+                        'to yield from generator before declaring one epoch '
+                        'finished and starting the next epoch.')
     parser.add_argument('--overwrite', action='store_true',
                         help='Train even if that folder already contains '
                         'an existing model.')
@@ -27,11 +29,19 @@ def parse_training_args(parser):
                         help='Logs every batch when used. Otherwise it '
                         'logs every epoch.')
     parser.add_argument('--val-steps-per-epoch', type=int, default=-1,
-                        help='Number of steps to yield from validation generator at the end of every epoch.')
+                        help='Number of steps to yield from validation '
+                        'generator at the end of every epoch.')
     parser.add_argument('--w1', type=float, default=2.,
-                        help='The coefficient to use on the positive examples in the CE loss')
+                        help='The coefficient to use on the positive '
+                        'examples in the CE loss')
     parser.add_argument('--loss-func', type=str, default='basic',
                         help='basic or weighted cross entropy loss.')
+    parser.add_argument('--use-internal-loss', action='store_true', default=False,
+                        help='Whether to add intermediate losses in the sym_ssn model')
+    parser.add_argument('--internal-loss-weight', type=float, default=0.3,
+                        help='The co-officient of the internal loss of the '
+                        'subject and object. Must use --model sym-ssn, '
+                        '--use-internal-loss.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.0001,
@@ -107,12 +117,16 @@ def parse_args(evaluation=False):
                         help='Number workers used to load the data.')
     parser.add_argument('--shuffle', action='store_true', default=True,
                         help='Shuffle the dataset.')
-    parser.add_argument('--categorical-predicate', action='store_true', default=False,
-                        help='wheteher to return indexes or masks for the smart iterator, should only be used for ssn and sym_ssn models')
+    parser.add_argument('--categorical-predicate', action='store_true',
+                        default=False,
+                        help='wheteher to return indexes or masks for the '
+                        'smart iterator, should only be used for ssn and '
+                        'sym_ssn models')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
-                        help='Indicates which model to use: ssn, baseline, sym_ssn or baseline_no_predicate')
+                        help='Indicates which model to use: '
+                        '[ssn, baseline, sym_ssn or baseline_no_predicate].')
     parser.add_argument('--use-subject', type=int, default=1,
                         help='1/0 indicating whether to use the subjects.')
     parser.add_argument('--use-predicate', type=int, default=1,
@@ -151,8 +165,6 @@ def parse_args(evaluation=False):
                         help='Weight regularizer.')
     parser.add_argument('--nb-dense-emb', type=int, default=1,
                         help='number of dense layers after embedding layer')
-    parser.add_argument('--use-internal-loss', action='store_true', default=False,
-                        help='Whether to add intermediate losses in the sym_ssn model')
     parser.add_argument('--att-activation', default='tanh', type=str,
                         help='Whether to use tanh or tanh+relu or binary activation after moving heatmaps.')
     parser.add_argument('--conv-predicate-channels', default=1, type=int,
