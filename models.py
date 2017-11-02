@@ -250,7 +250,7 @@ class ReferringRelationshipsModel():
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
         res = UpSampling2D(size=(2, 2))(conv_layer)
-        res = Conv2DTranspose(1, 3, padding='same', bias=False)(res)
+        res = Conv2DTranspose(1, 3, padding='same', use_bias=False)(res)
         return res
 
     def build_upsampling_layer(self, feature_map, name):
@@ -261,8 +261,6 @@ class ReferringRelationshipsModel():
             res = self.build_frac_strided_transposed_conv_layer(res)
         res = Reshape((self.input_dim*self.input_dim,))(res)
         predictions = Activation("tanh", name=name)(res)
-        #att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(res)
-        #predictions = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)), name=name)(res)
         return predictions
 
     def build_relationship_model(self, relationship_inputs, num_classes):
