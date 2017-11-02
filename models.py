@@ -40,6 +40,7 @@ class ReferringRelationshipsModel():
         self.feat_map_layer = args.feat_map_layer
         self.conv_im_kernel = args.conv_im_kernel
         self.conv_predicate_kernel = args.conv_predicate_kernel
+        self.conv_predicate_channels = args.conv_predicate_channels
         self.model = args.model
         self.reg = args.reg
         self.nb_dense_emb = args.nb_dense_emb
@@ -220,12 +221,20 @@ class ReferringRelationshipsModel():
              attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
         return attention_weights
 
+    def build_conv_predicate_module(self, att_map):
+        for i in range(self.nb_conv_att_map):
+            att_map = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False)(att_map)
+        shifted_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_map)
+        return shifted_att
+
     def build_conv_map_transform(self, att, input_pred, name):
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
-        for i in range(self.nb_conv_att_map):
-            att = Conv2D(self.num_predicates, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False)(att)
-            att = Multiply()([predicate_masks, att])
-            att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="conv-predicate-{}".format(i+1))(att)
+        conv_modules = []
+        for i in range(self.num_predicates):
+            conv_modules += [self.build_conv_predicate_module(att)]
+        merged_conv = Concatenate(axis=3)(conv_modules)
+        att = Multiply()([predicate_masks, merged_conv])
+        att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
         if self.att_activation == "tanh":
             predicate_att = Activation("tanh", name=name)(att)
         elif self.att_activation == "tanh+relu":

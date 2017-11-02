@@ -155,6 +155,8 @@ def parse_args(evaluation=False):
                         help='Whether to add intermediate losses in the sym_ssn model')
     parser.add_argument('--att-activation', default='tanh', type=str,
                         help='Whether to use tanh or tanh+relu or binary activation after moving heatmaps.')
+    parser.add_argument('--conv-predicate-channels', default=1, type=int,
+                        help='Number of channels to use in convolution filters that shift attention')
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],
