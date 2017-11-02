@@ -174,12 +174,8 @@ class ReferringRelationshipsModel():
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
-        #subjects_features = Dense(self.hidden_dim)(embedded_subject)
-        #subjects_features = Dropout(self.dropout)(subjects_features)
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Dropout(self.dropout)(embedded_object)
-        #objects_features = Dense(self.hidden_dim)(rel_features)
-        #objects_features = Dropout(self.dropout)(objects_features)
         subject_att = self.build_attention_layer(im_features, embedded_subject)
         object_att = self.build_attention_layer(im_features, embedded_object)
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
@@ -227,16 +223,29 @@ class ReferringRelationshipsModel():
     def build_conv_map_transform(self, att, input_pred, name):
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
         for i in range(self.nb_conv_att_map):
-            att = Conv2D(self.num_predicates, self.conv_predicate_kernel, strides=(1, 1), padding='same')(att)
+            att = Conv2D(self.num_predicates, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False)(att)
             att = Multiply()([predicate_masks, att])
-            att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
+            att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="conv-predicate-{}".format(i+1))(att)
         if self.att_activation == "tanh":
             predicate_att = Activation("tanh", name=name)(att)
         elif self.att_activation == "tanh+relu":
             predicate_att = Activation("tanh")(att)
             predicate_att = Activation("relu", name=name)(predicate_att)
-        else:
-            predicate_att =  Lambda(lambda x: K.cast(x> 0, K.floatx()))(att)
+        elif self.att_activation == "norm":
+            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
+            att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(att)
+            att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(att)
+            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1), name=name)(att)
+        elif self.att_activation == "norm+relu":
+            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
+            att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
+            att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(att)
+            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
+            predicate_att =  Activation("relu", name=name)(predicate_att)
+        elif self.att_activation == "binary":
+            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
+            att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
+            predicate_att =  Lambda(lambda x: K.cast(K.greater(x, 0), K.floatx()))(att)
         return predicate_att
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
@@ -247,11 +256,13 @@ class ReferringRelationshipsModel():
     def build_upsampling_layer(self, feature_map, name):
         upsampling_factor = self.input_dim / self.feat_map_dim
         k = int(np.log(upsampling_factor) / np.log(2))
-        res = feature_map
+        res = Activation("relu")(feature_map)
         for i in range(k):
             res = self.build_frac_strided_transposed_conv_layer(res)
-        predictions = Activation('sigmoid')(res)
-        predictions = Flatten(name=name)(predictions)
+        res = Reshape((self.input_dim*self.input_dim,))(res)
+        #predictions = Activation("sigmoid", name=name)(res)
+        att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(res)
+        predictions = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)), name=name)(res)
         return predictions
  
     def build_relationship_model(self, relationship_inputs, num_classes):
