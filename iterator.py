@@ -111,10 +111,7 @@ class SmartIterator(Sequence):
                 inputs.append(batch_rel[:, 1])
         if self.use_object:
             inputs.append(batch_rel[:, 2])
-        if self.use_internal_loss: 
-            outputs = [batch_s_regions, batch_o_regions, batch_s_regions, batch_o_regions]
-        else:
-            outputs = [batch_s_regions, batch_o_regions]
+        outputs = [batch_s_regions, batch_o_regions]
         return inputs, outputs
 
 
