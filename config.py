@@ -31,7 +31,7 @@ def parse_training_args(parser):
     parser.add_argument('--w1', type=float, default=2.,
                         help='The coefficient to use on the positive examples in the CE loss')
     parser.add_argument('--loss-func', type=str, default='basic',
-                        help='basid or weighted cross entropy loss.')
+                        help='basic or weighted cross entropy loss.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.0001,
