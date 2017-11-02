@@ -260,9 +260,9 @@ class ReferringRelationshipsModel():
         for i in range(k):
             res = self.build_frac_strided_transposed_conv_layer(res)
         res = Reshape((self.input_dim*self.input_dim,))(res)
-        #predictions = Activation("sigmoid", name=name)(res)
-        att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(res)
-        predictions = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)), name=name)(res)
+        predictions = Activation("sigmoid", name=name)(res)
+        #att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(res)
+        #predictions = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)), name=name)(res)
         return predictions
  
     def build_relationship_model(self, relationship_inputs, num_classes):
