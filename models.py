@@ -84,7 +84,7 @@ class ReferringRelationshipsModel():
         return model
 
 
-    def build_sym_ssn_model(self): 
+    def build_sym_ssn_model(self):
         """Initializes the symmetric stacked attention model
         This model uses moving heatmaps with conv layers
         Returns:
@@ -104,7 +104,7 @@ class ReferringRelationshipsModel():
         object_att = self.build_attention_layer(im_features, embedded_object, "before-pred-obj")
         if self.use_internal_loss:
             subject_regions_int = self.build_upsampling_layer(subject_att, "subject-int")
-            object_regions_int = self.build_upsampling_layer(object_att, "object-int")    
+            object_regions_int = self.build_upsampling_layer(object_att, "object-int")
         subj_predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
         obj_predicate_att = self.build_conv_map_transform(object_att, input_pred, "after-pred-obj")
         attended_im_subj = Multiply()([im_features, subj_predicate_att])
@@ -116,10 +116,10 @@ class ReferringRelationshipsModel():
         if self.use_internal_loss:
             outputs = [subject_regions_int, object_regions_int, subject_regions, object_regions]
         else:
-            outputs = [subject_regions, object_regions] 
+            outputs = [subject_regions, object_regions]
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=outputs)
         return model
-   
+
     def build_baseline_model(self):
         """Initializes the baseline model that uses predicates.
         Returns:
@@ -163,7 +163,7 @@ class ReferringRelationshipsModel():
         """Initializes the SSN model.
         This model precits two heatmaps for obj and subj.
         No stacked attention.
-        This baseline does not use the predicate. 
+        This baseline does not use the predicate.
         Returns:
             The Keras model.
         """
@@ -261,11 +261,8 @@ class ReferringRelationshipsModel():
             res = self.build_frac_strided_transposed_conv_layer(res)
         res = Reshape((self.input_dim*self.input_dim,))(res)
         predictions = Activation("tanh", name=name)(res)
-        #TODO: add relu
-        #att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(res)
-        #predictions = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)), name=name)(res)
         return predictions
- 
+
     def build_relationship_model(self, relationship_inputs, num_classes):
         """Converts the input relationship into a feature space.
         Args:

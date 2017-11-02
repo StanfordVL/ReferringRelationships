@@ -72,15 +72,18 @@ if __name__=='__main__':
     optimizer = get_opt(opt=args.opt, lr=args.lr)
 
     # get the loss function and compile the model
-    #loss = get_loss_func(args.w1)
-    #model.compile(loss=[loss, loss], optimizer=optimizer, metrics=metrics)
-    if args.use_internal_loss:
-        losses = ['binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy']
+    if args.loss_func == 'weighted':
+        loss_func = get_loss_func(args.w1)
     else:
-        losses = ['binary_crossentropy', 'binary_crossentropy']
+        loss_func = 'binary_crossentropy'
+    if args.use_internal_loss:
+        losses = [loss_func, loss_func, loss_func, loss_func]
+    else:
+        losses = [loss_func, loss_func]
     model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
+
+    # load model weights from checkpoint
     if args.model_checkpoint:
-         # load model weights from checkpoint
          model.load_weights(args.model_checkpoint)
 
     # Setup callbacks for tensorboard, logging and checkpoints.

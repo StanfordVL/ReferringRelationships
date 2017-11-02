@@ -28,6 +28,10 @@ def parse_training_args(parser):
                         'logs every epoch.')
     parser.add_argument('--val-steps-per-epoch', type=int, default=-1,
                         help='Number of steps to yield from validation generator at the end of every epoch.')
+    parser.add_argument('--w1', type=float, default=2.,
+                        help='The coefficient to use on the positive examples in the CE loss')
+    parser.add_argument('--loss-func', type=str, default='basic',
+                        help='basic or weighted cross entropy loss.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.0001,
@@ -131,8 +135,6 @@ def parse_args(evaluation=False):
                         help='The number of objects in the dataset.')
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='The dropout probability used in training.')
-    parser.add_argument('--w1', type=float, default=2.,
-                        help='The coefficient to use on the positive examples in the CE loss')
     parser.add_argument('--nb-conv-im-map', type=int, default=1,
                         help='Number of convolution layers to use '
                         'to learn image feature maps')
@@ -149,7 +151,7 @@ def parse_args(evaluation=False):
                         help='Weight regularizer.')
     parser.add_argument('--nb-dense-emb', type=int, default=1,
                         help='number of dense layers after embedding layer')
-    parser.add_argument('--use-internal-loss', action='store_true', default=False, 
+    parser.add_argument('--use-internal-loss', action='store_true', default=False,
                         help='Whether to add intermediate losses in the sym_ssn model')
     parser.add_argument('--att-activation', default='tanh', type=str,
                         help='Whether to use tanh or tanh+relu or binary activation after moving heatmaps.')
