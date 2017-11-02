@@ -128,11 +128,14 @@ class ReferringRelationshipsModel():
         attended_im_obj = Multiply()([im_features, obj_predicate_att])
         object_att = self.build_attention_layer_dot(attended_im_subj, embedded_object)
         subject_att = self.build_attention_layer_dot(attended_im_obj, embedded_subject)
-        object_regions = self.build_upsampling_layer(object_att, "object")
-        subject_regions = self.build_upsampling_layer(subject_att, "subject")
         if self.use_internal_loss:
-            subject_regions = (1.-self.internal_loss_weight) * subject_regions + self.internal_loss_weight * subject_regions_int
-            object_regions = (1.-self.internal_loss_weight) * object_regions + self.internal_loss_weight * object_regions_int
+            subject_regions = self.build_upsampling_layer(subject_att, "subject-out")
+            object_regions = self.build_upsampling_layer(object_att, "object-out")
+            subject_regions = Lambda(lambda x: (1. - self.internal_loss_weight)*x[0] + self.internal_loss_weight*x[1], name="subject")([subject_regions, subject_regions_int])
+            object_regions = Lambda(lambda x: (1. - self.internal_loss_weight)*x[0] + self.internal_loss_weight*x[1], name="object")([object_regions, object_regions_int])
+        else:
+           object_regions = self.build_upsampling_layer(object_att, "object")
+           subject_regions = self.build_upsampling_layer(subject_att, "subject")
         outputs = [subject_regions, object_regions]
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=outputs)
         return model
