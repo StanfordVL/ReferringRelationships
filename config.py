@@ -38,7 +38,7 @@ def parse_training_args(parser):
                         help='basic or weighted cross entropy loss.')
     parser.add_argument('--use-internal-loss', action='store_true', default=False,
                         help='Whether to add intermediate losses in the sym_ssn model')
-    parser.add_argument('--internal-loss-weight', type=float, default=0.3,
+    parser.add_argument('--internal-loss-weight', type=float, default=0.1,
                         help='The co-officient of the internal loss of the '
                         'subject and object. Must use --model sym-ssn, '
                         '--use-internal-loss.')

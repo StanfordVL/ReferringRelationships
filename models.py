@@ -131,8 +131,8 @@ class ReferringRelationshipsModel():
         object_regions = self.build_upsampling_layer(object_att, "object")
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
         if self.use_internal_loss:
-            subject_regions = subject_regions + self.internal_loss_weight * subject_regions_int
-            object_regions = object_regions + self.internal_loss_weight * object_regions_int
+            subject_regions = (1.-self.internal_loss_weight) * subject_regions + self.internal_loss_weight * subject_regions_int
+            object_regions = (1.-self.internal_loss_weight) * object_regions + self.internal_loss_weight * object_regions_int
         outputs = [subject_regions, object_regions]
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=outputs)
         return model
