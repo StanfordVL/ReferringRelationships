@@ -123,7 +123,7 @@ class ReferringRelationshipsModel():
                 subject_regions_int = self.build_upsampling_layer(subject_att, "subject-int")
                 object_regions_int = self.build_upsampling_layer(object_att, "object-int")
         subj_predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
-        obj_predicate_att = self.build_conv_map_transform(object_att, input_pred, "after-pred-obj")
+        obj_predicate_att = self.build_conv_map_transform(object_att, input_pred, "after-pred-obj", sym=1)
         attended_im_subj = Multiply()([im_features, subj_predicate_att])
         attended_im_obj = Multiply()([im_features, obj_predicate_att])
         object_att = self.build_attention_layer_dot(attended_im_subj, embedded_object)
@@ -245,17 +245,17 @@ class ReferringRelationshipsModel():
              attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
         return attention_weights
 
-    def build_conv_predicate_module(self, att_map):
+    def build_conv_predicate_module(self, att_map, predicate_id, sym):
         for i in range(self.nb_conv_att_map):
-            att_map = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False)(att_map)
+            att_map = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-predicate{}-{}'.format(i, predicate_id, sym))(att_map)
         shifted_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_map)
         return shifted_att
 
-    def build_conv_map_transform(self, att, input_pred, name):
+    def build_conv_map_transform(self, att, input_pred, name, sym=0):
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
         conv_modules = []
         for i in range(self.num_predicates):
-            conv_modules += [self.build_conv_predicate_module(att)]
+            conv_modules += [self.build_conv_predicate_module(att, i, sym)]
         merged_conv = Concatenate(axis=3)(conv_modules)
         att = Multiply()([predicate_masks, merged_conv])
         att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
