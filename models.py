@@ -47,6 +47,7 @@ class ReferringRelationshipsModel():
         self.use_internal_loss = args.use_internal_loss
         self.att_activation = args.att_activation
         self.internal_loss_weight = args.internal_loss_weight
+        self.att_mechanism = args.att_mechanism
 
     def build_model(self):
         if self.model=="ssn":
@@ -76,11 +77,16 @@ class ReferringRelationshipsModel():
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Dropout(self.dropout)(embedded_object)
-        subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred")
-        subject_regions = self.build_upsampling_layer(subject_att, "subject")
+        if self.att_mechanism == "mul":
+            subject_att = self.build_attention_layer_mul(im_features, embedded_subject)
+            subject_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
+            subject_regions = self.build_upsampling_layer(subject_att_pooled, "subject")
+        else:
+            subject_att = self.build_attention_layer_dot(im_features, embedded_subject, "before-pred")
+            subject_regions = self.build_upsampling_layer(subject_att, "subject")
         predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred")
         new_im_feature_map = Multiply()([im_features, predicate_att])
-        object_att = self.build_attention_layer(new_im_feature_map, embedded_object)
+        object_att = self.build_attention_layer_dot(new_im_feature_map, embedded_object)
         object_regions = self.build_upsampling_layer(object_att, "object")
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
@@ -102,17 +108,26 @@ class ReferringRelationshipsModel():
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Dropout(self.dropout)(embedded_object)
-        subject_att = self.build_attention_layer(im_features, embedded_subject, "before-pred-subj")
-        object_att = self.build_attention_layer(im_features, embedded_object, "before-pred-obj")
-        if self.use_internal_loss:
-            subject_regions_int = self.build_upsampling_layer(subject_att, "subject-int")
-            object_regions_int = self.build_upsampling_layer(object_att, "object-int")
+        if self.att_mechanism == "mul":
+            subject_att = self.build_attention_layer_mul(im_features, embedded_subject)
+            object_att = self.build_attention_layer_mul(im_features, embedded_object)
+            if self.use_internal_loss:
+                subject_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
+                subject_regions_int = self.build_upsampling_layer(subject_att_pooled, "subject-int")
+                object_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
+                object_regions_int = self.build_upsampling_layer(object_att_pooled, "object-int")
+        else:
+            subject_att = self.build_attention_layer_dot(im_features, embedded_subject)
+            object_att = self.build_attention_layer_dot(im_features, embedded_object)
+            if self.use_internal_loss:
+                subject_regions_int = self.build_upsampling_layer(subject_att, "subject-int")
+                object_regions_int = self.build_upsampling_layer(object_att, "object-int")
         subj_predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
         obj_predicate_att = self.build_conv_map_transform(object_att, input_pred, "after-pred-obj")
         attended_im_subj = Multiply()([im_features, subj_predicate_att])
         attended_im_obj = Multiply()([im_features, obj_predicate_att])
-        object_att = self.build_attention_layer(attended_im_subj, embedded_object)
-        subject_att = self.build_attention_layer(attended_im_obj, embedded_subject)
+        object_att = self.build_attention_layer_dot(attended_im_subj, embedded_object)
+        subject_att = self.build_attention_layer_dot(attended_im_obj, embedded_subject)
         object_regions = self.build_upsampling_layer(object_att, "object")
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
         if self.use_internal_loss:
@@ -153,8 +168,8 @@ class ReferringRelationshipsModel():
         objects_features = Dense(self.hidden_dim)(rel_features)
         subjects_features = Dropout(self.dropout)(subjects_features)
         objects_features = Dropout(self.dropout)(objects_features)
-        subject_att = self.build_attention_layer(im_features, subjects_features)
-        object_att = self.build_attention_layer(im_features, objects_features)
+        subject_att = self.build_attention_layer_dot(im_features, subjects_features)
+        object_att = self.build_attention_layer_dot(im_features, objects_features)
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
         object_regions = self.build_upsampling_layer(object_att, "object")
         model_inputs = [input_im] + relationship_inputs
@@ -178,8 +193,8 @@ class ReferringRelationshipsModel():
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Dropout(self.dropout)(embedded_object)
-        subject_att = self.build_attention_layer(im_features, embedded_subject)
-        object_att = self.build_attention_layer(im_features, embedded_object)
+        subject_att = self.build_attention_layer_dot(im_features, embedded_subject)
+        object_att = self.build_attention_layer_dot(im_features, embedded_object)
         subject_regions = self.build_upsampling_layer(subject_att, "subject")
         object_regions = self.build_upsampling_layer(object_att, "object")
         model = Model(inputs=[input_im, input_subj, input_obj], outputs=[subject_regions, object_regions])
@@ -213,7 +228,12 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def build_attention_layer(self, feature_map, query, name=None):
+    def build_attention_layer_mul(self, feature_map, query):
+        query = Reshape((1, 1, self.hidden_dim))(query)
+        attention_weights = Multiply()([feature_map, query])
+        return attention_weights
+
+    def build_attention_layer_dot(self, feature_map, query, name=None):
         query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
         if not name:
@@ -299,37 +319,6 @@ class ReferringRelationshipsModel():
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
         rel_features = Dense(self.hidden_dim, activation='relu')(concatenated_inputs)
         return rel_features
-
-    def build_model_1(self):
-        """Initializes the SSN model.
-        This model uses refined query for attention.
-        No predicate
-        Similar to stacked attention: uses the same image feature map for each attention layer but different query vector
-        Returns:
-            The Keras model.
-        """
-        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_subj = Input(shape=(1,))
-        input_pred = Input(shape=(1,))
-        input_obj = Input(shape=(1,))
-        im_features = self.build_image_model(input_im)
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        embedded_subject = subj_obj_embedding(input_subj)
-        embedded_object = subj_obj_embedding(input_obj)
-        subject_att = self.build_attention_layer(im_features, embedded_subject)
-        subject_regions = self.build_upsampling_layer(subject_att, "subject")
-        refined_query = self.build_refined_query(im_features, subject_att, embedded_object, "after-pred")
-        object_att = self.build_attention_layer(im_features, refined_query)
-        object_regions = self.build_upsampling_layer(object_att, "object")
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions_flat, object_regions_flat])
-        return model
-
-    def build_refined_query(self, im_features, subject_att, embedded_object):
-        x1 = Multiply()([im_features, subject_att])
-        x2 = Reshape((self.feat_map_dim*self.feat_map_dim, self.hidden_dim))(x1)
-        object_query = Lambda(lambda x: K.mean(x, axis=1, keepdims=True))(x2)
-        refined_query =  Add()([object_query, embedded_object])
-        return refined_query
 
 if __name__ == "__main__":
     args = parse_args()
