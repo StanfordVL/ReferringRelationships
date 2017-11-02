@@ -15,8 +15,9 @@ import time
 
 
 def weighted_cross_entropy(y_true, y_pred, w1, eps=10e-8):
+    y_pred = K.clip(y_pred, eps, 1 - eps)
     loss_weights = 1. + (w1 - 1.) * y_true
-    s_ce_values = - y_true * K.log(y_pred + eps) - (1. - y_true) * K.log(1. - y_pred + eps)
+    s_ce_values = - y_true * K.log(y_pred) - (1. - y_true) * K.log(1. - y_pred)
     loss = K.mean(s_ce_values * loss_weights)
     return loss
 
@@ -30,7 +31,7 @@ def get_loss_func(w1):
         The weighted sigmoid cross entropy loss function.
     """
     def loss_func(y_true, y_pred):
-        return weighted_cross_entropy(y_true, y_pred, [1.0, w1])
+        return weighted_cross_entropy(y_true, y_pred, w1)
     return loss_func
 
 def get_opt(opt, lr):
