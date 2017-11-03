@@ -171,6 +171,8 @@ def parse_args(evaluation=False):
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--att-mechanism', default="dot", type=str,
                         help='Whether to use a dot product (dot) or only multiply (mul) for attention')
+    parser.add_argument('--iterations', default=1, type=int,
+                        help='The number of iterations to finetune the heatmaps.')
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],
