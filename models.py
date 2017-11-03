@@ -99,7 +99,6 @@ class ReferringRelationshipsModel():
 
         # Extract subject attention map.
         subject_att = self.attend(im_features, embedded_subject)
-        #subject_regions = self.get_regions_from_attention(subject_att)
 
         # Create the predicate conv layers.
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
@@ -113,9 +112,6 @@ class ReferringRelationshipsModel():
                 inverse_predicate_modules.append(inverse_predicate_conv)
 
         # Iterate!
-        input_att = subject_att
-        input_embed = embedded_object
-        input_modules = predicate_modules
         object_att, subject_att = self.shift_attention(
             subject_att, embedded_object, embedded_subject, predicate_modules,
             inverse_predicate_modules, im_features, predicate_masks)
@@ -138,7 +134,7 @@ class ReferringRelationshipsModel():
             inverse_predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(new_att)
             im_features = Multiply()([new_im_features, inverse_predicate_att])
             att = self.attend(final_im_features, final_embedding)
-        return att_map
+        return att
 
     def transform_conv_attention(self, att, merged_modules, predicate_masks):
         conv_outputs = []
