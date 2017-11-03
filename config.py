@@ -166,13 +166,16 @@ def parse_args(evaluation=False):
     parser.add_argument('--nb-dense-emb', type=int, default=1,
                         help='number of dense layers after embedding layer')
     parser.add_argument('--att-activation', default='norm', type=str,
-                        help='Whether to use tanh or tanh+relu or binary or norm activation after moving heatmaps.')
+                        help='Whether to use tanh or tanh+relu or binary or norm or norm+relu or gaussian activation after moving heatmaps.')
     parser.add_argument('--conv-predicate-channels', default=1, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--att-mechanism', default="dot", type=str,
                         help='Whether to use a dot product (dot) or only multiply (mul) for attention')
     parser.add_argument('--iterations', default=1, type=int,
                         help='The number of iterations to finetune the heatmaps.')
+    parser.add_argument('--norm-center', default=0., type=float,
+                        help='The shift to use before thresholding attention values when using gaussian normalization')
+
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],

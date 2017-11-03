@@ -4,7 +4,7 @@
 from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
-from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation
+from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization
 from keras.layers.convolutional import Conv2DTranspose, Conv2D
 from keras.layers.core import Lambda, Dropout, Reshape
 from keras.layers.embeddings import Embedding
@@ -46,6 +46,7 @@ class ReferringRelationshipsModel():
         self.nb_dense_emb = args.nb_dense_emb
         self.use_internal_loss = args.use_internal_loss
         self.att_activation = args.att_activation
+        self.norm_center = args.norm_center
         self.internal_loss_weight = args.internal_loss_weight
         self.att_mechanism = args.att_mechanism
         self.iterations = args.iterations
@@ -209,9 +210,9 @@ class ReferringRelationshipsModel():
             subject_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
             subject_regions = self.build_upsampling_layer(subject_att_pooled, name="subject")
         else:
-            subject_att = self.build_attention_layer_dot(im_features, embedded_subject, "before-pred")
+            subject_att = self.build_attention_layer_dot(im_features, embedded_subject, "before-pred-subj")
             subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred")
+        predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
         new_im_feature_map = Multiply()([im_features, predicate_att])
         object_att = self.build_attention_layer_dot(new_im_feature_map, embedded_object)
         object_regions = self.build_upsampling_layer(object_att, name="object")
@@ -243,8 +244,8 @@ class ReferringRelationshipsModel():
                 object_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
                 object_regions_int = self.build_upsampling_layer(object_att_pooled, name="object-int")
         else:
-            subject_att = self.build_attention_layer_dot(im_features, embedded_subject)
-            object_att = self.build_attention_layer_dot(im_features, embedded_object)
+            subject_att = self.build_attention_layer_dot(im_features, embedded_subject, "before-pred-subj")
+            object_att = self.build_attention_layer_dot(im_features, embedded_object, "before-pred-obj")
             if self.use_internal_loss:
                 subject_regions_int = self.build_upsampling_layer(subject_att, name="subject-int")
                 object_regions_int = self.build_upsampling_layer(object_att, name="object-int")
@@ -401,10 +402,12 @@ class ReferringRelationshipsModel():
             att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(att)
             predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
             predicate_att =  Activation("relu", name=name)(predicate_att)
-        elif self.att_activation == "binary":
+        elif self.att_activation == "gaussian":
             att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
             att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
-            predicate_att =  Lambda(lambda x: K.cast(K.greater(x, 0), K.floatx()))(att)
+            att = Lambda(lambda x: self.norm_center + x/(K.epsilon() + K.std(x, axis=1, keepdims=True)))(att)
+            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
+            predicate_att = Activation("relu", name=name)(predicate_att)
         return predicate_att
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
