@@ -52,7 +52,11 @@ class ReferringRelationshipsModel():
         self.iterations = args.iterations
 
     def build_model(self):
-        if self.model == "ssn":
+        if self.model == "ssn" and self.iterations > 1:
+            return self.build_iterative_ssn_model()
+        elif self.model == "sym_ssn" and self.iterations > 1:
+            return self.build_iterative_sym_ssn_model()
+        elif self.model == "ssn":
             return self.build_ssn_model()
         elif self.model == "sym_ssn":
             return self.build_sym_ssn_model()
@@ -60,10 +64,6 @@ class ReferringRelationshipsModel():
             return self.build_baseline_model()
         elif self.model == "baseline_no_predicate":
             return self.build_baseline_model_no_predicate()
-        elif self.model == "ssn" and self.iterations > 1:
-            return self.build_iterative_ssn_model()
-        elif self.model == "sym_ssn" and self.iterations > 1:
-            return self.build_iterative_sym_ssn_model()
         else:
             raise ValueError("model argument not recognized. Model options: ssn, sym_ssn, baseline, baseline_no_predicate")
 
@@ -98,16 +98,26 @@ class ReferringRelationshipsModel():
         predicate_modules = []
         inverse_predicate_modules = []
         for k in range(self.num_predicates):
+            predicate_module_group = []
+            inverse_predicate_module_group = []
             for i in range(self.nb_conv_att_map):
-                predicate_conv = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-predicate{}'.format(i, k))
-                predicate_modules.append(predicate_conv)
-                inverse_predicate_conv = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-inv-predicate{}'.format(i, k))
-                inverse_predicate_modules.append(inverse_predicate_conv)
+                predicate_conv = Conv2D(
+                    self.conv_predicate_channels, self.conv_predicate_kernel,
+                    strides=(1, 1), padding='same', use_bias=False,
+                    name='conv{}-predicate{}'.format(i, k))
+                inverse_predicate_conv = Conv2D(
+                    self.conv_predicate_channels, self.conv_predicate_kernel,
+                    strides=(1, 1), padding='same', use_bias=False,
+                    name='conv{}-inv-predicate{}'.format(i, k))
+                predicate_module_group.append(predicate_conv)
+                inverse_predicate_module_group.append(inverse_predicate_conv)
+            predicate_modules.append(predicate_module_group)
+            inverse_predicate_modules.append(inverse_predicate_module_group)
 
         # Iterate!
         im_features_1 = im_features
         im_features_2 = im_features
-        for iteration in self.iterations:
+        for iteration in range(self.iterations):
             new_object_att, _, new_im_features_2 = self.shift_attention(
                 subject_att, embedded_object, embedded_subject,
                 predicate_modules, inverse_predicate_modules,
@@ -123,12 +133,11 @@ class ReferringRelationshipsModel():
 
         # Upsample the regions.
         object_regions = self.build_upsampling_layer(object_att, name="object")
-        subject_regions = self.build_upsampling_layer(subject_att, name="object")
+        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
 
         # Create and output the model.
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
-
 
     def build_iterative_ssn_model(self):
         """Iteratives build focusing on the subject and object over and over again.
@@ -160,21 +169,31 @@ class ReferringRelationshipsModel():
         predicate_modules = []
         inverse_predicate_modules = []
         for k in range(self.num_predicates):
+            predicate_module_group = []
+            inverse_predicate_module_group = []
             for i in range(self.nb_conv_att_map):
-                predicate_conv = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-predicate{}'.format(i, k))
-                predicate_modules.append(predicate_conv)
-                inverse_predicate_conv = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-inv-predicate{}'.format(i, k))
-                inverse_predicate_modules.append(inverse_predicate_conv)
+                predicate_conv = Conv2D(
+                    self.conv_predicate_channels, self.conv_predicate_kernel,
+                    strides=(1, 1), padding='same', use_bias=False,
+                    name='conv{}-predicate{}'.format(i, k))
+                inverse_predicate_conv = Conv2D(
+                    self.conv_predicate_channels, self.conv_predicate_kernel,
+                    strides=(1, 1), padding='same', use_bias=False,
+                    name='conv{}-inv-predicate{}'.format(i, k))
+                predicate_module_group.append(predicate_conv)
+                inverse_predicate_module_group.append(inverse_predicate_conv)
+            predicate_modules.append(predicate_module_group)
+            inverse_predicate_modules.append(inverse_predicate_module_group)
 
         # Iterate!
-        for iteration in self.iterations:
+        for iteration in range(self.iterations):
             object_att, subject_att, im_features = self.shift_attention(
                 subject_att, embedded_object, embedded_subject, predicate_modules,
                 inverse_predicate_modules, im_features, predicate_masks)
 
         # Upsample the regions.
         object_regions = self.build_upsampling_layer(object_att, name="object")
-        subject_regions = self.build_upsampling_layer(subject_att, name="object")
+        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
 
         # Create and output the model.
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
@@ -193,10 +212,14 @@ class ReferringRelationshipsModel():
 
     def transform_conv_attention(self, att, merged_modules, predicate_masks):
         conv_outputs = []
-        for conv_module in merged_modules:
-            conv_outputs.append(conv_module(att))
+        for group in merged_modules:
+            att_map = att
+            for conv_module in group:
+                att_map = conv_module(att_map)
+            shifted_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_map)
+            conv_outputs.append(shifted_att)
         merged_output = Concatenate(axis=3)(conv_outputs)
-        att = Multiply()([predicate_masks, merged_conv])
+        att = Multiply()([predicate_masks, merged_output])
         att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
         if self.att_activation == "tanh":
             predicate_att = Activation("tanh")(att)
@@ -222,9 +245,9 @@ class ReferringRelationshipsModel():
 
     def attend(self, feature_map, query, name=None):
         if self.att_mechanism == 'mul':
-            return self.build_attention_layer_mul(im_features, query)
+            return self.build_attention_layer_mul(feature_map, query)
         else:
-            return self.build_attention_layer_dot(im_features, query, name=name)
+            return self.build_attention_layer_dot(feature_map, query, name=name)
 
     def get_regions_from_attention(self, att, name=None):
         if self.att_mechanism == 'mul':
