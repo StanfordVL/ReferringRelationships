@@ -73,7 +73,62 @@ class ReferringRelationshipsModel():
         Returns:
             The Keras model.
         """
-        raise NotImplementedError
+        # Inputs.
+        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_subj = Input(shape=(1,))
+        input_pred = Input(shape=(self.num_predicates,))
+        input_obj = Input(shape=(1,))
+
+        # Extract image features.
+        im_features = self.build_image_model(input_im)
+
+        # Extract object embeddings.
+        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
+        embedded_subject = subj_obj_embedding(input_subj)
+        embedded_subject = Dropout(self.dropout)(embedded_subject)
+        embedded_object = subj_obj_embedding(input_obj)
+        embedded_object = Dropout(self.dropout)(embedded_object)
+
+        # Extract initial attention maps.
+        subject_att = self.attend(im_features, embedded_subject)
+        object_att = self.attend(im_features, embedded_object)
+
+        # Create the predicate conv layers.
+        predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
+        predicate_modules = []
+        inverse_predicate_modules = []
+        for k in range(self.num_predicates):
+            for i in range(self.nb_conv_att_map):
+                predicate_conv = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-predicate{}'.format(i, k))
+                predicate_modules.append(predicate_conv)
+                inverse_predicate_conv = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-inv-predicate{}'.format(i, k))
+                inverse_predicate_modules.append(inverse_predicate_conv)
+
+        # Iterate!
+        im_features_1 = im_features
+        im_features_2 = im_features
+        for iteration in self.iterations:
+            new_object_att, _, new_im_features_2 = self.shift_attention(
+                subject_att, embedded_object, embedded_subject,
+                predicate_modules, inverse_predicate_modules,
+                im_features_1, predicate_masks)
+            new_subject_att, _, new_im_features_1 = self.shift_attention(
+                object_att, embedded_subject, embedded_object,
+                inverse_predicate_modules, predicate_modules,
+                im_features_2, predicate_masks)
+            object_att = new_object_att
+            subject_att = new_subject_att
+            im_features_1 = new_im_features_1
+            im_features_2 = new_im_features_2
+
+        # Upsample the regions.
+        object_regions = self.build_upsampling_layer(object_att, name="object")
+        subject_regions = self.build_upsampling_layer(subject_att, name="object")
+
+        # Create and output the model.
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
+        return model
+
 
     def build_iterative_ssn_model(self):
         """Iteratives build focusing on the subject and object over and over again.
@@ -112,9 +167,10 @@ class ReferringRelationshipsModel():
                 inverse_predicate_modules.append(inverse_predicate_conv)
 
         # Iterate!
-        object_att, subject_att = self.shift_attention(
-            subject_att, embedded_object, embedded_subject, predicate_modules,
-            inverse_predicate_modules, im_features, predicate_masks)
+        for iteration in self.iterations:
+            object_att, subject_att, im_features = self.shift_attention(
+                subject_att, embedded_object, embedded_subject, predicate_modules,
+                inverse_predicate_modules, im_features, predicate_masks)
 
         # Upsample the regions.
         object_regions = self.build_upsampling_layer(object_att, name="object")
@@ -125,16 +181,15 @@ class ReferringRelationshipsModel():
         return model
 
     def shift_attention(self, att, embedding, final_embedding, modules, inverse_modules, im_features, predicate_masks):
-        for iteration in range(self.iterations):
-            att = self.transform_conv_attention(att, modules, predicate_masks)
-            predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
-            new_im_features = Multiply()([im_features, predicate_att])
-            new_att = self.attend(new_im_features, embedding)
-            new_att = self.transform_conv_attention(new_att, inverse_modules, predicate_masks)
-            inverse_predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(new_att)
-            im_features = Multiply()([new_im_features, inverse_predicate_att])
-            att = self.attend(final_im_features, final_embedding)
-        return att
+        att = self.transform_conv_attention(att, modules, predicate_masks)
+        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
+        new_im_features = Multiply()([im_features, predicate_att])
+        new_att = self.attend(new_im_features, embedding)
+        new_att = self.transform_conv_attention(new_att, inverse_modules, predicate_masks)
+        inverse_predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(new_att)
+        final_im_features = Multiply()([new_im_features, inverse_predicate_att])
+        final_att = self.attend(final_im_features, final_embedding)
+        return att, new_att, final_im_features
 
     def transform_conv_attention(self, att, merged_modules, predicate_masks):
         conv_outputs = []
