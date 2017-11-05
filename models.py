@@ -104,10 +104,12 @@ class ReferringRelationshipsModel():
                 predicate_conv = Conv2D(
                     self.conv_predicate_channels, self.conv_predicate_kernel,
                     strides=(1, 1), padding='same', use_bias=False,
+                    activation='relu',
                     name='conv{}-predicate{}'.format(i, k))
                 inverse_predicate_conv = Conv2D(
                     self.conv_predicate_channels, self.conv_predicate_kernel,
                     strides=(1, 1), padding='same', use_bias=False,
+                    activation='relu',
                     name='conv{}-inv-predicate{}'.format(i, k))
                 predicate_module_group.append(predicate_conv)
                 inverse_predicate_module_group.append(inverse_predicate_conv)
@@ -117,6 +119,12 @@ class ReferringRelationshipsModel():
         # Iterate!
         im_features_1 = im_features
         im_features_2 = im_features
+        if self.use_internal_loss:
+            internal_weights = K.constant([self.internal_loss_weight**iteration
+                                           for iteration in range(self.iterations+1)])
+            internal_weights = Reshape((1, 1, self.iterations+1))
+            subject_outputs = [subject_att]
+            object_outputs = [object_att]
         for iteration in range(self.iterations):
             new_object_att, _, new_im_features_2 = self.shift_attention(
                 subject_att, embedded_object, embedded_subject,
@@ -126,12 +134,20 @@ class ReferringRelationshipsModel():
                 object_att, embedded_subject, embedded_object,
                 inverse_predicate_modules, predicate_modules,
                 im_features_2, predicate_masks)
+            if self.use_internal_loss:
+                subject_outputs.append(new_subject_att)
+                object_outputs.append(new_object_att)
             object_att = new_object_att
             subject_att = new_subject_att
             im_features_1 = new_im_features_1
             im_features_2 = new_im_features_2
 
         # Upsample the regions.
+        if self.use_internal_loss:
+            subject_regions = Concatenate(axis=3)(subject_outputs)
+            object_regions = Concatenate(axis=3)(object_outputs)
+            subject_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="subject")(subject_regions)
+            object_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="object")(object_regions)
         object_regions = self.build_upsampling_layer(object_att, name="object")
         subject_regions = self.build_upsampling_layer(subject_att, name="subject")
 
@@ -175,10 +191,12 @@ class ReferringRelationshipsModel():
                 predicate_conv = Conv2D(
                     self.conv_predicate_channels, self.conv_predicate_kernel,
                     strides=(1, 1), padding='same', use_bias=False,
+                    activation='relu',
                     name='conv{}-predicate{}'.format(i, k))
                 inverse_predicate_conv = Conv2D(
                     self.conv_predicate_channels, self.conv_predicate_kernel,
                     strides=(1, 1), padding='same', use_bias=False,
+                    activation='relu',
                     name='conv{}-inv-predicate{}'.format(i, k))
                 predicate_module_group.append(predicate_conv)
                 inverse_predicate_module_group.append(inverse_predicate_conv)
@@ -186,14 +204,35 @@ class ReferringRelationshipsModel():
             inverse_predicate_modules.append(inverse_predicate_module_group)
 
         # Iterate!
+        if self.use_internal_loss:
+            internal_weights = K.constant([self.internal_loss_weight**iteration for iteration in range(self.iterations)])
+            internal_weights = Reshape((1, 1, self.iterations))
+            subject_outputs = []
+            object_outputs = []
         for iteration in range(self.iterations):
+            if self.use_internal_loss:
+                subject_outputs.append(subject_att)
             object_att, subject_att, im_features = self.shift_attention(
                 subject_att, embedded_object, embedded_subject, predicate_modules,
                 inverse_predicate_modules, im_features, predicate_masks)
+            if self.use_internal_loss:
+                object_outputs.append(object_att)
+
+        # Combine all the internal predictions.
+        if self.use_internal_loss:
+            # Concatenate all the internal outputs.
+            subject_regions = Concatenate(axis=3)(subject_outputs)
+            object_regions = Concatenate(axis=3)(object_outputs)
+            # Multiple with the internal losses.
+            subject_regions = Multiply()([subject_regions, internal_weights])
+            object_regions = Multiply()([object_regions, internal_weights])
+            # Sum across the internal values.
+            subject_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="subject")(subject_regions)
+            object_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="object")(object_regions)
 
         # Upsample the regions.
-        object_regions = self.build_upsampling_layer(object_att, name="object")
         subject_regions = self.build_upsampling_layer(subject_att, name="subject")
+        object_regions = self.build_upsampling_layer(object_att, name="object")
 
         # Create and output the model.
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
@@ -448,7 +487,13 @@ class ReferringRelationshipsModel():
 
     def build_conv_predicate_module(self, att_map, predicate_id, sym):
         for i in range(self.nb_conv_att_map):
-            att_map = Conv2D(self.conv_predicate_channels, self.conv_predicate_kernel, strides=(1, 1), padding='same', use_bias=False, name='conv{}-predicate{}-{}'.format(i, predicate_id, sym))(att_map)
+            att_map = Conv2D(self.conv_predicate_channels,
+                             self.conv_predicate_kernel,
+                             strides=(1, 1), padding='same',
+                             use_bias=False,
+                             activation='relu',
+                             name='conv{}-predicate{}-{}'.format(
+                                 i, predicate_id, sym))(att_map)
         shifted_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_map)
         return shifted_att
 
