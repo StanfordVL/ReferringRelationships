@@ -49,6 +49,7 @@ class ReferringRelationshipsModel():
         self.norm_center = args.norm_center
         self.internal_loss_weight = args.internal_loss_weight
         self.att_mechanism = args.att_mechanism
+        self.norm_scale = args.norm_scale
 
     def build_model(self):
         if self.model=="ssn":
@@ -279,7 +280,7 @@ class ReferringRelationshipsModel():
         elif self.att_activation == "gaussian":
             att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
             att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
-            att = Lambda(lambda x: self.norm_center + x/(K.epsilon() + K.std(x, axis=1, keepdims=True)))(att)
+            att = Lambda(lambda x: self.norm_center + x/(K.epsilon() + self.norm_scale*K.std(x, axis=1, keepdims=True)))(att)
             predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
             predicate_att = Activation("relu", name=name)(predicate_att)
         return predicate_att
