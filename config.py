@@ -165,7 +165,7 @@ def parse_args(evaluation=False):
                         help='Weight regularizer.')
     parser.add_argument('--nb-dense-emb', type=int, default=1,
                         help='number of dense layers after embedding layer')
-    parser.add_argument('--att-activation', default='norm', type=str,
+    parser.add_argument('--att-activation', default='tanh', type=str,
                         help='Whether to use tanh or tanh+relu or binary or norm or norm+relu or gaussian activation after moving heatmaps.')
     parser.add_argument('--conv-predicate-channels', default=1, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
