@@ -116,7 +116,7 @@ class ReferringRelationshipsModel():
 
         if self.use_internal_loss:
             # Combine all the internal predictions.
-            internal_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
+            internal_weights = np.array([self.internal_loss_weight**i for i in range(len(subject_outputs))])
             internal_weights = K.constant(internal_weights/internal_weights.sum())
             internal_weights = Reshape((1, 1, len(subject_outputs)))(internal_weights)
 
@@ -210,17 +210,17 @@ class ReferringRelationshipsModel():
                     subject_att, predicate_modules, predicate_masks)
                 predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(
                     predicate_att)
-                new_image_features = Multiply()([im_features, predicate_att])
+                new_im_features = Multiply()([im_features, predicate_att])
                 object_att = self.attend(new_im_features, embedded_object,
                                          name='object-att-{}'.format(iteration+1))
                 if self.use_internal_loss:
                     object_outputs.append(object_att)
             else:
                 predicate_att = self.transform_conv_attention(
-                    object_att, inverse_modules, predicate_masks)
+                    object_att, inverse_predicate_modules, predicate_masks)
                 predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(
                     iteration+1))(predicate_att)
-                new_image_features = Multiply()([im_features, predicate_att])
+                new_im_features = Multiply()([im_features, predicate_att])
                 subject_att = self.attend(new_im_features, embedded_subject,
                                           name='subject-att-{}'.format(iteration+1))
                 if self.use_internal_loss:
