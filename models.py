@@ -117,24 +117,29 @@ class ReferringRelationshipsModel():
         if self.use_internal_loss:
             # Combine all the internal predictions.
             internal_weights = np.array([self.internal_loss_weight**i for i in range(len(subject_outputs))])
-            internal_weights = K.constant(internal_weights/internal_weights.sum())
-            internal_weights = Reshape((1, 1, len(subject_outputs)))(internal_weights)
+            internal_weights = internal_weights/internal_weights.sum()
 
-        # Upsample the regions.
-        if self.use_internal_loss:
-           # Concatenate all the internal outputs.
+        # Upsample the subject regions.
+        if self.use_internal_loss and len(subject_outputs)>1:
+            # Multiply with the internal losses. 
+            subject_outputs = [Lambda(lambda x: x[0] * x[1])([att, internal_weights[i]]) for i, att in enumerate(subject_outputs)]
+            # Concatenate all the internal outputs.
             subject_att = Concatenate(axis=3)(subject_outputs)
-            object_att = Concatenate(axis=3)(object_outputs)
-            # Multiple with the internal losses.
-            subject_att = Multiply()([subject_att, internal_weights])
-            object_att = Multiply()([object_att, internal_weights])
             # Sum across the internal values.
-            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
+            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)        
+
+        # Upsample the object regions.
+        if self.use_internal_loss and len(object_outputs)>1:    
+            # Multiply with the internal losses.
+            # subject_regions = Lambda(lambda x: (1. - self.internal_loss_weight)*x[0] + self.internal_loss_weight*x[1]) 
+            object_outputs = [Lambda(lambda x: x[0] * x[1])([att, internal_weights[i]]) for i, att in enumerate(object_outputs)]
+            # Concatenate all the internal outputs.
+            object_att = Concatenate(axis=3)(object_outputs)
+            # Sum across the internal values.
             object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
 
         object_regions = self.build_upsampling_layer(object_att, name="object")
-        subject_regions = self.build_upsampling_layer(subject_att,
-                                                      name="subject")
+        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
 
         # Create and output the model.
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj],
@@ -225,41 +230,38 @@ class ReferringRelationshipsModel():
                                           name='subject-att-{}'.format(iteration+1))
                 if self.use_internal_loss:
                     subject_outputs.append(subject_att)
-
-        if self.use_internal_loss:
-            # Combine all the internal subject predictions.
+        
+        # Combine all the internal subject predictions..
+        if self.use_internal_loss and len(subject_outputs)>1:
             internal_subject_weights = np.array(
-                [self.internal_loss_weight**iteration
-                 for iteration in range(len(subject_outputs))])
-            internal_subject_weights = K.constant(
-                (internal_subject_weights/internal_subject_weights.sum()).reshape((1, 1, -1)))
-
-            # Combine all the internal object predictions.
-            internal_object_weights = np.array(
-                [self.internal_loss_weight**iteration
-                 for iteration in range(len(object_outputs))])
-            internal_object_weights = K.constant(
-                (internal_object_weights/internal_object_weights.sum()).reshape((1, 1, -1)))
-
+                [self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
+            internal_subject_weights = K.constant((internal_subject_weights/internal_subject_weights.sum()).reshape((1, 1, -1)))
             # Concatenate all the internal outputs.
             subject_att = Concatenate(axis=3)(subject_outputs)
-            object_att = Concatenate(axis=3)(object_outputs)
-
             # Multiple with the internal losses.
-            subject_att = Multiply()([subject_att,
-                                          internal_subject_weights])
-            object_att = Multiply()([object_att,
-                                         internal_object_weights])
-
+            subject_att = Multiply()([subject_att, internal_subject_weights]) 
             # Sum across the internal values.
-            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(
-                                     subject_att)
-            object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(
-                                    object_regions)
-
-        # Upsample the regions.
+            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)    
+            
+        # Combine all the internal object predictions.
+        if self.use_internal_loss and len(object_outputs)>1: 
+            # Combine all the internal object predictions.
+            internal_object_weights = np.array(
+                    [self.internal_loss_weight**iteration
+                     for iteration in range(len(object_outputs))])
+            internal_object_weights = K.constant(
+                    (internal_object_weights/internal_object_weights.sum()).reshape((1, 1, -1)))
+            # Concatenate all the internal outputs.
+            object_att = Concatenate(axis=3)(object_outputs)
+            # Multiple with the internal losses.
+            object_att = Multiply()([object_att, internal_object_weights])
+            # Sum across the internal values.
+            object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
+        
+        # Upsample the subject regions.
         subject_regions = self.build_upsampling_layer(subject_att,
                                                       name="subject")
+        # Upsample the object regions.
         object_regions = self.build_upsampling_layer(object_att, name="object")
 
         # Create and output the model.
@@ -289,33 +291,23 @@ class ReferringRelationshipsModel():
             conv_outputs.append(att_map)
         merged_output = Concatenate(axis=3)(conv_outputs)
         predicate_att = Multiply()([predicate_masks, merged_output])
-        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(
-            predicate_att)
+        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(predicate_att)
         if self.att_activation == "tanh":
-            predicate_att = Activation("tanh")(att)
+            predicate_att = Activation("tanh")(predicate_att)
         elif self.att_activation == "tanh+relu":
-            predicate_att = Activation("tanh")(att)
+            predicate_att = Activation("tanh")(predicate_att)
             predicate_att = Activation("relu")(predicate_att)
         elif self.att_activation == "norm":
-            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
-            att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(att)
-            att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1,
-                                                          keepdims=True)))(att)
-            predicate_att = Reshape((self.feat_map_dim,
-                                     self.feat_map_dim, 1))(att)
+            predicate_att = Reshape((self.feat_map_dim*self.feat_map_dim,))(predicate_att)
+            predicate_att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(predicate_att)
+            predicate_att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(predicate_att)
+            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(predicate_att)
         elif self.att_activation == "norm+relu":
-            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
-            att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
-            att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1,
-                                                          keepdims=True)))(att)
-            predicate_att = Reshape((self.feat_map_dim,
-                                     self.feat_map_dim, 1))(att)
+            predicate_att = Reshape((self.feat_map_dim*self.feat_map_dim,))(predicate_att)
+            predicate_att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(predicate_att)
+            predicate_att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(predicate_att)
+            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(predicate_att)
             predicate_att =  Activation("relu")(predicate_att)
-        elif self.att_activation == "binary":
-            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
-            att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
-            predicate_att =  Lambda(lambda x: K.cast(K.greater(x, 0),
-                                                     K.floatx()))(att)
         return predicate_att
 
     def build_baseline_model(self):
