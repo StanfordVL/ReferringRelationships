@@ -175,7 +175,8 @@ def parse_args(evaluation=False):
                         help='The number of iterations to finetune the heatmaps.')
     parser.add_argument('--norm-center', default=0., type=float,
                         help='The shift to use before thresholding attention values when using gaussian normalization')
-
+    parser.add_argument('--norm-scale', default=2., type=float,
+                        help='The scale to use before thresholding attention values when using gaussian normalization')
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],

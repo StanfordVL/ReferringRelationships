@@ -49,19 +49,16 @@ class ReferringRelationshipsModel():
         self.norm_center = args.norm_center
         self.internal_loss_weight = args.internal_loss_weight
         self.att_mechanism = args.att_mechanism
+        self.norm_scale = args.norm_scale
         self.iterations = args.iterations
 
     def build_model(self):
         """Chooses which model based on the arguments.
         """
-        if self.model == "ssn" and self.iterations > 1:
+        if self.model == "ssn":
             return self.build_iterative_ssn_model()
-        elif self.model == "sym_ssn" and self.iterations > 1:
-            return self.build_iterative_sym_ssn_model()
-        elif self.model == "ssn":
-            return self.build_ssn_model()
         elif self.model == "sym_ssn":
-            return self.build_sym_ssn_model()
+            return self.build_iterative_sym_ssn_model()
         elif self.model == "baseline":
             return self.build_baseline_model()
         elif self.model == "baseline_no_predicate":
@@ -97,30 +94,10 @@ class ReferringRelationshipsModel():
 
         # Create the predicate conv layers.
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
-        predicate_modules = []
-        inverse_predicate_modules = []
-        for k in range(self.num_predicates):
-            predicate_module_group = []
-            inverse_predicate_module_group = []
-            for i in range(self.nb_conv_att_map):
-                predicate_conv = Conv2D(
-                    self.conv_predicate_channels, self.conv_predicate_kernel,
-                    strides=(1, 1), padding='same', use_bias=False,
-                    activation='relu',
-                    name='conv{}-predicate{}'.format(i, k))
-                inverse_predicate_conv = Conv2D(
-                    self.conv_predicate_channels, self.conv_predicate_kernel,
-                    strides=(1, 1), padding='same', use_bias=False,
-                    activation='relu',
-                    name='conv{}-inv-predicate{}'.format(i, k))
-                predicate_module_group.append(predicate_conv)
-                inverse_predicate_module_group.append(inverse_predicate_conv)
-            predicate_modules.append(predicate_module_group)
-            inverse_predicate_modules.append(inverse_predicate_module_group)
+        predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
+        inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
 
         # Iterate!
-        im_features_1 = im_features
-        im_features_2 = im_features
         if self.use_internal_loss:
             internal_weights = K.constant([self.internal_loss_weight**iteration
                                            for iteration in range(self.iterations+1)])
@@ -128,7 +105,7 @@ class ReferringRelationshipsModel():
             subject_outputs = [subject_att]
             object_outputs = [object_att]
         for iteration in range(self.iterations):
-            new_object_att, _, new_im_features_2 = self.shift_attention(
+            new_object_att, _ = self.shift_attention(
                 subject_att, embedded_object, embedded_subject,
                 predicate_modules, inverse_predicate_modules,
                 im_features_1, predicate_masks,
@@ -165,6 +142,28 @@ class ReferringRelationshipsModel():
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 
+    def build_conv_modules(self, basename):
+        predicate_modules = []
+        for k in range(self.num_predicates-1):
+            predicate_module_group = []
+            for i in range(self.nb_conv_att_map-1):
+                predicate_conv = Conv2D(
+                    self.conv_predicate_channels, self.conv_predicate_kernel,
+                    strides=(1, 1), padding='same', use_bias=False,
+                    activation='relu',
+                    name=basename.format(i, k))
+                predicate_module_group.append(predicate_conv)
+            # last conv with only one channel 
+            predicate_conv = Conv2D(
+                    1, self.conv_predicate_kernel,
+                    strides=(1, 1), padding='same', use_bias=False,
+                    activation='relu',
+                    name=basename.format(self.nb_conv_att_map-1, k))
+            predicate_module_group.append(predicate_conv)  
+            predicate_modules.append(predicate_module_group)
+        return predicate_modules
+            
+
     def build_iterative_ssn_model(self):
         """Iteratives build focusing on the subject and object over and over again.
 
@@ -192,54 +191,40 @@ class ReferringRelationshipsModel():
 
         # Create the predicate conv layers.
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
-        predicate_modules = []
-        inverse_predicate_modules = []
-        for k in range(self.num_predicates):
-            predicate_module_group = []
-            inverse_predicate_module_group = []
-            for i in range(self.nb_conv_att_map):
-                predicate_conv = Conv2D(
-                    self.conv_predicate_channels, self.conv_predicate_kernel,
-                    strides=(1, 1), padding='same', use_bias=False,
-                    activation='relu',
-                    name='conv{}-predicate{}'.format(i, k))
-                inverse_predicate_conv = Conv2D(
-                    self.conv_predicate_channels, self.conv_predicate_kernel,
-                    strides=(1, 1), padding='same', use_bias=False,
-                    activation='relu',
-                    name='conv{}-inv-predicate{}'.format(i, k))
-                predicate_module_group.append(predicate_conv)
-                inverse_predicate_module_group.append(inverse_predicate_conv)
-            predicate_modules.append(predicate_module_group)
-            inverse_predicate_modules.append(inverse_predicate_module_group)
+        predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
+        inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
 
         # Iterate!
         if self.use_internal_loss:
-            internal_weights = K.constant([self.internal_loss_weight**iteration for iteration in range(self.iterations)])
-            internal_weights = Reshape((1, 1, self.iterations))
             subject_outputs = []
             object_outputs = []
         for iteration in range(self.iterations):
-            if self.use_internal_loss:
-                subject_outputs.append(subject_att)
-            object_att, subject_att, im_features = self.shift_attention(
-                subject_att, embedded_object, embedded_subject, predicate_modules,
-                inverse_predicate_modules, im_features, predicate_masks,
-                intermediate_att_name='b0-object-att-{}'.format(iteration),
-                final_att_name='b0-subject-att-{}'.format(iteration),
-                intermediate_shift_name='b0-subject-shift-{}'.format(iteration),
-                final_shift_name='b0-object-shift-{}'.format(iteration))
-            if self.use_internal_loss:
-                object_outputs.append(object_att)
-
-        # Combine all the internal predictions.
+            if iteration % 2 === 0:
+                predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
+                new_image_features = Multiply()([im_features, predicate_att])
+                object_att = self.attend(new_im_features, embedded_object, name='b0-object-att-{}'.format(iteration))
+                if self.use_internal_loss:
+                    object_outputs.append(object_att)
+            else: 
+                predicate_att = self.transform_conv_attention(object_att, inverse_modules, predicate_masks)
+                new_image_features = Multiply()([im_features, predicate_att])
+                subject_att = self.attend(new_im_features, embedded_subject, name='b0-subject-att-{}'.format(iteration))
+                if self.use_internal_loss:
+                    subject_outputs.append(subject_att)
         if self.use_internal_loss:
+            # Combine all the internal predictions.
+            internal_subject_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
+            internal_subject_weights = K.constant(internal_subject_weights/internal_subject_weights.sum())
+            internal_subject_weights = Reshape((1, 1, len(subject_outputs)))(internal_subject_weights)
+            internal_object_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(object_outputs))])
+            internal_object_weights = K.constant(internal_object_weights/internal_object_weights.sum())
+            internal_object_weights = Reshape((1, 1, len(object_outputs)))(internal_object_weights)
             # Concatenate all the internal outputs.
             subject_regions = Concatenate(axis=3)(subject_outputs)
             object_regions = Concatenate(axis=3)(object_outputs)
             # Multiple with the internal losses.
-            subject_regions = Multiply()([subject_regions, internal_weights])
-            object_regions = Multiply()([object_regions, internal_weights])
+            subject_regions = Multiply()([subject_regions, internal_subject_weights])
+            object_regions = Multiply()([object_regions, internal_object_weights])
             # Sum across the internal values.
             subject_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="subject")(subject_regions)
             object_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name="object")(object_regions)
@@ -252,21 +237,6 @@ class ReferringRelationshipsModel():
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 
-    def shift_attention(self, att, embedding, final_embedding, modules,
-                        inverse_modules, im_features, predicate_masks,
-                        intermediate_att_name=None, final_att_name=None,
-                        intermediate_shift_name=None, final_shift_name=None):
-        att = self.transform_conv_attention(att, modules, predicate_masks)
-        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
-                               name=intermediate_shift_name)(att)
-        new_im_features = Multiply()([im_features, predicate_att])
-        new_att = self.attend(new_im_features, embedding, name=intermediate_att_name)
-        new_att = self.transform_conv_attention(new_att, inverse_modules, predicate_masks)
-        inverse_predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
-                                       name=final_shift_name)(new_att)
-        final_im_features = Multiply()([new_im_features, inverse_predicate_att])
-        final_att = self.attend(final_im_features, final_embedding, name=final_att_name)
-        return att, new_att, final_im_features
 
     def transform_conv_attention(self, att, merged_modules, predicate_masks):
         conv_outputs = []
@@ -274,11 +244,10 @@ class ReferringRelationshipsModel():
             att_map = att
             for conv_module in group:
                 att_map = conv_module(att_map)
-            shifted_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_map)
-            conv_outputs.append(shifted_att)
+            conv_outputs.append(att_map)
         merged_output = Concatenate(axis=3)(conv_outputs)
-        att = Multiply()([predicate_masks, merged_output])
-        att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
+        predicate_att = Multiply()([predicate_masks, merged_output])
+        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(predicate_att)
         if self.att_activation == "tanh":
             predicate_att = Activation("tanh")(att)
         elif self.att_activation == "tanh+relu":
@@ -300,25 +269,6 @@ class ReferringRelationshipsModel():
             att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
             predicate_att =  Lambda(lambda x: K.cast(K.greater(x, 0), K.floatx()))(att)
         return predicate_att
-
-    def attend(self, feature_map, query, name=None):
-        if self.att_mechanism == 'mul':
-            return self.build_attention_layer_mul(feature_map, query)
-        else:
-            return self.build_attention_layer_dot(feature_map, query, name=name)
-
-    def get_regions_from_attention(self, att, name=None):
-        if self.att_mechanism == 'mul':
-            att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
-            if name is not None:
-                return self.build_upsampling_layer(att_pooled, name=name)
-            else:
-                return self.build_upsampling_layer(att_pooled)
-        else:
-            if name is not None:
-                return self.build_upsampling_layer(subject_att, name=name)
-            else:
-                return self.build_upsampling_layer(subject_att)
 
 
     def build_ssn_model(self):
@@ -489,13 +439,8 @@ class ReferringRelationshipsModel():
 
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
-
-    def build_attention_layer_mul(self, feature_map, query):
-        query = Reshape((1, 1, self.hidden_dim))(query)
-        attention_weights = Multiply()([feature_map, query])
-        return attention_weights
-
-    def build_attention_layer_dot(self, feature_map, query, name=None):
+    
+    def attend(self, feature_map, query, name=None):
         query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
         if not name:
@@ -544,20 +489,20 @@ class ReferringRelationshipsModel():
         elif self.att_activation == "gaussian":
             att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
             att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
-            att = Lambda(lambda x: self.norm_center + x/(K.epsilon() + K.std(x, axis=1, keepdims=True)))(att)
+            att = Lambda(lambda x: self.norm_center + x/(K.epsilon() + self.norm_scale*K.std(x, axis=1, keepdims=True)))(att)
             predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
             predicate_att = Activation("relu", name=name)(predicate_att)
         return predicate_att
 
     def build_frac_strided_transposed_conv_layer(self, conv_layer):
         res = UpSampling2D(size=(2, 2))(conv_layer)
-        res = Conv2DTranspose(1, 3, padding='same', use_bias=False)(res)
+        res = Conv2DTranspose(1, 3, padding='same', use_bias=False, activation="relu")(res)
         return res
 
     def build_upsampling_layer(self, feature_map, name=None):
         upsampling_factor = self.input_dim / self.feat_map_dim
         k = int(np.log(upsampling_factor) / np.log(2))
-        res = Activation("relu")(feature_map)
+        res = feature_map
         for i in range(k):
             res = self.build_frac_strided_transposed_conv_layer(res)
         res = Reshape((self.input_dim*self.input_dim,))(res)
