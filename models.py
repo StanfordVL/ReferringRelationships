@@ -52,6 +52,8 @@ class ReferringRelationshipsModel():
         self.iterations = args.iterations
 
     def build_model(self):
+        """Chooses which model based on the arguments.
+        """
         if self.model == "ssn" and self.iterations > 1:
             return self.build_iterative_ssn_model()
         elif self.model == "sym_ssn" and self.iterations > 1:
@@ -482,7 +484,8 @@ class ReferringRelationshipsModel():
         if not name:
             attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         else:
-             attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
+            attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
+        attention_weights = Activation("relu", name=name)(attention_weights)
         return attention_weights
 
     def build_conv_predicate_module(self, att_map, predicate_id, sym):
