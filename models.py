@@ -207,7 +207,7 @@ class ReferringRelationshipsModel():
             subject_outputs = [subject_att]
             object_outputs = []
         for iteration in range(self.iterations):
-            if iteration % 2 === 0:
+            if iteration % 2 == 0:
                 predicate_att = self.transform_conv_attention(
                     subject_att, predicate_modules, predicate_masks)
                 predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(
@@ -428,18 +428,6 @@ class ReferringRelationshipsModel():
             attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
         attention_weights = Activation("relu", name=name)(attention_weights)
         return attention_weights
-
-    def build_conv_predicate_module(self, att_map, predicate_id, sym):
-        for i in range(self.nb_conv_att_map):
-            att_map = Conv2D(self.conv_predicate_channels,
-                             self.conv_predicate_kernel,
-                             strides=(1, 1), padding='same',
-                             use_bias=False,
-                             activation='relu',
-                             name='conv{}-predicate{}-{}'.format(
-                                 i, predicate_id, sym))(att_map)
-        shifted_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_map)
-        return shifted_att
 
     def build_upsampling_layer(self, feature_map, name=None):
         upsampling_factor = self.input_dim / self.feat_map_dim
