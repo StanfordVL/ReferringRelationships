@@ -114,36 +114,25 @@ class ReferringRelationshipsModel():
             object_att = new_object_att
             subject_att = new_subject_att
 
-        if self.use_internal_loss:
-            # Combine all the internal predictions.
-            internal_weights = np.array([self.internal_loss_weight**i for i in range(len(subject_outputs))])
-            internal_weights = internal_weights/internal_weights.sum()
-
-        # Upsample the subject regions.
-        if self.use_internal_loss and len(subject_outputs)>1:
+        # Upsample the subject and objects regions.
+        if self.use_internal_loss and self.iterations > 1:
+            internal_weights = np.array([self.internal_loss_weight**i for i in range(self.iterations)]).reshape(1, 1, 1, -1)
+            internal_weights = K.constant(internal_weights/internal_weights.sum())
             # Multiply with the internal losses. 
-            subject_outputs = [Lambda(lambda x: x[0] * x[1])([att, internal_weights[i]]) for i, att in enumerate(subject_outputs)]
+            subject_outputs = [Multiply()([att, internal_weights[:,:,:,i:i+1]]) for i, att in enumerate(subject_outputs)]
+            object_outputs = [Multiply()([att, internal_weights[:,:,:,i:i+1]]) for i, att in enumerate(object_outputs)]
             # Concatenate all the internal outputs.
             subject_att = Concatenate(axis=3)(subject_outputs)
-            # Sum across the internal values.
-            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)        
-
-        # Upsample the object regions.
-        if self.use_internal_loss and len(object_outputs)>1:    
-            # Multiply with the internal losses.
-            # subject_regions = Lambda(lambda x: (1. - self.internal_loss_weight)*x[0] + self.internal_loss_weight*x[1]) 
-            object_outputs = [Lambda(lambda x: x[0] * x[1])([att, internal_weights[i]]) for i, att in enumerate(object_outputs)]
-            # Concatenate all the internal outputs.
             object_att = Concatenate(axis=3)(object_outputs)
             # Sum across the internal values.
+            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)        
             object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
 
         object_regions = self.build_upsampling_layer(object_att, name="object")
         subject_regions = self.build_upsampling_layer(subject_att, name="subject")
 
         # Create and output the model.
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj],
-                      outputs=[subject_regions, object_regions])
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 
     def build_conv_modules(self, basename):
@@ -232,41 +221,34 @@ class ReferringRelationshipsModel():
                     subject_outputs.append(subject_att)
         
         # Combine all the internal subject predictions..
-        if self.use_internal_loss and len(subject_outputs)>1:
-            internal_subject_weights = np.array(
-                [self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
-            internal_subject_weights = K.constant((internal_subject_weights/internal_subject_weights.sum()).reshape((1, 1, -1)))
+        if self.use_internal_loss and len(subject_outputs) > 1:
+            internal_subject_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
+            internal_subject_weights = internal_subject_weights/internal_subject_weights.sum()
+            # Multiply with the internal losses. 
+            subject_outputs = [Lambda(lambda x: x[0] * x[1])([att, K.variable(internal_subject_weights[i])]) for i, att in enumerate(subject_outputs)]
             # Concatenate all the internal outputs.
             subject_att = Concatenate(axis=3)(subject_outputs)
-            # Multiple with the internal losses.
-            subject_att = Multiply()([subject_att, internal_subject_weights]) 
             # Sum across the internal values.
             subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)    
             
         # Combine all the internal object predictions.
-        if self.use_internal_loss and len(object_outputs)>1: 
-            # Combine all the internal object predictions.
-            internal_object_weights = np.array(
-                    [self.internal_loss_weight**iteration
-                     for iteration in range(len(object_outputs))])
-            internal_object_weights = K.constant(
-                    (internal_object_weights/internal_object_weights.sum()).reshape((1, 1, -1)))
+        if self.use_internal_loss and len(object_outputs) > 1: 
+            internal_object_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(object_outputs))])
+            internal_object_weights = internal_object_weights/internal_object_weights.sum()
+            # Multiply with the internal losses. 
+            object_outputs = [Lambda(lambda x: x[0] * x[1])([att, K.variable(internal_object_weights[i])]) for i, att in enumerate(object_outputs)]
             # Concatenate all the internal outputs.
             object_att = Concatenate(axis=3)(object_outputs)
-            # Multiple with the internal losses.
-            object_att = Multiply()([object_att, internal_object_weights])
             # Sum across the internal values.
             object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
         
         # Upsample the subject regions.
-        subject_regions = self.build_upsampling_layer(subject_att,
-                                                      name="subject")
+        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
         # Upsample the object regions.
         object_regions = self.build_upsampling_layer(object_att, name="object")
 
         # Create and output the model.
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj],
-                      outputs=[subject_regions, object_regions])
+        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 
 
