@@ -213,17 +213,17 @@ class ReferringRelationshipsModel():
                 predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(
                     predicate_att)
                 new_image_features = Multiply()([im_features, predicate_att])
-                object_att = self.attend(new_im_features, embedded_object,
+                object_att = self.attend(new_image_features, embedded_object,
                                          name='object-att-{}'.format(iteration+1))
                 if self.use_internal_loss:
                     object_outputs.append(object_att)
             else:
                 predicate_att = self.transform_conv_attention(
-                    object_att, inverse_modules, predicate_masks)
+                    object_att, inverse_predicate_modules, predicate_masks)
                 predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(
                     iteration+1))(predicate_att)
                 new_image_features = Multiply()([im_features, predicate_att])
-                subject_att = self.attend(new_im_features, embedded_subject,
+                subject_att = self.attend(new_image_features, embedded_subject,
                                           name='subject-att-{}'.format(iteration+1))
                 if self.use_internal_loss:
                     subject_outputs.append(subject_att)
@@ -419,13 +419,10 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def attend(self, feature_map, query, name=None):
+    def attend(self, feature_map, query, name):
         query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
-        if not name:
-            attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
-        else:
-            attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
+        attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation("relu", name=name)(attention_weights)
         return attention_weights
 
