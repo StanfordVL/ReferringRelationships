@@ -4,13 +4,13 @@ import numpy as np
 
 parser = argparse.ArgumentParser(description='Reads log file to find the best model')
 parser.add_argument('--models-dir', type=str)
-parser.add_argument('--s-metric', type=str, default='val_subject_iou_bbox_0.5:')
-parser.add_argument('--o-metric', type=str, default='val_object_iou_bbox_0.5:')
+parser.add_argument('--s-metric', type=str, default='val_subject_iou_0.5:')
+parser.add_argument('--o-metric', type=str, default='val_object_iou_0.5:')
 args = parser.parse_args()
 
 def print_scores(model, imax, s_score, o_score):
     print('\nModel: {}'.format(model))
-    print('\nEpoch: {}'.format(imax+1))
+    print('\nEpoch: {}'.format(imax))
     print("\n{} {}".format(args.s_metric, s_score))
     print("\n{} {}".format(args.o_metric, o_score))
     print('\n'+'*'*50)
