@@ -417,13 +417,10 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def attend(self, feature_map, query, name=None):
+    def attend(self, feature_map, query, name):
         query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
-        if not name:
-            attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
-        else:
-            attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True), name=name)(attention_weights)
+        attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation("relu", name=name)(attention_weights)
         return attention_weights
 
