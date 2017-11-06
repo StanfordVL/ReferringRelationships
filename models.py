@@ -232,18 +232,14 @@ class ReferringRelationshipsModel():
                 [self.internal_loss_weight**iteration
                  for iteration in range(len(subject_outputs))])
             internal_subject_weights = K.constant(
-                internal_subject_weights/internal_subject_weights.sum())
-            internal_subject_weights = Reshape((1, 1, len(subject_outputs)))(
-                internal_subject_weights)
+                (internal_subject_weights/internal_subject_weights.sum()).reshape((1, 1, -1)))
 
             # Combine all the internal object predictions.
             internal_object_weights = np.array(
                 [self.internal_loss_weight**iteration
                  for iteration in range(len(object_outputs))])
             internal_object_weights = K.constant(
-                internal_object_weights/internal_object_weights.sum())
-            internal_object_weights = Reshape((1, 1, len(object_outputs)))(
-                internal_object_weights)
+                (internal_object_weights/internal_object_weights.sum()).reshape((1, 1, -1)))
 
             # Concatenate all the internal outputs.
             subject_att = Concatenate(axis=3)(subject_outputs)
