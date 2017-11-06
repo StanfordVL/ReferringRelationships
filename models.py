@@ -113,14 +113,12 @@ class ReferringRelationshipsModel():
                 subject_outputs.append(new_subject_att)
             object_att = new_object_att
             subject_att = new_subject_att
+
         if self.use_internal_loss:
             # Combine all the internal predictions.
-            internal_subject_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
-            internal_subject_weights = K.constant(internal_subject_weights/internal_subject_weights.sum())
-            internal_subject_weights = Reshape((1, 1, len(subject_outputs)))(internal_subject_weights)
-            internal_object_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(object_outputs))])
-            internal_object_weights = K.constant(internal_object_weights/internal_object_weights.sum())
-            internal_object_weights = Reshape((1, 1, len(object_outputs)))(internal_object_weights)
+            internal_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
+            internal_weights = K.constant(internal_weights/internal_weights.sum())
+            internal_weights = Reshape((1, 1, len(subject_outputs)))(internal_weights)
 
         # Upsample the regions.
         if self.use_internal_loss:
@@ -128,8 +126,8 @@ class ReferringRelationshipsModel():
             subject_att = Concatenate(axis=3)(subject_outputs)
             object_att = Concatenate(axis=3)(object_outputs)
             # Multiple with the internal losses.
-            subject_att = Multiply()([subject_att, internal_subject_weights])
-            object_att = Multiply()([object_att, internal_object_weights])
+            subject_att = Multiply()([subject_att, internal_weights])
+            object_att = Multiply()([object_att, internal_weights])
             # Sum across the internal values.
             subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
             object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
@@ -207,7 +205,7 @@ class ReferringRelationshipsModel():
             subject_outputs = [subject_att]
             object_outputs = []
         for iteration in range(self.iterations):
-            if iteration % 2 === 0:
+            if iteration % 2 == 0:
                 predicate_att = self.transform_conv_attention(
                     subject_att, predicate_modules, predicate_masks)
                 _ = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(
