@@ -104,10 +104,10 @@ class ReferringRelationshipsModel():
         for iteration in range(self.iterations):
             predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
             new_image_features = Multiply()([im_features, predicate_att])
-            new_object_att = self.attend(new_im_features, embedded_object, name='object-att-{}'.format(iteration+1))
-            inv_predicate_att = self.transform_conv_attention(object_att, inverse_modules, predicate_masks)
+            new_object_att = self.attend(new_image_features, embedded_object, name='object-att-{}'.format(iteration+1))
+            inv_predicate_att = self.transform_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
             new_image_features = Multiply()([im_features, inv_predicate_att])
-            new_subject_att = self.attend(new_im_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
+            new_subject_att = self.attend(new_image_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
             if self.use_internal_loss:
                 object_outputs.append(new_object_att)
                 subject_outputs.append(new_subject_att)
@@ -208,7 +208,7 @@ class ReferringRelationshipsModel():
             if iteration % 2 == 0:
                 predicate_att = self.transform_conv_attention(
                     subject_att, predicate_modules, predicate_masks)
-                _ = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(
+                predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(
                     predicate_att)
                 new_image_features = Multiply()([im_features, predicate_att])
                 object_att = self.attend(new_im_features, embedded_object,
@@ -218,7 +218,7 @@ class ReferringRelationshipsModel():
             else:
                 predicate_att = self.transform_conv_attention(
                     object_att, inverse_modules, predicate_masks)
-                _ = Lambda(lambda x: x, name='inv-shift-{}'.format(
+                predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(
                     iteration+1))(predicate_att)
                 new_image_features = Multiply()([im_features, predicate_att])
                 subject_att = self.attend(new_im_features, embedded_subject,
