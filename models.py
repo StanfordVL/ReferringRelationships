@@ -132,11 +132,19 @@ class ReferringRelationshipsModel():
             new_object_att, _, new_im_features_2 = self.shift_attention(
                 subject_att, embedded_object, embedded_subject,
                 predicate_modules, inverse_predicate_modules,
-                im_features_1, predicate_masks)
+                im_features_1, predicate_masks,
+                intermediate_att_name='b0-object-att-{}'.format(iteration),
+                final_att_name='b0-subject-att-{}'.format(iteration),
+                intermediate_shift_name='b0-subject-shift-{}'.format(iteration),
+                final_shift_name='b0-object-shift-{}'.format(iteration))
             new_subject_att, _, new_im_features_1 = self.shift_attention(
                 object_att, embedded_subject, embedded_object,
                 inverse_predicate_modules, predicate_modules,
-                im_features_2, predicate_masks)
+                im_features_2, predicate_masks,
+                intermediate_att_name='b1-subject-att-{}'.format(iteration),
+                final_att_name='b1-object-att-{}'.format(iteration),
+                intermediate_shift_name='b1-object-shift-{}'.format(iteration),
+                final_shift_name='b1-subject-shift-{}'.format(iteration))
             if self.use_internal_loss:
                 subject_outputs.append(new_subject_att)
                 object_outputs.append(new_object_att)
@@ -181,7 +189,7 @@ class ReferringRelationshipsModel():
         embedded_object = Dropout(self.dropout)(embedded_object)
 
         # Extract subject attention map.
-        subject_att = self.attend(im_features, embedded_subject)
+        subject_att = self.attend(im_features, embedded_subject, name='b0-subject-att-0')
 
         # Create the predicate conv layers.
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
@@ -217,7 +225,11 @@ class ReferringRelationshipsModel():
                 subject_outputs.append(subject_att)
             object_att, subject_att, im_features = self.shift_attention(
                 subject_att, embedded_object, embedded_subject, predicate_modules,
-                inverse_predicate_modules, im_features, predicate_masks)
+                inverse_predicate_modules, im_features, predicate_masks,
+                intermediate_att_name='b0-object-att-{}'.format(iteration),
+                final_att_name='b0-subject-att-{}'.format(iteration),
+                intermediate_shift_name='b0-subject-shift-{}'.format(iteration),
+                final_shift_name='b0-object-shift-{}'.format(iteration))
             if self.use_internal_loss:
                 object_outputs.append(object_att)
 
@@ -241,15 +253,20 @@ class ReferringRelationshipsModel():
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
         return model
 
-    def shift_attention(self, att, embedding, final_embedding, modules, inverse_modules, im_features, predicate_masks):
+    def shift_attention(self, att, embedding, final_embedding, modules,
+                        inverse_modules, im_features, predicate_masks,
+                        intermediate_att_name=None, final_att_name=None,
+                        intermediate_shift_name=None, final_shift_name=None):
         att = self.transform_conv_attention(att, modules, predicate_masks)
-        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
+        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
+                               name=intermediate_shift_name)(att)
         new_im_features = Multiply()([im_features, predicate_att])
-        new_att = self.attend(new_im_features, embedding)
+        new_att = self.attend(new_im_features, embedding, name=intermediate_att_name)
         new_att = self.transform_conv_attention(new_att, inverse_modules, predicate_masks)
-        inverse_predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(new_att)
+        inverse_predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
+                                       name=final_shift_name)(new_att)
         final_im_features = Multiply()([new_im_features, inverse_predicate_att])
-        final_att = self.attend(final_im_features, final_embedding)
+        final_att = self.attend(final_im_features, final_embedding, name=final_att_name)
         return att, new_att, final_im_features
 
     def transform_conv_attention(self, att, merged_modules, predicate_masks):
