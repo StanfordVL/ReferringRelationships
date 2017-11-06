@@ -88,55 +88,52 @@ class ReferringRelationshipsModel():
         embedded_object = Dropout(self.dropout)(embedded_object)
 
         # Extract initial attention maps.
-        subject_att = self.attend(im_features, embedded_subject)
-        object_att = self.attend(im_features, embedded_object)
+        subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
+        object_att = self.attend(im_features, embedded_object, name='object-att-0')
 
         # Create the predicate conv layers.
         predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
         predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
         inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
 
-        # Iterate!
         if self.use_internal_loss:
-            internal_weights = K.constant(
-                [self.internal_loss_weight**iteration
-                 for iteration in range(self.iterations+1)])
-            internal_weights = Reshape((1, 1, self.iterations+1))
             subject_outputs = [subject_att]
             object_outputs = [object_att]
+
+        # Iterate!
         for iteration in range(self.iterations):
-            new_object_att, _ = self.shift_attention(
-                subject_att, embedded_object, embedded_subject,
-                predicate_modules, inverse_predicate_modules,
-                im_features_1, predicate_masks,
-                intermediate_att_name='b0-object-att-{}'.format(iteration),
-                final_att_name='b0-subject-att-{}'.format(iteration),
-                intermediate_shift_name='b0-subject-shift-{}'.format(iteration),
-                final_shift_name='b0-object-shift-{}'.format(iteration))
-            new_subject_att, _, new_im_features_1 = self.shift_attention(
-                object_att, embedded_subject, embedded_object,
-                inverse_predicate_modules, predicate_modules,
-                im_features_2, predicate_masks,
-                intermediate_att_name='b1-subject-att-{}'.format(iteration),
-                final_att_name='b1-object-att-{}'.format(iteration),
-                intermediate_shift_name='b1-object-shift-{}'.format(iteration),
-                final_shift_name='b1-subject-shift-{}'.format(iteration))
+            predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
+            new_image_features = Multiply()([im_features, predicate_att])
+            new_object_att = self.attend(new_im_features, embedded_object, name='object-att-{}'.format(iteration+1))
+            inv_predicate_att = self.transform_conv_attention(object_att, inverse_modules, predicate_masks)
+            new_image_features = Multiply()([im_features, inv_predicate_att])
+            new_subject_att = self.attend(new_im_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
             if self.use_internal_loss:
-                subject_outputs.append(new_subject_att)
                 object_outputs.append(new_object_att)
+                subject_outputs.append(new_subject_att)
             object_att = new_object_att
             subject_att = new_subject_att
-            im_features_1 = new_im_features_1
-            im_features_2 = new_im_features_2
+        if self.use_internal_loss:
+            # Combine all the internal predictions.
+            internal_subject_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
+            internal_subject_weights = K.constant(internal_subject_weights/internal_subject_weights.sum())
+            internal_subject_weights = Reshape((1, 1, len(subject_outputs)))(internal_subject_weights)
+            internal_object_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(object_outputs))])
+            internal_object_weights = K.constant(internal_object_weights/internal_object_weights.sum())
+            internal_object_weights = Reshape((1, 1, len(object_outputs)))(internal_object_weights)
 
         # Upsample the regions.
         if self.use_internal_loss:
-            subject_regions = Concatenate(axis=3)(subject_outputs)
-            object_regions = Concatenate(axis=3)(object_outputs)
-            subject_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
-                                     name="subject")(subject_regions)
-            object_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
-                                    name="object")(object_regions)
+           # Concatenate all the internal outputs.
+            subject_att = Concatenate(axis=3)(subject_outputs)
+            object_att = Concatenate(axis=3)(object_outputs)
+            # Multiple with the internal losses.
+            subject_att = Multiply()([subject_att, internal_subject_weights])
+            object_att = Multiply()([object_att, internal_object_weights])
+            # Sum across the internal values.
+            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
+            object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
+
         object_regions = self.build_upsampling_layer(object_att, name="object")
         subject_regions = self.build_upsampling_layer(subject_att,
                                                       name="subject")
@@ -207,7 +204,7 @@ class ReferringRelationshipsModel():
 
         # Iterate!
         if self.use_internal_loss:
-            subject_outputs = []
+            subject_outputs = [subject_att]
             object_outputs = []
         for iteration in range(self.iterations):
             if iteration % 2 === 0:
@@ -251,20 +248,20 @@ class ReferringRelationshipsModel():
                 internal_object_weights)
 
             # Concatenate all the internal outputs.
-            subject_regions = Concatenate(axis=3)(subject_outputs)
-            object_regions = Concatenate(axis=3)(object_outputs)
+            subject_att = Concatenate(axis=3)(subject_outputs)
+            object_att = Concatenate(axis=3)(object_outputs)
 
             # Multiple with the internal losses.
-            subject_regions = Multiply()([subject_regions,
+            subject_att = Multiply()([subject_att,
                                           internal_subject_weights])
-            object_regions = Multiply()([object_regions,
+            object_att = Multiply()([object_att,
                                          internal_object_weights])
 
             # Sum across the internal values.
-            subject_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
-                                     name="subject")(subject_regions)
-            object_regions = Lambda(lambda x: K.sum(x, axis=3, keepdims=True),
-                                    name="object")(object_regions)
+            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(
+                                     subject_att)
+            object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(
+                                    object_regions)
 
         # Upsample the regions.
         subject_regions = self.build_upsampling_layer(subject_att,
@@ -326,84 +323,6 @@ class ReferringRelationshipsModel():
             predicate_att =  Lambda(lambda x: K.cast(K.greater(x, 0),
                                                      K.floatx()))(att)
         return predicate_att
-
-    def build_ssn_model(self):
-        """Initializes the stacked attention model.
-        This model uses moving heatmaps with conv layers
-        Returns:
-            The Keras model.
-        """
-        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_subj = Input(shape=(1,))
-        input_pred = Input(shape=(self.num_predicates,))
-        input_obj = Input(shape=(1,))
-        im_features = self.build_image_model(input_im)
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        embedded_subject = subj_obj_embedding(input_subj)
-        embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_object = subj_obj_embedding(input_obj)
-        embedded_object = Dropout(self.dropout)(embedded_object)
-        if self.att_mechanism == "mul":
-            subject_att = self.attend(im_features, embedded_subject)
-            subject_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
-            subject_regions = self.build_upsampling_layer(subject_att_pooled, name="subject")
-        else:
-            subject_att = self.attend(im_features, embedded_subject, "before-pred-subj")
-            subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
-        new_im_feature_map = Multiply()([im_features, predicate_att])
-        object_att = self.attend(new_im_feature_map, embedded_object)
-        object_regions = self.build_upsampling_layer(object_att, name="object")
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
-        return model
-
-    def build_sym_ssn_model(self):
-        """Initializes the symmetric stacked attention model
-        This model uses moving heatmaps with conv layers
-        Returns:
-            The Keras model.
-        """
-        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_subj = Input(shape=(1,))
-        input_pred = Input(shape=(self.num_predicates,))
-        input_obj = Input(shape=(1,))
-        im_features = self.build_image_model(input_im)
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        embedded_subject = subj_obj_embedding(input_subj)
-        embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_object = subj_obj_embedding(input_obj)
-        embedded_object = Dropout(self.dropout)(embedded_object)
-        if self.att_mechanism == "mul":
-            subject_att = self.attend(im_features, embedded_subject)
-            object_att = self.attend(im_features, embedded_object)
-            if self.use_internal_loss:
-                subject_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
-                subject_regions_int = self.build_upsampling_layer(subject_att_pooled, name="subject-int")
-                object_att_pooled = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
-                object_regions_int = self.build_upsampling_layer(object_att_pooled, name="object-int")
-        else:
-            subject_att = self.attend(im_features, embedded_subject, "before-pred-subj")
-            object_att = self.attend(im_features, embedded_object, "before-pred-obj")
-            if self.use_internal_loss:
-                subject_regions_int = self.build_upsampling_layer(subject_att, name="subject-int")
-                object_regions_int = self.build_upsampling_layer(object_att, name="object-int")
-        subj_predicate_att = self.build_conv_map_transform(subject_att, input_pred, "after-pred-subj")
-        obj_predicate_att = self.build_conv_map_transform(object_att, input_pred, "after-pred-obj", sym=1)
-        attended_im_subj = Multiply()([im_features, subj_predicate_att])
-        attended_im_obj = Multiply()([im_features, obj_predicate_att])
-        object_att = self.attend(attended_im_subj, embedded_object)
-        subject_att = self.attend(attended_im_obj, embedded_subject)
-        if self.use_internal_loss:
-            subject_regions = self.build_upsampling_layer(subject_att, name="subject-out")
-            object_regions = self.build_upsampling_layer(object_att, name="object-out")
-            subject_regions = Lambda(lambda x: (1. - self.internal_loss_weight)*x[0] + self.internal_loss_weight*x[1], name="subject")([subject_regions, subject_regions_int])
-            object_regions = Lambda(lambda x: (1. - self.internal_loss_weight)*x[0] + self.internal_loss_weight*x[1], name="object")([object_regions, object_regions_int])
-        else:
-           object_regions = self.build_upsampling_layer(object_att, name="object")
-           subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        outputs = [subject_regions, object_regions]
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=outputs)
-        return model
 
     def build_baseline_model(self):
         """Initializes the baseline model that uses predicates.
@@ -522,49 +441,13 @@ class ReferringRelationshipsModel():
         shifted_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att_map)
         return shifted_att
 
-    def build_conv_map_transform(self, att, input_pred, name, sym=0):
-        predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
-        conv_modules = []
-        for i in range(self.num_predicates):
-            conv_modules += [self.build_conv_predicate_module(att, i, sym)]
-        merged_conv = Concatenate(axis=3)(conv_modules)
-        att = Multiply()([predicate_masks, merged_conv])
-        att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(att)
-        if self.att_activation == "tanh":
-            predicate_att = Activation("tanh", name=name)(att)
-        elif self.att_activation == "tanh+relu":
-            predicate_att = Activation("tanh")(att)
-            predicate_att = Activation("relu", name=name)(predicate_att)
-        elif self.att_activation == "norm":
-            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
-            att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(att)
-            att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(att)
-            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1), name=name)(att)
-        elif self.att_activation == "norm+relu":
-            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
-            att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
-            att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(att)
-            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
-            predicate_att =  Activation("relu", name=name)(predicate_att)
-        elif self.att_activation == "gaussian":
-            att = Reshape((self.feat_map_dim*self.feat_map_dim,))(att)
-            att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(att)
-            att = Lambda(lambda x: self.norm_center + x/(K.epsilon() + self.norm_scale*K.std(x, axis=1, keepdims=True)))(att)
-            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(att)
-            predicate_att = Activation("relu", name=name)(predicate_att)
-        return predicate_att
-
-    def build_frac_strided_transposed_conv_layer(self, conv_layer):
-        res = UpSampling2D(size=(2, 2))(conv_layer)
-        res = Conv2DTranspose(1, 3, padding='same', use_bias=False, activation="relu")(res)
-        return res
-
     def build_upsampling_layer(self, feature_map, name=None):
         upsampling_factor = self.input_dim / self.feat_map_dim
         k = int(np.log(upsampling_factor) / np.log(2))
         res = feature_map
         for i in range(k):
-            res = self.build_frac_strided_transposed_conv_layer(res)
+            res = UpSampling2D(size=(2, 2))(res)
+            res = Conv2DTranspose(1, 3, padding='same', use_bias=False, activation="relu")(res)
         res = Reshape((self.input_dim*self.input_dim,))(res)
         if name is not None:
             predictions = Activation("tanh", name=name)(res)
