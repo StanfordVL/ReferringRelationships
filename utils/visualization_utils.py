@@ -32,6 +32,61 @@ def add_attention(original_image, heatmap, input_dim):
     return attention
 
 
+def get_bbox_from_heatmap(heatmap, threshold=0.5, input_dim=224):
+    """Grabs the bbox that the heatmap represents.
+    
+    Args:
+        heatmap: A numpy representation of where the object is.
+        threshold: The min value of the threshold.
+        input_dim: The dimensions of the image.
+        
+    Returns:
+        A tuple containing (ymin, ymax, xmin, xmax).
+    """
+    heatmap = heatmap.reshape((params.input_dim, params.input_dim))
+    heatmap[heatmap < threshold] = 0
+    rows = heatmap.sum(axis = 1).nonzero()
+    cols = heatmap.sum(axis = 0).nonzero()
+    ymin = np.min(rows)
+    ymax = np.max(rows)
+    xmin = np.min(cols)
+    xmax = np.max(cols)
+    return (ymin, ymax, xmin, xmax)
+
+
+def add_bboxes(original_image, subject_heatmap, object_heatmap, input_dim):
+    """Creates the visualizations for a predicted subject and object map.
+
+    Args:
+        original_image: A PIL representation of the original image.
+        subject_heatmap: A numpy representation of where the subject is predicted
+            to be.
+        object_heatmap: A numpy representation of where the object is predicted
+            to be.
+        input_dim: The dimensions of the predicted heatmaps.
+            
+    Returns:
+        The attended subject and object heatmap over the image, concatenated with
+        the original image.
+    """
+    image = original_image.resize((input_dim, input_dim))
+    image = np.array(image)
+    
+    subject_image = np.deepcopy(image)
+    s_ymin, s_ymax, s_xmin, s_xmax = get_bbox_from_heatmap(subject_heatmap)
+    s_draw = ImageDraw.Draw(subject_image)
+    s_draw.rectangle(((s_xmin, s_ymin), (s_xmax, s_ymax)), outline='red')
+    
+    object_image = np.deepcopy(image)
+    o_ymin, o_ymax, o_xmin, o_xmax = get_bbox_from_heatmap(object_heatmap)
+    o_draw = ImageDraw.Draw(object_image)   
+    o_draw.rectangle(((o_xmin, o_ymin), (o_xmax, o_ymax)), outline='red')
+
+    together = np.concatenate((image, subject_image, object_image), axis=1)
+    together = Image.fromarray(together.astype('uint8'), 'RGB')
+    return together
+
+
 def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
                 relationship):
     """Creates the visualizations for a predicted subject and object map.
