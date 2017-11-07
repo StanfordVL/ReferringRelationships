@@ -10,6 +10,28 @@ from keras.models import load_model
 from iterator import RefRelDataIterator
 
 
+def add_attention(original_image, heatmap, input_dim):
+    """Adds a heatmap visualization to the original image.
+    
+    Args:
+        original_image: A PIL representation of the original image.
+        heatmap: A numpy representation of where the object is predicted to be.
+        input_dim: The dimensions of the predicted heatmaps.
+    
+    Returns:
+        The attended heatmap over the image.
+    """
+    image = original_image.resize((input_dim, input_dim))
+    image = np.array(image)
+    heatmap = heatmap.reshape(input_dim, input_dim) * 255.
+    attended_image = np.zeros((input_dim, input_dim, 3))
+    for c in range(3):
+        attended_image[:, :, c] = heatmap
+    attention = 0.2*image + 0.8*attended_image
+    attention = Image.fromarray(attention.astype('uint8'), 'RGB')
+    return attention
+
+
 def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
                 relationship):
     """Creates the visualizations for a predicted subject and object map.
@@ -20,9 +42,13 @@ def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
             to be.
         object_heatmap: A numpy representation of where the object is predicted
             to be.
-            input_dim: The dimensions of the predicted heatmaps.
+        input_dim: The dimensions of the predicted heatmaps.
         relationship: A tuple containing the names of the subject, predicate
             and object.
+            
+    Returns:
+        The attended subject and object heatmap over the image, concatenated with
+        the original image.
     """
     image = original_image.resize((input_dim, input_dim))
     image = np.array(image)
@@ -46,6 +72,7 @@ def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
     #out = Image.alpha_composite(together.convert('RGBA'), txt)
     #return out
     return together
+
 
 def get_dict(vocab_dir):
     """Returns the mapping from categories to names of objects and predicates.
