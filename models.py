@@ -103,9 +103,11 @@ class ReferringRelationshipsModel():
         # Iterate!
         for iteration in range(self.iterations):
             predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
+            predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(predicate_att)
             new_image_features = Multiply()([im_features, predicate_att])
             new_object_att = self.attend(new_image_features, embedded_object, name='object-att-{}'.format(iteration+1))
             inv_predicate_att = self.transform_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
+            inv_predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
             new_image_features = Multiply()([im_features, inv_predicate_att])
             new_subject_att = self.attend(new_image_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
             if self.use_internal_loss:
