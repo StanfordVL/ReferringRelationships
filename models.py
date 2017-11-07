@@ -13,7 +13,6 @@ from keras.models import Model
 from keras.regularizers import l2
 
 import numpy as np
-import tensorflow as tf
 
 
 class ReferringRelationshipsModel():
