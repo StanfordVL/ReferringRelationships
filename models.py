@@ -317,31 +317,6 @@ class ReferringRelationshipsModel():
         model = Model(inputs=model_inputs, outputs=[subject_regions, object_regions])
         return model
 
-    def build_baseline_model_no_predicate(self):
-        """Initializes the SSN model.
-
-        This model predicts two heatmaps for obj and subj. No stacked attention.
-        This baseline does not use the predicate.
-
-        Returns:
-            The Keras model.
-        """
-        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_subj = Input(shape=(1,))
-        input_obj = Input(shape=(1,))
-        im_features = self.build_image_model(input_im)
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        embedded_subject = subj_obj_embedding(input_subj)
-        embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_object = subj_obj_embedding(input_obj)
-        embedded_object = Dropout(self.dropout)(embedded_object)
-        subject_att = self.attend(im_features, embedded_subject)
-        object_att = self.attend(im_features, embedded_object)
-        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        object_regions = self.build_upsampling_layer(object_att, name="object")
-        model = Model(inputs=[input_im, input_subj, input_obj], outputs=[subject_regions, object_regions])
-        return model
-
     def build_image_model(self, input_im):
         """Grab the image features.
 
@@ -378,7 +353,7 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def attend(self, feature_map, query, name):
+    def attend(self, feature_map, query, name=None):
         query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
