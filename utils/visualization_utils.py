@@ -12,12 +12,12 @@ from iterator import RefRelDataIterator
 
 def add_attention(original_image, heatmap, input_dim):
     """Adds a heatmap visualization to the original image.
-    
+
     Args:
         original_image: A PIL representation of the original image.
         heatmap: A numpy representation of where the object is predicted to be.
         input_dim: The dimensions of the predicted heatmaps.
-    
+
     Returns:
         The attended heatmap over the image.
     """
@@ -34,12 +34,12 @@ def add_attention(original_image, heatmap, input_dim):
 
 def get_bbox_from_heatmap(heatmap, threshold=0.5, input_dim=224):
     """Grabs the bbox that the heatmap represents.
-    
+
     Args:
         heatmap: A numpy representation of where the object is.
         threshold: The min value of the threshold.
         input_dim: The dimensions of the image.
-        
+
     Returns:
         A tuple containing (ymin, ymax, xmin, xmax).
     """
@@ -54,7 +54,28 @@ def get_bbox_from_heatmap(heatmap, threshold=0.5, input_dim=224):
     return (ymin, ymax, xmin, xmax)
 
 
-def add_bboxes(original_image, subject_heatmap, object_heatmap, input_dim, threshold=0.5):
+def add_bbox_to_image(image, bbox, color='red', width=3):
+    """Adds a bounding box to the image.
+
+    Args:
+        image: A PIL image.
+        bbox: (ymin, ymax, xmin, xmax) box.
+        color: Color to draw the box with.
+
+    Returns:
+        A PIL image with the bounding box drawn.
+    """
+    output = image.copy()
+    ymin, ymax, xmin, xmax = bbox
+    draw = ImageDraw.Draw(output)
+    for i in range(width):
+        draw.rectangle(((xmin+i, ymin+i), (xmax+i, ymax+i)), outline=color)
+    return output
+
+
+def add_bboxes(original_image, subject_heatmap, object_heatmap, input_dim,
+               threshold=0.5, subject_color='blue', object_color='green',
+               width=3):
     """Creates the visualizations for a predicted subject and object map.
 
     Args:
@@ -65,25 +86,23 @@ def add_bboxes(original_image, subject_heatmap, object_heatmap, input_dim, thres
             to be.
         input_dim: The dimensions of the predicted heatmaps.
         threshold: The min value of the threshold.
-            
+        subject_color: The color of the subject bbox.
+        object_color: The color of the object bbox.
+        width: The width of the rectangle to be drawn.
+
     Returns:
         The attended subject and object heatmap over the image, concatenated with
         the original image.
     """
     image = original_image.resize((input_dim, input_dim))
-    
-    subject_image = image.copy()
-    s_ymin, s_ymax, s_xmin, s_xmax = get_bbox_from_heatmap(
-        subject_heatmap, input_dim=input_dim, threshold=threshold)
-    s_draw = ImageDraw.Draw(subject_image)
-    s_draw.rectangle(((s_xmin, s_ymin), (s_xmax, s_ymax)), outline='red')
-    
-    object_image = image.copy()
-    o_ymin, o_ymax, o_xmin, o_xmax = get_bbox_from_heatmap(
-        object_heatmap, input_dim=input_dim, threshold=threshold)
-    o_draw = ImageDraw.Draw(object_image)   
-    o_draw.rectangle(((o_xmin, o_ymin), (o_xmax, o_ymax)), outline='red')
-
+    s_bbox = get_bbox_from_heatmap(subject_heatmap, input_dim=input_dim,
+                                   threshold=threshold)
+    subject_image = add_bbox_to_image(image, s_bbox, color=subject_color,
+                                      width=width)
+    o_bbox = get_bbox_from_heatmap(object_heatmap, input_dim=input_dim,
+                                   threshold=threshold)
+    object_image = add_bbox_to_image(image, o_bbox, color=object_color,
+                                     width=width)
     together = np.concatenate((image, subject_image, object_image), axis=1)
     together = Image.fromarray(together.astype('uint8'), 'RGB')
     return together
@@ -102,7 +121,7 @@ def get_att_map(original_image, subject_heatmap, object_heatmap, input_dim,
         input_dim: The dimensions of the predicted heatmaps.
         relationship: A tuple containing the names of the subject, predicate
             and object.
-            
+
     Returns:
         The attended subject and object heatmap over the image, concatenated with
         the original image.
