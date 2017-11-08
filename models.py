@@ -130,10 +130,12 @@ class ReferringRelationshipsModel():
 
         object_regions = self.build_upsampling_layer(object_att, name="object")
         subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-
+        if self.use_predicate:
+            inputs=[input_im, input_subj, input_pred, input_obj]
+        else:
+            inputs=[input_im, input_subj, input_obj]
         # Create and output the model.
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj],
-                      outputs=[subject_regions, object_regions])
+        model = Model(inputs=inputs, outputs=[subject_regions, object_regions])
         return model
 
     def build_conv_modules(self, basename):
