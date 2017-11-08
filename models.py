@@ -4,6 +4,7 @@
 from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
+from keras.applications.vgg19 import VGG19
 from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization
 from keras.layers.convolutional import Conv2DTranspose, Conv2D
 from keras.layers.core import Lambda, Dropout, Reshape
@@ -349,9 +350,14 @@ class ReferringRelationshipsModel():
         Returns:
             The image feature map.
         """
-        base_model = ResNet50(weights='imagenet',
-                              include_top=False,
-                              input_shape=(self.input_dim, self.input_dim, 3))
+        if self.cnn == "resnet":
+            base_model = ResNet50(weights='imagenet',
+                                  include_top=False,
+                                  input_shape=(self.input_dim, self.input_dim, 3))
+        else:
+            base_model = VGG19(weights='imagenet', 
+                               include_top=False, 
+                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
         output = base_model.get_layer(self.feat_map_layer).output

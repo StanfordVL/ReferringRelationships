@@ -135,14 +135,17 @@ def parse_args(evaluation=False):
                         help='1/0 indicating whether to use the objects.')
     parser.add_argument('--hidden-dim', type=int, default=512,
                         help='Number of dimensions in the hidden unit.')
-    parser.add_argument('--weights', type=str, default='resnet', 
-                        help='The pretrained weights to use to extract image features')
+    parser.add_argument('--cnn', type=str, default='resnet', 
+                        help='The pretrained cnn architecture [resnet, vgg] '
+                        'to use to extract image features')
     parser.add_argument('--feat-map-dim', type=int, default=14,
                         help='The size of the feature map extracted from the '
                         'image.')
     parser.add_argument('--feat-map-layer', type=str, default='activation_40',
-                        help='The feature map to use in resnet '
-                        '(activation_40 for 14x14 and activation_22 for 28x28)')
+                        help='The feature map to use '
+                        'for resnet: (activation_40 for 14x14 and activation_22 for 28x28) '
+                        'for vgg: (block3_conv4 for 56x56, block4_conv4 for 28x28 and '
+                        'block5_conv4 for 14x14)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
     parser.add_argument('--num-predicates', type=int, default=70,
