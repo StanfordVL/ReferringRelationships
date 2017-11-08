@@ -36,12 +36,6 @@ def parse_training_args(parser):
                         'examples in the CE loss')
     parser.add_argument('--loss-func', type=str, default='basic',
                         help='basic or weighted cross entropy loss.')
-    parser.add_argument('--use-internal-loss', action='store_true', default=False,
-                        help='Whether to add intermediate losses in the sym_ssn model')
-    parser.add_argument('--internal-loss-weight', type=float, default=0.1,
-                        help='The co-officient of the internal loss of the '
-                        'subject and object. Must use --model sym-ssn, '
-                        '--use-internal-loss.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.001,
@@ -122,6 +116,22 @@ def parse_args(evaluation=False):
                         help='wheteher to return indexes or masks for the '
                         'iterator, should only be used for ssn and '
                         'sym_ssn models')
+    parser.add_argument('--use-internal-loss', action='store_true', default=False,
+                        help='Whether to add intermediate losses in the sym_ssn model')
+    parser.add_argument('--internal-loss-weight', type=float, default=0.1,
+                        help='The co-officient of the internal loss of the '
+                        'subject and object. Must use --model sym-ssn, '
+                        '--use-internal-loss.')
+
+    # Discovery Experiment.
+    parser.add_argument('--discovery', action='store_true', default=False,
+                        help='Used when we run the discovery experinent '
+                        'where objects are dropped during training.')
+    parser.add_argument('--droprate', type=float, default=0.3,
+                        help='Rate at which objects and subjects are dropped.')
+    parser.add_argument('--always-drop-file', type=str, default=None,
+                        help='Location of list of objects that should always '
+                        'be dropped.')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
@@ -135,7 +145,7 @@ def parse_args(evaluation=False):
                         help='1/0 indicating whether to use the objects.')
     parser.add_argument('--hidden-dim', type=int, default=512,
                         help='Number of dimensions in the hidden unit.')
-    parser.add_argument('--cnn', type=str, default='resnet', 
+    parser.add_argument('--cnn', type=str, default='resnet',
                         help='The pretrained cnn architecture [resnet, vgg] '
                         'to use to extract image features')
     parser.add_argument('--feat-map-dim', type=int, default=14,

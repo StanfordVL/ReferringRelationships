@@ -8,7 +8,7 @@ from keras.models import load_model
 
 from config import parse_args
 from models import ReferringRelationshipsModel
-from iterator import SmartIterator
+from iterator import SmartIterator, DiscoveryIterator
 from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics
 from utils.train_utils import Logger
@@ -56,8 +56,11 @@ if __name__=='__main__':
     logging.info(format_args(args))
 
     # Setup the training and validation data iterators
-    train_generator = SmartIterator(args.train_data_dir, args)
-    val_generator = SmartIterator(args.val_data_dir, args)
+    Iterator = SmartIterator
+    if args.discovery:
+        Iterator = DiscoveryIterator
+    train_generator = Iterator(args.train_data_dir, args)
+    val_generator = Iterator(args.val_data_dir, args)
     logging.info('Train on {} samples'.format(train_generator.samples))
     logging.info('Validate on {} samples'.format(val_generator.samples))
 
@@ -128,7 +131,7 @@ if __name__=='__main__':
 
 
     # Run Testing.
-    test_generator = SmartIterator(args.test_data_dir, args)
+    test_generator = Iterator(args.test_data_dir, args)
     test_steps = len(test_generator)
     outputs = model.evaluate_generator(generator=test_generator,
                                        steps=test_steps,
