@@ -56,7 +56,11 @@ if __name__=='__main__':
     # create a new instance model
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
-    model.compile(loss=['binary_crossentropy', 'binary_crossentropy'],
+    if args.loss_func == 'weighted':
+        loss_func = get_loss_func(args.w1)
+    else:
+        loss_func = 'binary_crossentropy'
+    model.compile(loss=[loss_func, loss_func],
                   optimizer=RMSprop(lr=0.01),
                   metrics=metrics)
     model.load_weights(args.model_checkpoint)

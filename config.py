@@ -34,8 +34,6 @@ def parse_training_args(parser):
     parser.add_argument('--w1', type=float, default=2.,
                         help='The coefficient to use on the positive '
                         'examples in the CE loss')
-    parser.add_argument('--loss-func', type=str, default='basic',
-                        help='basic or weighted cross entropy loss.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.001,
@@ -122,6 +120,8 @@ def parse_args(evaluation=False):
                         help='The co-officient of the internal loss of the '
                         'subject and object. Must use --model sym-ssn, '
                         '--use-internal-loss.')
+    parser.add_argument('--loss-func', type=str, default='basic',
+                        help='basic or weighted cross entropy loss.')
 
     # Discovery Experiment.
     parser.add_argument('--discovery', action='store_true', default=False,
