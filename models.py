@@ -37,6 +37,7 @@ class ReferringRelationshipsModel():
         self.use_object = args.use_object
         self.nb_conv_att_map = args.nb_conv_att_map
         self.nb_conv_im_map = args.nb_conv_im_map
+        self.cnn = args.cnn
         self.feat_map_layer = args.feat_map_layer
         self.conv_im_kernel = args.conv_im_kernel
         self.conv_predicate_kernel = args.conv_predicate_kernel
