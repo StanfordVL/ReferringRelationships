@@ -126,7 +126,7 @@ def parse_args(evaluation=False):
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
                         help='Indicates which model to use: '
-                        '[ssn, baseline, sym_ssn or baseline_no_predicate].')
+                        '[ssn, baseline, sym_ssn].')
     parser.add_argument('--use-subject', type=int, default=1,
                         help='1/0 indicating whether to use the subjects.')
     parser.add_argument('--use-predicate', type=int, default=1,

@@ -60,8 +60,6 @@ class ReferringRelationshipsModel():
             return self.build_iterative_sym_ssn_model()
         elif self.model == "baseline":
             return self.build_baseline_model()
-        elif self.model == "baseline_no_predicate":
-            return self.build_baseline_model_no_predicate()
         else:
             raise ValueError("model argument not recognized. Model options: ssn, sym_ssn, baseline, baseline_no_predicate")
 
