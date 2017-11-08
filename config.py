@@ -44,7 +44,7 @@ def parse_training_args(parser):
                         '--use-internal-loss.')
 
     # Learning rate parameters.
-    parser.add_argument('--lr', type=float, default=0.0001,
+    parser.add_argument('--lr', type=float, default=0.001,
                         help='The learning rate for training.')
     parser.add_argument('--patience', type=int, default=2,
                         help='The number of epochs to wait if val loss is '
@@ -120,7 +120,7 @@ def parse_args(evaluation=False):
     parser.add_argument('--categorical-predicate', action='store_true',
                         default=False,
                         help='wheteher to return indexes or masks for the '
-                        'smart iterator, should only be used for ssn and '
+                        'iterator, should only be used for ssn and '
                         'sym_ssn models')
 
     # Model parameters.
@@ -135,6 +135,8 @@ def parse_args(evaluation=False):
                         help='1/0 indicating whether to use the objects.')
     parser.add_argument('--hidden-dim', type=int, default=512,
                         help='Number of dimensions in the hidden unit.')
+    parser.add_argument('--weights', type=str, default='resnet', 
+                        help='The pretrained weights to use to extract image features')
     parser.add_argument('--feat-map-dim', type=int, default=14,
                         help='The size of the feature map extracted from the '
                         'image.')
@@ -163,20 +165,10 @@ def parse_args(evaluation=False):
                         'the ssn model to move heatmaps')
     parser.add_argument('--reg', type=float, default=0.2,
                         help='Weight regularizer.')
-    parser.add_argument('--nb-dense-emb', type=int, default=1,
-                        help='number of dense layers after embedding layer')
-    parser.add_argument('--att-activation', default='tanh', type=str,
-                        help='Whether to use tanh or tanh+relu or binary or norm or norm+relu or gaussian activation after moving heatmaps.')
     parser.add_argument('--conv-predicate-channels', default=1, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
-    parser.add_argument('--att-mechanism', default="dot", type=str,
-                        help='Whether to use a dot product (dot) or only multiply (mul) for attention')
     parser.add_argument('--iterations', default=1, type=int,
                         help='The number of iterations to finetune the heatmaps.')
-    parser.add_argument('--norm-center', default=0., type=float,
-                        help='The shift to use before thresholding attention values when using gaussian normalization')
-    parser.add_argument('--norm-scale', default=2., type=float,
-                        help='The scale to use before thresholding attention values when using gaussian normalization')
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],

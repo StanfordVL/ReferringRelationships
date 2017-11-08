@@ -42,13 +42,8 @@ class ReferringRelationshipsModel():
         self.conv_predicate_channels = args.conv_predicate_channels
         self.model = args.model
         self.reg = args.reg
-        self.nb_dense_emb = args.nb_dense_emb
         self.use_internal_loss = args.use_internal_loss
-        self.att_activation = args.att_activation
-        self.norm_center = args.norm_center
         self.internal_loss_weight = args.internal_loss_weight
-        self.att_mechanism = args.att_mechanism
-        self.norm_scale = args.norm_scale
         self.iterations = args.iterations
 
     def build_model(self):
@@ -278,22 +273,7 @@ class ReferringRelationshipsModel():
         merged_output = Concatenate(axis=3)(conv_outputs)
         predicate_att = Multiply()([predicate_masks, merged_output])
         predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(predicate_att)
-        if self.att_activation == "tanh":
-            predicate_att = Activation("tanh")(predicate_att)
-        elif self.att_activation == "tanh+relu":
-            predicate_att = Activation("tanh")(predicate_att)
-            predicate_att = Activation("relu")(predicate_att)
-        elif self.att_activation == "norm":
-            predicate_att = Reshape((self.feat_map_dim*self.feat_map_dim,))(predicate_att)
-            predicate_att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(predicate_att)
-            predicate_att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(predicate_att)
-            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(predicate_att)
-        elif self.att_activation == "norm+relu":
-            predicate_att = Reshape((self.feat_map_dim*self.feat_map_dim,))(predicate_att)
-            predicate_att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(predicate_att)
-            predicate_att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(predicate_att)
-            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(predicate_att)
-            predicate_att =  Activation("relu")(predicate_att)
+        predicate_att = Activation("tanh")(predicate_att)
         return predicate_att
 
     def build_baseline_model(self):
