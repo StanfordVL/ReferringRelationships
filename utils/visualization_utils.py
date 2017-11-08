@@ -43,7 +43,7 @@ def get_bbox_from_heatmap(heatmap, threshold=0.5, input_dim=224):
     Returns:
         A tuple containing (ymin, ymax, xmin, xmax).
     """
-    heatmap = heatmap.reshape((params.input_dim, params.input_dim))
+    heatmap = heatmap.reshape((input_dim, input_dim))
     heatmap[heatmap < threshold] = 0
     rows = heatmap.sum(axis = 1).nonzero()
     cols = heatmap.sum(axis = 0).nonzero()
@@ -54,7 +54,7 @@ def get_bbox_from_heatmap(heatmap, threshold=0.5, input_dim=224):
     return (ymin, ymax, xmin, xmax)
 
 
-def add_bboxes(original_image, subject_heatmap, object_heatmap, input_dim):
+def add_bboxes(original_image, subject_heatmap, object_heatmap, input_dim, threshold=0.5):
     """Creates the visualizations for a predicted subject and object map.
 
     Args:
@@ -64,21 +64,23 @@ def add_bboxes(original_image, subject_heatmap, object_heatmap, input_dim):
         object_heatmap: A numpy representation of where the object is predicted
             to be.
         input_dim: The dimensions of the predicted heatmaps.
+        threshold: The min value of the threshold.
             
     Returns:
         The attended subject and object heatmap over the image, concatenated with
         the original image.
     """
     image = original_image.resize((input_dim, input_dim))
-    image = np.array(image)
     
-    subject_image = np.deepcopy(image)
-    s_ymin, s_ymax, s_xmin, s_xmax = get_bbox_from_heatmap(subject_heatmap)
+    subject_image = image.copy()
+    s_ymin, s_ymax, s_xmin, s_xmax = get_bbox_from_heatmap(
+        subject_heatmap, input_dim=input_dim, threshold=threshold)
     s_draw = ImageDraw.Draw(subject_image)
     s_draw.rectangle(((s_xmin, s_ymin), (s_xmax, s_ymax)), outline='red')
     
-    object_image = np.deepcopy(image)
-    o_ymin, o_ymax, o_xmin, o_xmax = get_bbox_from_heatmap(object_heatmap)
+    object_image = image.copy()
+    o_ymin, o_ymax, o_xmin, o_xmax = get_bbox_from_heatmap(
+        object_heatmap, input_dim=input_dim, threshold=threshold)
     o_draw = ImageDraw.Draw(object_image)   
     o_draw.rectangle(((o_xmin, o_ymin), (o_xmax, o_ymax)), outline='red')
 
