@@ -405,13 +405,10 @@ class ReferringRelationshipsModel():
         k = int(np.log(upsampling_factor) / np.log(2))
         res = feature_map
         for i in range(k):
-            res = UpSampling2D(size=(2, 2))(res)
-            res = Conv2DTranspose(1, 3, padding='same', use_bias=False, activation="relu")(res)
-        res = Reshape((self.input_dim*self.input_dim,))(res)
-        if name is not None:
-            predictions = Activation("tanh", name=name)(res)
-        else:
-            predictions = Activation("tanh")(res)
+            res = UpSampling2D(size=(2, 2), name=name+"-upsampling-{}".format(i))(res)
+            res = Conv2DTranspose(1, 3, padding='same', use_bias=False, name=name+"-convT-{}".format(i), activation="relu")(res)
+        res = Reshape((self.input_dim * self.input_dim,))(res)
+        predictions = Activation("tanh", name=name)(res)
         return predictions
 
     def build_relationship_model(self, relationship_inputs, num_classes):
