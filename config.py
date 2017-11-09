@@ -127,8 +127,10 @@ def parse_args(evaluation=False):
     parser.add_argument('--discovery', action='store_true', default=False,
                         help='Used when we run the discovery experinent '
                         'where objects are dropped during training.')
-    parser.add_argument('--droprate', type=float, default=0.3,
-                        help='Rate at which objects and subjects are dropped.')
+    parser.add_argument('--subject-droprate', type=float, default=0.3,
+                        help='Rate at which subjects are dropped.')
+    parser.add_argument('--object-droprate', type=float, default=0.3,
+                        help='Rate at which objects are dropped.')
     parser.add_argument('--always-drop-file', type=str, default=None,
                         help='Location of list of objects that should always '
                         'be dropped.')

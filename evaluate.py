@@ -45,7 +45,6 @@ if __name__=='__main__':
         Iterator = DiscoveryIterator
     else:
         Iterator = SmartIterator
-    args.droprate = 0.0
     generator = Iterator(args.data_dir, args)
     logging.info('Evaluating on {} samples'.format(generator.samples))
 
