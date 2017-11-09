@@ -78,12 +78,17 @@ def parse_evaluation_args(parser):
     """
     parser.add_argument('--model-checkpoint', type=str, default=None,
                         help='The model to evaluate.')
-    parser.add_argument('--model-dir', type=str, default=None,
-                        help='Location of where the logs should be stored.')
     parser.add_argument('--data-dir', type=str,
                         default='data/pred-vrd/test/',
                         help='Location of the data to evluate with.')
-
+    parser.add_argument('--batch-size', type=int, default=128,
+                        help='The batch size used in evaluation.')
+    parser.add_argument('--workers', type=int, default=1,
+                        help='Number workers used to load the data.')
+    parser.add_argument('--heatmap-threshold', type=float, nargs='+',
+                        default=[0.3, 0.5, 0.6],
+                        help='The thresholds above which we consider '
+                        'a heatmap to contain an object.')
 
 def parse_args(evaluation=False):
     """Initializes a parser and reads the command line parameters.

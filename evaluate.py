@@ -8,22 +8,25 @@ from iterator import DiscoveryIterator, SmartIterator
 from keras.optimizers import RMSprop
 from models import ReferringRelationshipsModel
 from utils.eval_utils import format_results
+from utils.visualization_utils import objdict
 from utils.eval_utils import get_metrics
 from utils.train_utils import format_args
 
 import json
-import logging
 import os
 
 
 if __name__=='__main__':
     # Parse command line arguments.
     args = parse_args(evaluation=True)
-
+    models_dir = os.path.dirname(args.model_checkpoint)
+    params = objdict(json.load(open(os.path.join(models_dir, "args.json"), "r")))
+    params.batch_size = args.batch_size
+    params.dropout = 0.
     # If the dataset does exists, alert the user.
     if not os.path.isdir(args.data_dir):
         raise ValueError('The directory %s doesn\'t exist. '
-            'Exiting evaluation!' % args.save_dir)
+            'Exiting evaluation!' % args.data_dir)
 
     # Make sure the dataset and images exist.
     for hdf5_file in [os.path.join(args.data_dir, 'images.hdf5'),
@@ -32,32 +35,23 @@ if __name__=='__main__':
             raise ValueError('The dataset %s doesn\'t exist. '
                 'Exiting evaluation!' % hdf5_file)
 
-    # Setup logging.
-    logfile = os.path.join(args.model_dir, 'evaluation.log')
-    logging.basicConfig(format='%(message)s', level=logging.INFO,
-                        filename=logfile)
-
-    # Store the arguments used in this training process.
-    logging.info(format_args(args))
-
     # Setup the training and validation data iterators
     if args.discovery:
         Iterator = DiscoveryIterator
     else:
         Iterator = SmartIterator
-    args.droprate = 0.0
-    generator = Iterator(args.data_dir, args)
+    generator = Iterator(args.data_dir, params)
     logging.info('Evaluating on {} samples'.format(generator.samples))
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
-    metrics = get_metrics(args.input_dim, args.heatmap_threshold)
+    metrics = get_metrics(params.input_dim, args.heatmap_threshold)
 
     # create a new instance model
-    relationships_model = ReferringRelationshipsModel(args)
+    relationships_model = ReferringRelationshipsModel(params)
     model = relationships_model.build_model()
     if args.loss_func == 'weighted':
-        loss_func = get_loss_func(args.w1)
+        loss_func = get_loss_func(params.w1)
     else:
         loss_func = 'binary_crossentropy'
     model.compile(loss=[loss_func, loss_func],
