@@ -20,7 +20,7 @@ def get_metrics(input_dim, heatmap_threshold):
     metrics = []
     iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, input_dim)
     iou_bbox_metric.__name__ = 'iou_bbox'
-    for metric_func in [iou, iou_acc, iou_bbox_metric]:
+    for metric_func in [iou, precision, recall, iou_acc, iou_bbox_metric]:
         for thresh in heatmap_threshold:
             metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
                 metric_func, thresh)
@@ -62,6 +62,44 @@ def iou(y_true, y_pred, heatmap_threshold):
     union = K.cast(K.greater(y_true + pred, 0), "float32")
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
+
+
+def precision(y_true, y_pred, heatmap_threshold):
+    """Measures the precision of our predictions with ground truth.
+
+    Args:
+        y_true: The ground truth bounding box locations.
+        y_pred: Our heatmap predictions.
+        heatmap_threshold: Config specified theshold above which we consider
+          a prediction to contain an object.
+
+    Returns:
+        A float containing the precision of our predictions.
+    """
+    pred = K.cast(K.greater(y_pred, heatmap_threshold), "float32")
+    tp = y_true * pred
+    fp = K.cast(K.greater(pred - y_true, 0), 'float32')
+    precision_values = K.sum(tp)/(K.sum(tp) + K.sum(fp) + K.epsilon())
+    return K.mean(precision_values)
+
+
+def recall(y_true, y_pred, heatmap_threshold):
+    """Measures the recall of our predictions with ground truth.
+
+    Args:
+        y_true: The ground truth bounding box locations.
+        y_pred: Our heatmap predictions.
+        heatmap_threshold: Config specified theshold above which we consider
+          a prediction to contain an object.
+
+    Returns:
+        A float containing the recall of our predictions.
+    """
+    pred = K.cast(K.greater(y_pred, heatmap_threshold), "float32")
+    tp = y_true * pred
+    fn = K.cast(K.greater(y_true - pred, 0), 'float32')
+    recall_values = K.sum(tp)/(K.sum(tp) + K.sum(fn) + K.epsilon())
+    return K.mean(recall_values)
 
 
 def iou_acc(y_true, y_pred, heatmap_threshold):

@@ -15,11 +15,23 @@ import time
 
 
 def weighted_cross_entropy(y_true, y_pred, w1, eps=10e-8):
+    """Weighted cross entropy implementation.
+
+    Args:
+        y_true: Ground truth data.
+        y_pred: Model predictions.
+        w1: The weight of the positive ground truth values.
+        eps: small epsilon value to avoid divide by zero errors.
+
+    Returns:
+        The loss value.
+    """
     y_pred = K.clip(y_pred, eps, 1 - eps)
     loss_weights = 1. + (w1 - 1.) * y_true
     s_ce_values = - y_true * K.log(y_pred) - (1. - y_true) * K.log(1. - y_pred)
     loss = K.mean(s_ce_values * loss_weights)
     return loss
+
 
 def get_loss_func(w1):
     """Wrapper for weighted sigmoid cross entropy loss.
@@ -33,6 +45,7 @@ def get_loss_func(w1):
     def loss_func(y_true, y_pred):
         return weighted_cross_entropy(y_true, y_pred, w1)
     return loss_func
+
 
 def get_opt(opt, lr):
     """Initializes the opt that we want to train with.
