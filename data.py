@@ -627,7 +627,7 @@ if __name__ == '__main__':
         image_ids = None
         if args.multi_images is not None:
             image_ids = json.load(open(args.multi_images))
-            test_dir = os.path.join(args.save_dir, 'multi_test')
+            test_dir = os.path.join(args.save_dir, 'multi-test')
         if not os.path.isdir(test_dir):
             os.mkdir(test_dir)
         if args.save_images:
