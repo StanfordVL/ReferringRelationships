@@ -10,8 +10,7 @@ from models import ReferringRelationshipsModel
 from utils.eval_utils import format_results
 from utils.visualization_utils import objdict
 from utils.eval_utils import get_metrics
-from utils.train_utils import format_args
-
+from utils.train_utils import format_args, get_loss_func
 import json
 import os
 
@@ -19,7 +18,7 @@ import os
 if __name__=='__main__':
     # Parse command line arguments.
     args = parse_args(evaluation=True)
-    models_dir = os.path.dirname(args.model_checkpoint)
+    models_dir = os.path.dirname(args.model_path)
     params = objdict(json.load(open(os.path.join(models_dir, "args.json"), "r")))
     params.batch_size = args.batch_size
     params.dropout = 0.
@@ -35,13 +34,14 @@ if __name__=='__main__':
             raise ValueError('The dataset %s doesn\'t exist. '
                 'Exiting evaluation!' % hdf5_file)
 
+    params.discovery = False
     # Setup the training and validation data iterators
-    if args.discovery:
+    if params.discovery:
         Iterator = DiscoveryIterator
     else:
         Iterator = SmartIterator
+    #TODO: add droprate here if discovery is True
     generator = Iterator(args.data_dir, params)
-    logging.info('Evaluating on {} samples'.format(generator.samples))
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
@@ -50,14 +50,14 @@ if __name__=='__main__':
     # create a new instance model
     relationships_model = ReferringRelationshipsModel(params)
     model = relationships_model.build_model()
-    if args.loss_func == 'weighted':
+    if params.loss_func == 'weighted':
         loss_func = get_loss_func(params.w1)
     else:
         loss_func = 'binary_crossentropy'
     model.compile(loss=[loss_func, loss_func],
                   optimizer=RMSprop(lr=0.01),
                   metrics=metrics)
-    model.load_weights(args.model_checkpoint)
+    model.load_weights(args.model_path)
 
     # Run Evaluation.
     steps = len(generator)
@@ -67,5 +67,3 @@ if __name__=='__main__':
                                        workers=args.workers)
     results = format_results(model.metrics_names, outputs)
     print('Test results - ' + results)
-    logging.info('='*30)
-    logging.info('Test results - ' + results)

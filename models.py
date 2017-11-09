@@ -47,7 +47,7 @@ class ReferringRelationshipsModel():
         self.use_internal_loss = args.use_internal_loss
         self.internal_loss_weight = args.internal_loss_weight
         self.iterations = args.iterations
-
+        
         # Discovery.
         if args.discovery:
             self.num_objects += 1
@@ -73,7 +73,8 @@ class ReferringRelationshipsModel():
         # Inputs.
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
         input_subj = Input(shape=(1,))
-        input_pred = Input(shape=(self.num_predicates,))
+        if self.use_predicate: 
+            input_pred = Input(shape=(self.num_predicates,))
         input_obj = Input(shape=(1,))
 
         # Extract image features.
@@ -91,9 +92,10 @@ class ReferringRelationshipsModel():
         object_att = self.attend(im_features, embedded_object, name='object-att-0')
 
         # Create the predicate conv layers.
-        predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
-        predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
-        inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
+        if self.use_predicate:
+            predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
+            predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
+            inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
 
         if self.use_internal_loss:
             subject_outputs = [subject_att]

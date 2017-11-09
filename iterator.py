@@ -34,7 +34,8 @@ class DiscoveryIterator(Sequence):
         self.num_objects = args.num_objects
 
         # Drop variables.
-        self.droprate = args.droprate
+        self.subject_droprate = args.subject_droprate
+        self.object_droprate = args.object_droprate
         self.always_drop_file = args.always_drop_file
         if self.always_drop_file is not None:
             self.drop_list = json.load(open(self.always_drop_file))
@@ -113,7 +114,8 @@ class DiscoveryIterator(Sequence):
         inputs = [batch_image]
         if self.use_subject:
             subject_masks = np.random.choice(
-                    2, end_idx-start_idx, p=[self.droprate, 1.0-self.droprate,])
+                    2, end_idx-start_idx,
+                    p=[self.subject_droprate, 1.0 - self.subject_droprate,])
             subject_cats = batch_rel[:, 0]
             subject_cats[subject_masks == 0] = self.num_objects
             inputs.append(subject_cats)
@@ -124,7 +126,8 @@ class DiscoveryIterator(Sequence):
                 inputs.append(batch_rel[:, 1])
         if self.use_object:
             object_masks = np.random.choice(
-                    2, end_idx-start_idx, p=[self.droprate, 1.0-self.droprate])
+                    2, end_idx-start_idx,
+                    p=[self.object_droprate, 1.0 - self.object_droprate])
             object_cats = batch_rel[:, 2]
             object_cats[object_masks == 0] = self.num_objects
             inputs.append(object_cats)
