@@ -29,8 +29,8 @@ class ReferringRelationshipsModel():
         self.input_dim = args.input_dim
         self.feat_map_dim = args.feat_map_dim
         self.hidden_dim = args.hidden_dim
-        self.num_predicates = args.num_predicates
         self.num_objects = args.num_objects
+        self.num_predicates = args.num_predicates
         self.dropout = args.dropout
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
@@ -47,6 +47,10 @@ class ReferringRelationshipsModel():
         self.use_internal_loss = args.use_internal_loss
         self.internal_loss_weight = args.internal_loss_weight
         self.iterations = args.iterations
+
+        # Discovery.
+        if args.discovery:
+            self.num_objects += 1
 
     def build_model(self):
         """Chooses which model based on the arguments.
@@ -333,8 +337,8 @@ class ReferringRelationshipsModel():
                                   include_top=False,
                                   input_shape=(self.input_dim, self.input_dim, 3))
         else:
-            base_model = VGG19(weights='imagenet', 
-                               include_top=False, 
+            base_model = VGG19(weights='imagenet',
+                               include_top=False,
                                input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
