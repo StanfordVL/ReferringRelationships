@@ -43,6 +43,7 @@ def get_bbox_from_heatmap(heatmap, threshold=0.5, input_dim=224):
     Returns:
         A tuple containing (ymin, ymax, xmin, xmax).
     """
+    heatmap = heatmap.copy()
     heatmap = heatmap.reshape((input_dim, input_dim))
     heatmap[heatmap < threshold] = 0
     rows = heatmap.sum(axis = 1).nonzero()
