@@ -573,6 +573,10 @@ if __name__ == '__main__':
     parser.add_argument('--test', action='store_true',
                         help='When true, the data is not split into training '
                         'and validation sets')
+    parser.add_argument('--multi-images', type=str, default=None,
+                        help='When not None, the dataset is created from only '
+                        'the images that have multiple instances of the same '
+                        'category in every image.')
     parser.add_argument('--val-percent', type=float, default=0.1,
                         help='Fraction of images in validation split.')
     parser.add_argument('--save-dir', type=str, default=None,
@@ -620,11 +624,15 @@ if __name__ == '__main__':
     if args.test:
         # Build the test dataset.
         test_dir = os.path.join(args.save_dir, 'test')
+        image_ids = None
+        if args.multi_images is not None:
+            image_ids = json.load(open(args.multi_images))
+            test_dir = os.path.join(args.save_dir, 'multi_test')
         if not os.path.isdir(test_dir):
             os.mkdir(test_dir)
         if args.save_images:
-            dataset.save_images(test_dir)
-        dataset.build_and_save_dataset(test_dir)
+            dataset.save_images(test_dir, image_ids=image_ids)
+        dataset.build_and_save_dataset(test_dir, image_ids=image_ids)
     else:
         # Split the images into train and val datasets.
         train_split, val_split = dataset.get_train_val_splits(

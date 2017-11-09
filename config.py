@@ -34,17 +34,9 @@ def parse_training_args(parser):
     parser.add_argument('--w1', type=float, default=2.,
                         help='The coefficient to use on the positive '
                         'examples in the CE loss')
-    parser.add_argument('--loss-func', type=str, default='basic',
-                        help='basic or weighted cross entropy loss.')
-    parser.add_argument('--use-internal-loss', action='store_true', default=False,
-                        help='Whether to add intermediate losses in the sym_ssn model')
-    parser.add_argument('--internal-loss-weight', type=float, default=0.1,
-                        help='The co-officient of the internal loss of the '
-                        'subject and object. Must use --model sym-ssn, '
-                        '--use-internal-loss.')
 
     # Learning rate parameters.
-    parser.add_argument('--lr', type=float, default=0.0001,
+    parser.add_argument('--lr', type=float, default=0.001,
                         help='The learning rate for training.')
     parser.add_argument('--patience', type=int, default=2,
                         help='The number of epochs to wait if val loss is '
@@ -120,13 +112,33 @@ def parse_args(evaluation=False):
     parser.add_argument('--categorical-predicate', action='store_true',
                         default=False,
                         help='wheteher to return indexes or masks for the '
-                        'smart iterator, should only be used for ssn and '
+                        'iterator, should only be used for ssn and '
                         'sym_ssn models')
+    parser.add_argument('--use-internal-loss', action='store_true', default=False,
+                        help='Whether to add intermediate losses in the sym_ssn model')
+    parser.add_argument('--internal-loss-weight', type=float, default=0.1,
+                        help='The co-officient of the internal loss of the '
+                        'subject and object. Must use --model sym-ssn, '
+                        '--use-internal-loss.')
+    parser.add_argument('--loss-func', type=str, default='basic',
+                        help='basic or weighted cross entropy loss.')
+
+    # Discovery Experiment.
+    parser.add_argument('--discovery', action='store_true', default=False,
+                        help='Used when we run the discovery experinent '
+                        'where objects are dropped during training.')
+    parser.add_argument('--subject-droprate', type=float, default=0.3,
+                        help='Rate at which subjects are dropped.')
+    parser.add_argument('--object-droprate', type=float, default=0.3,
+                        help='Rate at which objects are dropped.')
+    parser.add_argument('--always-drop-file', type=str, default=None,
+                        help='Location of list of objects that should always '
+                        'be dropped.')
 
     # Model parameters.
     parser.add_argument('--model', type=str, default='ssn',
                         help='Indicates which model to use: '
-                        '[ssn, baseline, sym_ssn or baseline_no_predicate].')
+                        '[ssn, baseline, sym_ssn].')
     parser.add_argument('--use-subject', type=int, default=1,
                         help='1/0 indicating whether to use the subjects.')
     parser.add_argument('--use-predicate', type=int, default=1,
@@ -135,12 +147,17 @@ def parse_args(evaluation=False):
                         help='1/0 indicating whether to use the objects.')
     parser.add_argument('--hidden-dim', type=int, default=512,
                         help='Number of dimensions in the hidden unit.')
+    parser.add_argument('--cnn', type=str, default='resnet',
+                        help='The pretrained cnn architecture [resnet, vgg] '
+                        'to use to extract image features')
     parser.add_argument('--feat-map-dim', type=int, default=14,
                         help='The size of the feature map extracted from the '
                         'image.')
     parser.add_argument('--feat-map-layer', type=str, default='activation_40',
-                        help='The feature map to use in resnet '
-                        '(activation_40 for 14x14 and activation_22 for 28x28)')
+                        help='The feature map to use '
+                        'for resnet: (activation_40 for 14x14 and activation_22 for 28x28) '
+                        'for vgg: (block3_conv4 for 56x56, block4_conv4 for 28x28 and '
+                        'block5_conv4 for 14x14)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
     parser.add_argument('--num-predicates', type=int, default=70,
@@ -163,20 +180,10 @@ def parse_args(evaluation=False):
                         'the ssn model to move heatmaps')
     parser.add_argument('--reg', type=float, default=0.2,
                         help='Weight regularizer.')
-    parser.add_argument('--nb-dense-emb', type=int, default=1,
-                        help='number of dense layers after embedding layer')
-    parser.add_argument('--att-activation', default='tanh', type=str,
-                        help='Whether to use tanh or tanh+relu or binary or norm or norm+relu or gaussian activation after moving heatmaps.')
     parser.add_argument('--conv-predicate-channels', default=1, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
-    parser.add_argument('--att-mechanism', default="dot", type=str,
-                        help='Whether to use a dot product (dot) or only multiply (mul) for attention')
     parser.add_argument('--iterations', default=1, type=int,
                         help='The number of iterations to finetune the heatmaps.')
-    parser.add_argument('--norm-center', default=0., type=float,
-                        help='The shift to use before thresholding attention values when using gaussian normalization')
-    parser.add_argument('--norm-scale', default=2., type=float,
-                        help='The scale to use before thresholding attention values when using gaussian normalization')
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
                         default=[0.3, 0.5, 0.6],

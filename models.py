@@ -4,6 +4,7 @@
 from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
+from keras.applications.vgg19 import VGG19
 from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization
 from keras.layers.convolutional import Conv2DTranspose, Conv2D
 from keras.layers.core import Lambda, Dropout, Reshape
@@ -28,28 +29,28 @@ class ReferringRelationshipsModel():
         self.input_dim = args.input_dim
         self.feat_map_dim = args.feat_map_dim
         self.hidden_dim = args.hidden_dim
-        self.num_predicates = args.num_predicates
         self.num_objects = args.num_objects
+        self.num_predicates = args.num_predicates
         self.dropout = args.dropout
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
         self.nb_conv_att_map = args.nb_conv_att_map
         self.nb_conv_im_map = args.nb_conv_im_map
+        self.cnn = args.cnn
         self.feat_map_layer = args.feat_map_layer
         self.conv_im_kernel = args.conv_im_kernel
         self.conv_predicate_kernel = args.conv_predicate_kernel
         self.conv_predicate_channels = args.conv_predicate_channels
         self.model = args.model
         self.reg = args.reg
-        self.nb_dense_emb = args.nb_dense_emb
         self.use_internal_loss = args.use_internal_loss
-        self.att_activation = args.att_activation
-        self.norm_center = args.norm_center
         self.internal_loss_weight = args.internal_loss_weight
-        self.att_mechanism = args.att_mechanism
-        self.norm_scale = args.norm_scale
         self.iterations = args.iterations
+
+        # Discovery.
+        if args.discovery:
+            self.num_objects += 1
 
     def build_model(self):
         """Chooses which model based on the arguments.
@@ -60,8 +61,6 @@ class ReferringRelationshipsModel():
             return self.build_iterative_sym_ssn_model()
         elif self.model == "baseline":
             return self.build_baseline_model()
-        elif self.model == "baseline_no_predicate":
-            return self.build_baseline_model_no_predicate()
         else:
             raise ValueError("model argument not recognized. Model options: ssn, sym_ssn, baseline, baseline_no_predicate")
 
@@ -280,22 +279,7 @@ class ReferringRelationshipsModel():
         merged_output = Concatenate(axis=3)(conv_outputs)
         predicate_att = Multiply()([predicate_masks, merged_output])
         predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(predicate_att)
-        if self.att_activation == "tanh":
-            predicate_att = Activation("tanh")(predicate_att)
-        elif self.att_activation == "tanh+relu":
-            predicate_att = Activation("tanh")(predicate_att)
-            predicate_att = Activation("relu")(predicate_att)
-        elif self.att_activation == "norm":
-            predicate_att = Reshape((self.feat_map_dim*self.feat_map_dim,))(predicate_att)
-            predicate_att = Lambda(lambda x: x-K.min(x, axis=1, keepdims=True))(predicate_att)
-            predicate_att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(predicate_att)
-            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(predicate_att)
-        elif self.att_activation == "norm+relu":
-            predicate_att = Reshape((self.feat_map_dim*self.feat_map_dim,))(predicate_att)
-            predicate_att = Lambda(lambda x: x-K.mean(x, axis=1, keepdims=True))(predicate_att)
-            predicate_att = Lambda(lambda x: x/(K.epsilon() + K.max(K.abs(x), axis=1, keepdims=True)))(predicate_att)
-            predicate_att = Reshape((self.feat_map_dim, self.feat_map_dim, 1))(predicate_att)
-            predicate_att =  Activation("relu")(predicate_att)
+        predicate_att = Activation("tanh")(predicate_att)
         return predicate_att
 
     def build_baseline_model(self):
@@ -337,31 +321,6 @@ class ReferringRelationshipsModel():
         model = Model(inputs=model_inputs, outputs=[subject_regions, object_regions])
         return model
 
-    def build_baseline_model_no_predicate(self):
-        """Initializes the SSN model.
-
-        This model predicts two heatmaps for obj and subj. No stacked attention.
-        This baseline does not use the predicate.
-
-        Returns:
-            The Keras model.
-        """
-        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_subj = Input(shape=(1,))
-        input_obj = Input(shape=(1,))
-        im_features = self.build_image_model(input_im)
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        embedded_subject = subj_obj_embedding(input_subj)
-        embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_object = subj_obj_embedding(input_obj)
-        embedded_object = Dropout(self.dropout)(embedded_object)
-        subject_att = self.attend(im_features, embedded_subject)
-        object_att = self.attend(im_features, embedded_object)
-        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        object_regions = self.build_upsampling_layer(object_att, name="object")
-        model = Model(inputs=[input_im, input_subj, input_obj], outputs=[subject_regions, object_regions])
-        return model
-
     def build_image_model(self, input_im):
         """Grab the image features.
 
@@ -371,9 +330,14 @@ class ReferringRelationshipsModel():
         Returns:
             The image feature map.
         """
-        base_model = ResNet50(weights='imagenet',
-                              include_top=False,
-                              input_shape=(self.input_dim, self.input_dim, 3))
+        if self.cnn == "resnet":
+            base_model = ResNet50(weights='imagenet',
+                                  include_top=False,
+                                  input_shape=(self.input_dim, self.input_dim, 3))
+        else:
+            base_model = VGG19(weights='imagenet',
+                               include_top=False,
+                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
             layer.trainable = False
         output = base_model.get_layer(self.feat_map_layer).output
@@ -393,7 +357,7 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def attend(self, feature_map, query, name):
+    def attend(self, feature_map, query, name=None):
         query = Reshape((1, 1, self.hidden_dim))(query)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
@@ -405,13 +369,10 @@ class ReferringRelationshipsModel():
         k = int(np.log(upsampling_factor) / np.log(2))
         res = feature_map
         for i in range(k):
-            res = UpSampling2D(size=(2, 2))(res)
-            res = Conv2DTranspose(1, 3, padding='same', use_bias=False, activation="relu")(res)
-        res = Reshape((self.input_dim*self.input_dim,))(res)
-        if name is not None:
-            predictions = Activation("tanh", name=name)(res)
-        else:
-            predictions = Activation("tanh")(res)
+            res = UpSampling2D(size=(2, 2), name=name+"-upsampling-{}".format(i))(res)
+            res = Conv2DTranspose(1, 3, padding='same', use_bias=False, name=name+"-convT-{}".format(i), activation="relu")(res)
+        res = Reshape((self.input_dim * self.input_dim,))(res)
+        predictions = Activation("tanh", name=name)(res)
         return predictions
 
     def build_relationship_model(self, relationship_inputs, num_classes):
