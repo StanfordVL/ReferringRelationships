@@ -23,7 +23,7 @@ if __name__=='__main__':
     # If the dataset does exists, alert the user.
     if not os.path.isdir(args.data_dir):
         raise ValueError('The directory %s doesn\'t exist. '
-            'Exiting evaluation!' % args.save_dir)
+            'Exiting evaluation!' % args.data_dir)
 
     # Make sure the dataset and images exist.
     for hdf5_file in [os.path.join(args.data_dir, 'images.hdf5'),
