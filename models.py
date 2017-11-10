@@ -6,7 +6,7 @@ from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.applications.vgg19 import VGG19
 from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization
-from keras.layers.convolutional import Conv2DTranspose, Conv2D
+from keras.layers.convolutional import Conv2DTranspose, Conv2D, Conv1D
 from keras.layers.core import Lambda, Dropout, Reshape
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Multiply, Dot, Add, Concatenate
@@ -47,7 +47,7 @@ class ReferringRelationshipsModel():
         self.use_internal_loss = args.use_internal_loss
         self.internal_loss_weight = args.internal_loss_weight
         self.iterations = args.iterations
-        
+
         # Discovery.
         if args.discovery:
             self.num_objects += 1
@@ -73,7 +73,7 @@ class ReferringRelationshipsModel():
         # Inputs.
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
         input_subj = Input(shape=(1,))
-        if self.use_predicate: 
+        if self.use_predicate:
             input_pred = Input(shape=(self.num_predicates,))
         input_obj = Input(shape=(1,))
 
@@ -84,8 +84,24 @@ class ReferringRelationshipsModel():
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
+        embedded_subject = Conv1D(
+            self.hidden_dim, self.conv_predicate_kernel,
+            strides=1, padding='same', use_bias=True,
+            activation='relu')(embedded_subject)
+        embedded_subject = Conv1D(
+            self.hidden_dim, self.conv_predicate_kernel,
+            strides=1, padding='same', use_bias=True)(embedded_subject)
+
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Dropout(self.dropout)(embedded_object)
+        embedded_object = Conv1D(
+            self.hidden_dim, self.conv_predicate_kernel,
+            strides=1, padding='same', use_bias=True,
+            activation='relu')(embedded_object)
+        embedded_object = Conv1D(
+            self.hidden_dim, self.conv_predicate_kernel,
+            strides=1, padding='same', use_bias=True)(embedded_object)
+
 
         # Extract initial attention maps.
         subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
@@ -353,6 +369,10 @@ class ReferringRelationshipsModel():
                                  strides=(1, 1), padding='same',
                                  activation='relu')(im_features)
             im_features = Dropout(self.dropout)(im_features)
+        im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
+                             strides=(1, 1), padding='same',
+                             activation='relu')(im_features)
+        im_features = Dropout(self.dropout)(im_features)
         im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
                              strides=(1, 1), padding='same')(im_features)
         im_features = Dropout(self.dropout)(im_features)
