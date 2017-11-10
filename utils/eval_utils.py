@@ -77,9 +77,9 @@ def precision(y_true, y_pred, heatmap_threshold):
         A float containing the precision of our predictions.
     """
     pred = K.cast(K.greater(y_pred, heatmap_threshold), "float32")
-    tp = y_true * pred
-    fp = K.cast(K.greater(pred - y_true, 0), 'float32')
-    precision_values = K.sum(tp)/(K.sum(tp) + K.sum(fp) + K.epsilon())
+    tp = K.sum(y_true * pred, axis=1)
+    fp = K.sum(K.cast(K.greater(pred - y_true, 0), 'float32'), axis=1)
+    precision_values = tp/(tp + fp + K.epsilon())
     return K.mean(precision_values)
 
 
@@ -96,9 +96,9 @@ def recall(y_true, y_pred, heatmap_threshold):
         A float containing the recall of our predictions.
     """
     pred = K.cast(K.greater(y_pred, heatmap_threshold), "float32")
-    tp = y_true * pred
-    fn = K.cast(K.greater(y_true - pred, 0), 'float32')
-    recall_values = K.sum(tp)/(K.sum(tp) + K.sum(fn) + K.epsilon())
+    tp = K.sum(y_true * pred, axis=1)
+    fn = K.sum(K.cast(K.greater(y_true - pred, 0), 'float32'), axis=1)
+    recall_values = tp/(tp + fn + K.epsilon())
     return K.mean(recall_values)
 
 

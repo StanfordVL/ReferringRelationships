@@ -19,7 +19,7 @@ class Dataset(object):
     """
 
     def __init__(self, data_path, img_dir, im_metadata_path,
-                 im_dim=224, num_images=None):
+                 im_dim=224, num_images=None, max_rels_per_image=None):
         """Constructor for the VRD dataset object.
 
         Args:
@@ -28,6 +28,7 @@ class Dataset(object):
             im_metadata_path: Location of the file containing image metadata.
             im_dim: The size of images.
             num_images: The number of images to save.
+            max_rels_per_image: The maximum number of relationships per image.
         """
         data = json.load(open(data_path))
         if num_images is not None:
@@ -40,6 +41,7 @@ class Dataset(object):
         self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
         self.row_template = np.arange(self.im_dim).reshape(self.im_dim, 1)
         self.img_dir = img_dir
+        self.max_rels_per_image = max_rels_per_image
 
     def rescale_bbox_coordinates(self, bbox, height, width):
         """Rescales the bbox coords according to the `im_dim`.
@@ -382,6 +384,9 @@ class SmartDataset(Dataset):
 
             # Iterate over all the relationships in the image
             for j, relationship in enumerate(self.data[image_id]):
+                if (self.max_rels_per_image is not None
+                    and j > self.max_rels_per_image):
+                    break
                 subject_cat = relationship['subject']['category']
                 predicate_cat = relationship['predicate']
                 object_cat = relationship['object']['category']
@@ -601,6 +606,8 @@ if __name__ == '__main__':
                         'should also be saved.')
     parser.add_argument('--dataset-type', type=str, default='smart',
                         help='Choice between [smart/predicate].')
+    parser.add_argument('--max-rels-per-image', type=int, default=None,
+                        help='Maximum number of relationships per image.')
     args = parser.parse_args()
 
     # Make sure that the required fields are present.
@@ -620,7 +627,8 @@ if __name__ == '__main__':
 
     dataset = dataset_type_map[args.dataset_type](
         args.annotations, args.img_dir, args.image_metadata,
-        im_dim=args.image_dim, num_images=args.num_images)
+        im_dim=args.image_dim, num_images=args.num_images,
+        max_rels_per_image=args.max_rels_per_image)
     if args.test:
         # Build the test dataset.
         test_dir = os.path.join(args.save_dir, 'test')
