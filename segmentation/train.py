@@ -7,8 +7,8 @@ from keras.optimizers import Adam
 from keras.models import load_model
 
 from config import parse_args
-from models import SegmentationModel
-from iterator import Iterator
+from models import SemanticSegmentationModel
+from iterator import SemanticSegmentationIterator
 from eval_utils import format_results
 from eval_utils import get_metrics
 from train_utils import Logger
@@ -54,6 +54,13 @@ if __name__=='__main__':
     json.dump(args.__dict__, args_file)
     args_file.close()
     logging.info(format_args(args))
+
+    # Choose the correct Iterator and Model.
+    SegmentationModel = SemanticSegmentationModel
+    Iterator = SemanticSegmentationIterator
+    if args.task == 'class':
+        SegmentationModel = ClassSegmentationModel
+        Iterator = ClassSegmentationIterator
 
     # Setup the training and validation data iterators
     train_generator = Iterator(args.train_data_dir, args)

@@ -123,6 +123,8 @@ def parse_args(evaluation=False):
     parser = argparse.ArgumentParser(description='Referring Relationships.')
 
     # Session parameters.
+    parser.add_argument('--task', type=str, default='semantic',
+                        help='[semantic | class].')
     parser.add_argument('--batch-size', type=int, default=128,
                         help='The batch size used in training.')
     parser.add_argument('--seed', type=int, default=1234,

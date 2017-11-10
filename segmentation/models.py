@@ -11,8 +11,8 @@ from keras.layers.merge import Multiply, Dot, Add, Concatenate
 from keras.models import Model
 
 
-class SegmentationModel():
-    """Semantic segmentation model give the category.
+class BaseModel(object):
+    """Contains helper functions.
     """
 
     def __init__(self, args):
@@ -28,24 +28,6 @@ class SegmentationModel():
         self.dropout = args.dropout
         self.feat_map_layer = args.feat_map_layer
 
-    def build_model(self):
-        input_image = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_object = Input(shape=(1,))
-        image_features = self.get_image_features(input_image)
-        embed = Embedding(self.num_objects, self.hidden_dim, input_length=1)
-        embedded_object = embed(input_object)
-        object_att = self.attend(image_features, embedded_object, attention_conv, name='subject-att')
-        object_regions = self.upsample(object_att, name="object")
-        model = Model(inputs=[input_image, input_object], outputs=[object_regions])
-        return model
-
-    def attend(self, feature_map, query, attention_conv, name=None):
-        query = Reshape((1, 1, self.hidden_dim,))(query)
-        attention_weights = Multiply()([feature_map, query])
-        attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
-        attention_weights = Activation("relu", name=name)(attention_weights)
-        return attention_weights
-
     def get_image_features(self, input_image):
         base_model = ResNet50(weights='imagenet',
                               include_top=False,
@@ -58,6 +40,13 @@ class SegmentationModel():
         im_features = Dropout(self.dropout)(im_features)
         return im_features
 
+    def attend(self, feature_map, query, attention_conv, name=None):
+        query = Reshape((1, 1, self.hidden_dim,))(query)
+        attention_weights = Multiply()([feature_map, query])
+        attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
+        attention_weights = Activation("relu", name=name)(attention_weights)
+        return attention_weights
+
     def upsample(self, res, name=None):
         upsampling_factor = self.input_dim / self.feat_map_dim
         k = int(np.log(upsampling_factor) / np.log(2))
@@ -67,3 +56,31 @@ class SegmentationModel():
         res = Reshape((self.input_dim * self.input_dim,))(res)
         predictions = Activation("tanh", name=name)(res)
         return predictions
+
+
+class SemanticSegmentationModel(BaseModel):
+    """Semantic segmentation model give the category.
+    """
+
+    def build_model(self):
+        input_image = Input(shape=(self.input_dim, self.input_dim, 3))
+        image_features = self.get_image_features(input_image)
+        object_regions = self.upsample(image_features, name="object")
+        model = Model(inputs=[input_image], outputs=[object_regions])
+        return model
+
+
+class ClassSegmentationModel():
+    """Semantic segmentation model give the category.
+    """
+
+    def build_model(self):
+        input_image = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_object = Input(shape=(1,))
+        image_features = self.get_image_features(input_image)
+        embed = Embedding(self.num_objects, self.hidden_dim, input_length=1)
+        embedded_object = embed(input_object)
+        object_att = self.attend(image_features, embedded_object, attention_conv, name='subject-att')
+        object_regions = self.upsample(object_att, name="object")
+        model = Model(inputs=[input_image, input_object], outputs=[object_regions])
+        return model
