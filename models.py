@@ -83,8 +83,10 @@ class ReferringRelationshipsModel():
         # Extract object embeddings.
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
+        embedded_subject = Activation("relu")(embedded_subject)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_object = subj_obj_embedding(input_obj)
+        embedded_object =  Activation("relu")(embedded_object)
         embedded_object = Dropout(self.dropout)(embedded_object)
 
         # Extract initial attention maps.
@@ -118,7 +120,7 @@ class ReferringRelationshipsModel():
             subject_att = new_subject_att
 
         # Upsample the subject and objects regions.
-        if self.use_internal_loss and self.iterations > 1:
+        if self.use_internal_loss and self.iterations > 0:
             internal_weights = np.array([self.internal_loss_weight**i for i in range(len(subject_outputs))])
             internal_weights = internal_weights / internal_weights.sum()
 
@@ -191,8 +193,10 @@ class ReferringRelationshipsModel():
         # Extract object embeddings.
         subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
+        embedded_subject = Activation('relu')(embedded_subject)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_object = subj_obj_embedding(input_obj)
+        embedded_object = Activation('relu')(embedded_object)
         embedded_object = Dropout(self.dropout)(embedded_object)
 
         # Extract subject attention map.
@@ -354,7 +358,7 @@ class ReferringRelationshipsModel():
                                  activation='relu')(im_features)
             im_features = Dropout(self.dropout)(im_features)
         im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
-                             strides=(1, 1), padding='same')(im_features)
+                             strides=(1, 1), padding='same', activation='relu')(im_features)
         im_features = Dropout(self.dropout)(im_features)
         return im_features
 
