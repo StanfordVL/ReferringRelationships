@@ -108,7 +108,7 @@ def parse_training_args(parser):
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--iterations', default=1, type=int,
                         help='The number of iterations to finetune the heatmaps.')
-    
+
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')
@@ -133,7 +133,7 @@ def parse_training_args(parser):
     parser.add_argument('--test-data-dir', type=str,
                         default='/data/chami/VRD/09_20_2017/test/',
                         help='Location of the validation data.')
-   
+
 
 def parse_evaluation_args(parser):
     """Add args used for evaulating a model only.
@@ -141,7 +141,7 @@ def parse_evaluation_args(parser):
     Args:
         parse: An argparse object.
     """
-    parser.add_argument('--model-path', type=str, default=None,
+    parser.add_argument('--model-checkpoint', type=str,
                         help='The model to evaluate.')
     parser.add_argument('--data-dir', type=str,
                         default='data/pred-vrd/test/',
@@ -187,15 +187,17 @@ def parse_args(evaluation=False):
                         help='Rate at which subjects are dropped.')
     parser.add_argument('--object-droprate', type=float, default=0.3,
                         help='Rate at which objects are dropped.')
-    
+
 
     # Grab the other parameters.
     if evaluation:
         parse_evaluation_args(parser)
-        args = parser.parse_args()
     else:
         parse_training_args(parser)
-        args = parser.parse_args()
+
+    args = parser.parse_args()
+
+    if not evaluation:
         # Verify that we have at least one of the following flags set:
         args.use_subject = args.use_subject > 0
         args.use_predicate = args.use_predicate > 0

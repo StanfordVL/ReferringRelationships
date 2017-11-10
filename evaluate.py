@@ -18,10 +18,14 @@ import os
 if __name__=='__main__':
     # Parse command line arguments.
     args = parse_args(evaluation=True)
-    models_dir = os.path.dirname(args.model_path)
+    models_dir = os.path.dirname(args.model_checkpoint)
     params = objdict(json.load(open(os.path.join(models_dir, "args.json"), "r")))
     params.batch_size = args.batch_size
     params.dropout = 0.
+    params.discovery = args.discovery
+    params.subject_droprate = args.subject_droprate
+    params.object_droprate = args.object_droprate
+
     # If the dataset does exists, alert the user.
     if not os.path.isdir(args.data_dir):
         raise ValueError('The directory %s doesn\'t exist. '
@@ -34,13 +38,11 @@ if __name__=='__main__':
             raise ValueError('The dataset %s doesn\'t exist. '
                 'Exiting evaluation!' % hdf5_file)
 
-    params.discovery = False
     # Setup the training and validation data iterators
     if params.discovery:
         Iterator = DiscoveryIterator
     else:
         Iterator = SmartIterator
-    #TODO: add droprate here if discovery is True
     generator = Iterator(args.data_dir, params)
 
     # Setup all the metrics we want to report. The names of the metrics need to
@@ -57,7 +59,7 @@ if __name__=='__main__':
     model.compile(loss=[loss_func, loss_func],
                   optimizer=RMSprop(lr=0.01),
                   metrics=metrics)
-    model.load_weights(args.model_path)
+    model.load_weights(args.model_checkpoint)
 
     # Run Evaluation.
     steps = len(generator)
