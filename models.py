@@ -6,7 +6,7 @@ from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.applications.vgg19 import VGG19
 from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization
-from keras.layers.convolutional import Conv2DTranspose, Conv2D
+from keras.layers.convolutional import Conv2DTranspose, Conv2D, Conv1D
 from keras.layers.core import Lambda, Dropout, Reshape
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Multiply, Dot, Add, Concatenate
@@ -375,8 +375,11 @@ class ReferringRelationshipsModel():
                                  activation='relu')(im_features)
             im_features = Dropout(self.dropout)(im_features)
         im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
-                             strides=(1, 1), padding='same', activation='relu')(im_features)
+                             strides=(1, 1), padding='same',
+                             activation='relu')(im_features)
         im_features = Dropout(self.dropout)(im_features)
+        im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
+                             strides=(1, 1), padding='same')(im_features)
         return im_features
 
     def build_embedding_layer(self, num_categories, emb_dim):

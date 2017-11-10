@@ -23,6 +23,7 @@ if __name__=='__main__':
     params.batch_size = args.batch_size
     params.dropout = 0.
     params.discovery = args.discovery
+    params.shuffle = False
     params.subject_droprate = args.subject_droprate
     params.object_droprate = args.object_droprate
 
