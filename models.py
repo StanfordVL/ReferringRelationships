@@ -85,25 +85,10 @@ class ReferringRelationshipsModel():
         embedded_subject = subj_obj_embedding(input_subj)
         embedded_subject = Activation("relu")(embedded_subject)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_subject = Conv1D(
-            self.hidden_dim, self.conv_predicate_kernel,
-            strides=1, padding='same', use_bias=True,
-            activation='relu')(embedded_subject)
-        embedded_subject = Conv1D(
-            self.hidden_dim, self.conv_predicate_kernel,
-            strides=1, padding='same', use_bias=True)(embedded_subject)
 
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object =  Activation("relu")(embedded_object)
         embedded_object = Dropout(self.dropout)(embedded_object)
-        embedded_object = Conv1D(
-            self.hidden_dim, self.conv_predicate_kernel,
-            strides=1, padding='same', use_bias=True,
-            activation='relu')(embedded_object)
-        embedded_object = Conv1D(
-            self.hidden_dim, self.conv_predicate_kernel,
-            strides=1, padding='same', use_bias=True)(embedded_object)
-
 
         # Extract initial attention maps.
         subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
