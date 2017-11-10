@@ -12,9 +12,12 @@ from keras.layers.embeddings import Embedding
 from keras.layers.merge import Multiply, Dot, Add, Concatenate
 from keras.models import Model
 from keras.regularizers import l2
+from utils.visualization_utils import objdict
 
 import numpy as np
-
+import json
+import os
+import h5py
 
 class ReferringRelationshipsModel():
     """Given a relationship, this model locatlizes them.
@@ -47,7 +50,8 @@ class ReferringRelationshipsModel():
         self.use_internal_loss = args.use_internal_loss
         self.internal_loss_weight = args.internal_loss_weight
         self.iterations = args.iterations
-        
+        self.baseline_weights = args.baseline_weights
+         
         # Discovery.
         if args.discovery:
             self.num_objects += 1
@@ -73,21 +77,37 @@ class ReferringRelationshipsModel():
         # Inputs.
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
         input_subj = Input(shape=(1,))
+        input_obj = Input(shape=(1,))
         if self.use_predicate: 
             input_pred = Input(shape=(self.num_predicates,))
-        input_obj = Input(shape=(1,))
-
-        # Extract image features.
-        im_features = self.build_image_model(input_im)
-
-        # Extract object embeddings.
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
-        embedded_subject = subj_obj_embedding(input_subj)
-        embedded_subject = Activation("relu")(embedded_subject)
-        embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_object = subj_obj_embedding(input_obj)
-        embedded_object =  Activation("relu")(embedded_object)
-        embedded_object = Dropout(self.dropout)(embedded_object)
+            inputs=[input_im, input_subj, input_pred, input_obj]
+        else:
+            inputs=[input_im, input_subj, input_obj]
+        
+        # Extract image features and embeddings
+        if self.baseline_weights:
+            params = objdict(json.load(open(os.path.join(os.path.dirname(self.baseline_weights), "args.json"), "r")))
+            params.baseline_weights = None
+            model_weights = h5py.File(self.baseline_weights)
+            relationships_model = ReferringRelationshipsModel(params)
+            base_model = relationships_model.build_model()
+            base_model.load_weights(self.baseline_weights)
+            output_im = base_model.get_layer("conv2d_1").output
+            output_emb_s = base_model.get_layer("activation_50").output
+            output_emb_o = base_model.get_layer("activation_51").output
+            baseline_branch = Model(inputs=base_model.input, outputs=[output_im, output_emb_s, output_emb_o])
+            for layer in baseline_branch.layers:
+                layer.trainable = False
+            im_features, embedded_subject, embedded_object = baseline_branch([input_im, input_subj, input_obj])
+        else:
+            im_features = self.build_image_model(input_im)
+            subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
+            embedded_subject = subj_obj_embedding(input_subj)
+            embedded_subject = Activation("relu")(embedded_subject)
+            embedded_subject = Dropout(self.dropout)(embedded_subject)
+            embedded_object = subj_obj_embedding(input_obj)
+            embedded_object =  Activation("relu")(embedded_object)
+            embedded_object = Dropout(self.dropout)(embedded_object)
 
         # Extract initial attention maps.
         subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
@@ -138,10 +158,7 @@ class ReferringRelationshipsModel():
 
         object_regions = self.build_upsampling_layer(object_att, name="object")
         subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        if self.use_predicate:
-            inputs=[input_im, input_subj, input_pred, input_obj]
-        else:
-            inputs=[input_im, input_subj, input_obj]
+
         # Create and output the model.
         model = Model(inputs=inputs, outputs=[subject_regions, object_regions])
         return model

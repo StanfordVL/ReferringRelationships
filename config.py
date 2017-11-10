@@ -108,7 +108,8 @@ def parse_training_args(parser):
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--iterations', default=1, type=int,
                         help='The number of iterations to finetune the heatmaps.')
-
+    parser.add_argument('--baseline-weights', default=None, type=str,
+                        help='baseline weights')
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')
