@@ -393,6 +393,17 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
+    def attend_1(self, feature_map, query, conv_op, name=None):
+        query = Reshape((self.hidden_dim,))(query)
+        query = RepeatVector(self.feat_map_dim)(query)
+        query = Reshape((self.feat_map_dim * self.hidden_dim,))(query)
+        query = RepeatVector(self.feat_map_dim)(query)
+        query = Reshape((self.feat_map_dim, self.feat_map_dim, self.hidden_dim))(query)
+        attention_weights = Concatenate(axis=3)([feature_map, query])
+        attention_weights = conv_op(attention_weights)
+        attention_weights = Activation("relu", name=name)(attention_weights)
+        return attention_weights
+
     def attend(self, feature_map, query, attention_conv, name=None):
         query = Reshape((1, 1, self.hidden_dim,))(query)
         attention_weights = Multiply()([feature_map, query])
