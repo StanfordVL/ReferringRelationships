@@ -99,17 +99,23 @@ class Dataset(object):
         """Converts the image into the segmentation masks per class.
         """
         pixel_map = json.load(open('../data/pascal/pixel_map.json'))
-        pixels = []
+        pixels = {}
+        num_classes = 0
         for k in pixel_map.keys():
             pixel_list = json.loads(k)
-            pixels.append(pixel_list)
-        num_classes = len(pixels)
+            if pixel_map[k] not in pixels:
+                pixels[pixel_map[k]] = []
+                num_classes += 1
+            pixels[pixel_map[k]].append(pixel_list)
         output = np.zeros((self.im_dim, self.im_dim, num_classes))
-        for cls_index, cls in enumerate(pixels):
-            intersection = np.ones((self.im_dim, self.im_dim), dtype=np.int32)
-            for channel in range(len(cls)):
-                intersection *= image[:, :, channel] == cls[channel]
-            output[:, :, cls_index] = intersection
+        for cls_index in range(num_classes):
+            union = np.ones((self.im_dim, self.im_dim), dtype=np.int32)
+            for pixel in pixels[cls_index]:
+                intersection = np.ones((self.im_dim, self.im_dim), dtype=np.int32)
+                for channel in range(len(pixel)):
+                    intersection *= image[:, :, channel] == pixel[channel]
+                union += intersection
+            output[:, :, cls_index] = np.array(union > 0, dtype=np.int32)
         return output
 
     def get_segmentation_from_id(self, image_id):
@@ -136,13 +142,13 @@ class Dataset(object):
         dataset = h5py.File(os.path.join(self.save_dir, 'dataset.hdf5'), 'w')
         object_db = dataset.create_dataset('object_locations',
                                            (num_images, self.im_dim,
-                                            self.im_dim, 20),
+                                            self.im_dim, 21),
                                            dtype='f')
 
         # Iterate and count the number of relationships.
         for image_index, image_id in enumerate(self.image_ids):
+            segmentations = self.get_segmentation_from_id(image_id)
             try:
-                segmentations = self.get_segmentation_from_id(image_id)
                 object_db[image_index] = segmentations
             except:
                 print('Segmentation %s not found' % str(image_id))
