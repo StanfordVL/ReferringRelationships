@@ -74,7 +74,7 @@ if __name__=='__main__':
 
     # create a new instance model
     segmentation_model = SegmentationModel(args)
-    model = relationships_model.build_model()
+    model = segmentation_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
     optimizer = get_opt(opt=args.opt, lr=args.lr)
 
@@ -83,7 +83,7 @@ if __name__=='__main__':
         loss_func = get_loss_func(args.w1)
     else:
         loss_func = 'binary_crossentropy'
-    losses = [loss_func, loss_func]
+    losses = [loss_func]
     model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
 
     # load model weights from checkpoint

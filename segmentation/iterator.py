@@ -83,7 +83,7 @@ class SemanticSegmentationIterator(Sequence):
         batch_o_regions = self.objects[start_idx:end_idx].reshape(
             self.batch_size, self.target_size)
         current_batch_size = end_idx - start_idx
-        batch_image[i] = self.images[start_idx:end_idx]
+        batch_image = self.images[start_idx:end_idx]
 
         # Choose the inputs based on the parts of the relationship we will use.
         inputs = [batch_image]
