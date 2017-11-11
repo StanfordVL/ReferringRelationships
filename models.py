@@ -51,7 +51,7 @@ class ReferringRelationshipsModel():
         self.internal_loss_weight = args.internal_loss_weight
         self.iterations = args.iterations
         self.baseline_weights = args.baseline_weights
-         
+
         # Discovery.
         if args.discovery:
             self.num_objects += 1
@@ -78,12 +78,12 @@ class ReferringRelationshipsModel():
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
         input_subj = Input(shape=(1,))
         input_obj = Input(shape=(1,))
-        if self.use_predicate: 
+        if self.use_predicate:
             input_pred = Input(shape=(self.num_predicates,))
             inputs=[input_im, input_subj, input_pred, input_obj]
         else:
             inputs=[input_im, input_subj, input_obj]
-        
+
         # Extract image features and embeddings
         if self.baseline_weights:
             params = objdict(json.load(open(os.path.join(os.path.dirname(self.baseline_weights), "args.json"), "r")))
@@ -126,17 +126,24 @@ class ReferringRelationshipsModel():
             subject_outputs = [subject_att]
             object_outputs = [object_att]
 
+        # Refinement parameters
+        refinement_conv = Conv2D(self.hidden_dim, 3, stride=(1, 1))
+
         # Iterate!
         for iteration in range(self.iterations):
             predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
             predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(predicate_att)
             new_image_features = Multiply()([im_features, predicate_att])
             #new_object_att = self.attend_1(new_image_features, embedded_object, conv_att_op, name='object-att-{}'.format(iteration+1))
+            #new_image_features = Concatenate(axis=3)([im_features, new_image_features])
+            #new_image_features = refinement_conv(new_image_features)
             new_object_att = self.attend(new_image_features, embedded_object, name='object-att-{}'.format(iteration+1))
             inv_predicate_att = self.transform_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
             inv_predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
             new_image_features = Multiply()([im_features, inv_predicate_att])
             #new_subject_att = self.attend_1(new_image_features, embedded_subject, conv_att_op, name='subject-att-{}'.format(iteration+1))
+            #new_image_features = Concatenate(axis=3)([im_features, new_image_features])
+            #new_image_features = refinement_conv(new_image_features)
             new_subject_att = self.attend(new_image_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
             if self.use_internal_loss:
                 object_outputs.append(new_object_att)
