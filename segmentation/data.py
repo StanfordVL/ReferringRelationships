@@ -3,6 +3,7 @@
 
 from keras.applications.resnet50 import preprocess_input
 from keras.preprocessing import image
+from PIL import Image
 
 import abc
 import argparse
@@ -107,11 +108,12 @@ class Dataset(object):
                 pixels[pixel_map[k]] = []
                 num_classes += 1
             pixels[pixel_map[k]].append(pixel_list)
-        output = np.zeros((self.im_dim, self.im_dim, num_classes))
+        h, w, _ = image.shape
+        output = np.zeros((h, w, num_classes))
         for cls_index in range(num_classes):
-            union = np.ones((self.im_dim, self.im_dim), dtype=np.int32)
+            union = np.zeros((h, w), dtype=np.int32)
             for pixel in pixels[cls_index]:
-                intersection = np.ones((self.im_dim, self.im_dim), dtype=np.int32)
+                intersection = np.ones((h, w), dtype=np.int32)
                 for channel in range(len(pixel)):
                     intersection *= image[:, :, channel] == pixel[channel]
                 union += intersection
@@ -128,9 +130,13 @@ class Dataset(object):
             A numpy array of size input_dim, input_dim, num_classes.
         """
         img_path = os.path.join(self.segmentation_dir, image_id +'.png')
-        img = image.load_img(img_path, target_size=(self.im_dim, self.im_dim))
-        img_array = image.img_to_array(img)
-        return self.parse_image(img_array)
+        img = np.array(image.load_img(img_path))
+        img = self.parse_image(img)
+        output = np.zeros((self.im_dim, self.im_dim, img.shape[-1]))
+        for j in range(img.shape[-1]):
+            output[:,:,j] = np.array(Image.fromarray(img[:,:,j]*255).resize((self.im_dim, self.im_dim)))
+        output /= 255
+        return output
 
     def build_and_save_dataset(self):
         """Converts the dataset into format we will use for training.
