@@ -73,7 +73,7 @@ class SemanticSegmentationModel(BaseModel):
         # adding 1 for background class 
         object_regions = [Dense(1, activation="relu")(image_features) for i in range(self.num_classes + 1)]
         upsampled_regions = Concatenate(axis=3)([self.upsample(x) for x in object_regions])
-        output = Lambda(lambda x: K.argmax(x, axis=3))(upsampled_regions)
+        output = Lambda(lambda x: K.softmax(x, axis=3))(upsampled_regions)
         model = Model(inputs=input_image, outputs=output)
         return model
 
@@ -96,9 +96,9 @@ class ClassSegmentationModel(BaseModel):
 
 if __name__ == "__main__":
     args = parse_args()
-#    sem_segm = SemanticSegmentationModel(args)
-#    model = sem_segm.build_model()
-#    print(model.summary())
-    class_segm = ClassSegmentationModel(args)
-    model = class_segm.build_model()
+    sem_segm = SemanticSegmentationModel(args)
+    model = sem_segm.build_model()
     print(model.summary())
+#    class_segm = ClassSegmentationModel(args)
+#    model = class_segm.build_model()
+#    print(model.summary())
