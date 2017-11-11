@@ -16,7 +16,7 @@ def parse_training_args(parser):
     parser.add_argument('--opt', type=str, default='rms',
                         help='The optimizer used during training. Currently'
                         ' supports rms, adam, adagrad and adadelta.')
-    parser.add_argument('--epochs', type=int, default=50,
+    parser.add_argument('--epochs', type=int, default=30,
                         help='The number of epochs to train.')
     parser.add_argument('--train-steps-per-epoch', type=int, default=-1,
                         help='The total number of steps (batches of samples) '
@@ -43,7 +43,7 @@ def parse_training_args(parser):
                         'sym_ssn models')
     parser.add_argument('--use-internal-loss', action='store_true', default=False,
                         help='Whether to add intermediate losses in the sym_ssn model')
-    parser.add_argument('--internal-loss-weight', type=float, default=0.1,
+    parser.add_argument('--internal-loss-weight', type=float, default=1.,
                         help='The co-officient of the internal loss of the '
                         'subject and object. Must use --model sym-ssn, '
                         '--use-internal-loss.')
@@ -53,14 +53,14 @@ def parse_training_args(parser):
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.001,
                         help='The learning rate for training.')
-    parser.add_argument('--patience', type=int, default=2,
+    parser.add_argument('--patience', type=int, default=0,
                         help='The number of epochs to wait if val loss is '
                         'increasing and decrease the learning rate.')
     parser.add_argument('--lr-reduce-rate', type=float, default=0.1,
                         help='Multiple to reduce the learning rate by.')
 
     # Model parameters.
-    parser.add_argument('--model', type=str, default='ssn',
+    parser.add_argument('--model', type=str, default='sym_ssn',
                         help='Indicates which model to use: '
                         '[ssn, baseline, sym_ssn].')
     parser.add_argument('--use-subject', type=int, default=1,
@@ -69,7 +69,7 @@ def parse_training_args(parser):
                         help='1/0 indicating whether to use the predicates.')
     parser.add_argument('--use-object', type=int, default=1,
                         help='1/0 indicating whether to use the objects.')
-    parser.add_argument('--hidden-dim', type=int, default=512,
+    parser.add_argument('--hidden-dim', type=int, default=1024,
                         help='Number of dimensions in the hidden unit.')
     parser.add_argument('--cnn', type=str, default='resnet',
                         help='The pretrained cnn architecture [resnet, vgg] '
@@ -94,18 +94,18 @@ def parse_training_args(parser):
     parser.add_argument('--nb-conv-im-map', type=int, default=1,
                         help='Number of convolution layers to use '
                         'to learn image feature maps')
-    parser.add_argument('--nb-conv-att-map', type=int, default=1,
+    parser.add_argument('--nb-conv-att-map', type=int, default=6,
                         help='Number of convolution layers to use to move '
                         'heatmaps in ssn model')
     parser.add_argument('--conv-im-kernel', type=int, default=1,
                         help='The kernel size when using convolutions in '
                         'the ssn model to compute image feature maps')
-    parser.add_argument('--conv-predicate-kernel', type=int, default=3,
+    parser.add_argument('--conv-predicate-kernel', type=int, default=5,
                         help='The kernel size when using convolutions in '
                         'the ssn model to move heatmaps')
     parser.add_argument('--reg', type=float, default=0.2,
                         help='Weight regularizer.')
-    parser.add_argument('--conv-predicate-channels', default=1, type=int,
+    parser.add_argument('--conv-predicate-channels', default=50, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--iterations', default=1, type=int,
                         help='The number of iterations to finetune the heatmaps.')

@@ -139,12 +139,14 @@ class ReferringRelationshipsModel():
             new_image_features = Concatenate(axis=3)([im_features, new_image_features])
             new_image_features = refinement_conv(new_image_features)
             new_object_att = self.attend(new_image_features, embedded_object, attention_conv, name='object-att-{}'.format(iteration+1))
+
             inv_predicate_att = self.transform_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
             inv_predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
             new_image_features = Multiply()([im_features, inv_predicate_att])
             new_image_features = Concatenate(axis=3)([im_features, new_image_features])
             new_image_features = refinement_conv(new_image_features)
             new_subject_att = self.attend(new_image_features, embedded_subject, attention_conv, name='subject-att-{}'.format(iteration+1))
+
             if self.use_internal_loss:
                 object_outputs.append(new_object_att)
                 subject_outputs.append(new_subject_att)
@@ -196,7 +198,7 @@ class ReferringRelationshipsModel():
                 predicate_module_group.append(predicate_conv)
             # last conv with only one channel
             predicate_conv = Conv2D(
-                1, self.conv_predicate_kernel,
+                self.hidden_dim, self.conv_predicate_kernel,
                 strides=(1, 1), padding='same', use_bias=False,
                 activation='relu',
                 name=basename.format(self.nb_conv_att_map-1, k))
@@ -307,15 +309,17 @@ class ReferringRelationshipsModel():
         Returns:
             The shifted attention.
         """
+        shapify = Reshape((self.feat_map_dim, self.feat_map_dim, self.hidden_dim, 1))
         conv_outputs = []
         for group in merged_modules:
             att_map = att
             for conv_module in group:
                 att_map = conv_module(att_map)
+            att_map = shapify(att_map)
             conv_outputs.append(att_map)
-        merged_output = Concatenate(axis=3)(conv_outputs)
+        merged_output = Concatenate(axis=4)(conv_outputs)
         predicate_att = Multiply()([predicate_masks, merged_output])
-        predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(predicate_att)
+        predicate_att = Lambda(lambda x: K.sum(x, axis=4))(predicate_att)
         predicate_att = Activation("tanh")(predicate_att)
         return predicate_att
 
