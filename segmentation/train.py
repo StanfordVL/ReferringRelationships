@@ -10,10 +10,10 @@ from config import parse_args
 from models import SemanticSegmentationModel
 from iterator import SemanticSegmentationIterator
 from eval_utils import format_results
-from eval_utils import get_metrics
+from eval_utils import pixel_acc, mean_iu
 from train_utils import Logger
 from train_utils import LrReducer
-from train_utils import get_loss_func
+from train_utils import get_loss_func, multinomial_logistic_loss
 from train_utils import get_dir_name
 from train_utils import get_opt
 from train_utils import format_args
@@ -70,11 +70,11 @@ if __name__=='__main__':
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
-    metrics = get_metrics(args.input_dim, args.heatmap_threshold)
+    metrics = [pixel_acc, mean_iu] 
 
     # create a new instance model
     segmentation_model = SegmentationModel(args)
-    model = relationships_model.build_model()
+    model = segmentation_model.build_model()
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
     optimizer = get_opt(opt=args.opt, lr=args.lr)
 
@@ -82,8 +82,8 @@ if __name__=='__main__':
     if args.loss_func == 'weighted':
         loss_func = get_loss_func(args.w1)
     else:
-        loss_func = 'binary_crossentropy'
-    losses = [loss_func, loss_func]
+        loss_func = multinomial_logistic_loss
+    losses = loss_func
     model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
 
     # load model weights from checkpoint

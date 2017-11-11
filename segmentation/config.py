@@ -31,18 +31,18 @@ def parse_training_args(parser):
     parser.add_argument('--val-steps-per-epoch', type=int, default=-1,
                         help='Number of steps to yield from validation '
                         'generator at the end of every epoch.')
-    parser.add_argument('--w1', type=float, default=2.,
+    parser.add_argument('--w1', type=float, default=5.,
                         help='The coefficient to use on the positive '
                         'examples in the CE loss')
     parser.add_argument('--shuffle', action='store_true', default=True,
                         help='Shuffle the dataset.')
-    parser.add_argument('--loss-func', type=str, default='basic',
+    parser.add_argument('--loss-func', type=str, default='weighted',
                          help='basic or weighted cross entropy loss.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.001,
                         help='The learning rate for training.')
-    parser.add_argument('--patience', type=int, default=2,
+    parser.add_argument('--patience', type=int, default=4,
                         help='The number of epochs to wait if val loss is '
                         'increasing and decrease the learning rate.')
     parser.add_argument('--lr-reduce-rate', type=float, default=0.1,
@@ -68,8 +68,6 @@ def parse_training_args(parser):
                         help='The dropout probability used in training.')
     parser.add_argument('--reg', type=float, default=0.2,
                         help='Weight regularizer.')
-    parser.add_argument('--num-classes', type=int, default=20,
-                        help='The number of classes.')
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')
@@ -126,16 +124,16 @@ def parse_args(evaluation=False):
     # Session parameters.
     parser.add_argument('--task', type=str, default='semantic',
                         help='[semantic | class].')
-    parser.add_argument('--batch-size', type=int, default=128,
+    parser.add_argument('--batch-size', type=int, default=256,
                         help='The batch size used in training.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
-    parser.add_argument('--workers', type=int, default=1,
+    parser.add_argument('--workers', type=int, default=8,
                         help='Number workers used to load the data.')
 
     # Eval parameters.
     parser.add_argument('--heatmap-threshold', type=float, nargs='+',
-                        default=[0.3, 0.5, 0.6],
+                        default=[0.5],
                         help='The thresholds above which we consider '
                         'a heatmap to contain an object.')
 

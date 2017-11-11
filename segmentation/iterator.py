@@ -24,10 +24,10 @@ class SemanticSegmentationIterator(Sequence):
         self.data_dir = data_dir
         self.input_dim = args.input_dim
         self.batch_size = args.batch_size
-        self.num_objets = args.num_objects
+        self.num_classes = args.num_classes
 
         # Set the sizes of targets and images.
-        self.target_size = args.input_dim * args.input_dim * args.num_objects
+        self.target_size = (args.input_dim, args.input_dim, args.num_classes)
         self.image_shape = (args.input_dim, args.input_dim, 3)
         self.data_format = K.set_image_data_format('channels_last')
 
@@ -80,14 +80,13 @@ class SemanticSegmentationIterator(Sequence):
         end_idx = min(self.samples, (idx + 1) * self.batch_size)
 
         # Create the batches.
-        batch_o_regions = self.objects[start_idx:end_idx].reshape(
-            self.batch_size, self.target_size)
+        batch_o_regions = self.objects[start_idx:end_idx]
         current_batch_size = end_idx - start_idx
-        batch_image[i] = self.images[start_idx:end_idx]
+        batch_image = self.images[start_idx:end_idx]
 
         # Choose the inputs based on the parts of the relationship we will use.
-        inputs = [batch_image]
-        outputs = [batch_o_regions]
+        inputs = batch_image
+        outputs = batch_o_regions
         return inputs, outputs
 
 
@@ -163,7 +162,7 @@ class CLassSegmentationIterator(Sequence):
         # Create the batches.
         batch_rel = self.categories[start_idx:end_idx]
         batch_o_regions = self.objects[start_idx:end_idx].reshape(
-            self.batch_size, self.target_size)
+            (self.batch_size,) + self.target_size)
         current_batch_size = end_idx - start_idx
         batch_image = np.zeros((current_batch_size,) + self.image_shape,
                                dtype=K.floatx())

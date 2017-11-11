@@ -18,7 +18,7 @@ class Dataset(object):
     """Implements helper functions for parsing dataset.
     """
 
-    def __init__(self, save_dir, segmentation_dir, img_dir, im_ids_file,
+    def __init__(self, save_dir, segmentation_dir, img_dir, image_ids_file,
                  im_dim=224):
         """Constructor for the VRD dataset object.
 
@@ -98,7 +98,19 @@ class Dataset(object):
     def parse_image(self, image):
         """Converts the image into the segmentation masks per class.
         """
-        pass # TODO
+        pixel_map = json.load(open('../data/pascal/pixel_map.json'))
+        pixels = []
+        for k in pixel_map.keys():
+            pixel_list = json.loads(k)
+            pixels.append(pixel_list)
+        num_classes = len(pixels)
+        output = np.zeros((self.im_dim, self.im_dim, num_classes))
+        for cls_index, cls in enumerate(pixels):
+            intersection = np.ones((self.im_dim, self.im_dim), dtype=np.int32)
+            for channel in range(len(cls)):
+                intersection *= image[:, :, channel] == cls[channel]
+            output[:, :, cls_index] = intersection
+        return output
 
     def get_segmentation_from_id(self, image_id):
         """Grabs the segmentation image and parses it.
@@ -109,10 +121,7 @@ class Dataset(object):
         Returns:
             A numpy array of size input_dim, input_dim, num_classes.
         """
-        try:
-            img_path = os.path.join(self.segmentation_dir, img_id +'.jpg')
-        except:
-            img_path = os.path.join(self.segmentation_dir, img_id +'.png')
+        img_path = os.path.join(self.segmentation_dir, image_id +'.png')
         img = image.load_img(img_path, target_size=(self.im_dim, self.im_dim))
         img_array = image.img_to_array(img)
         return self.parse_image(img_array)
@@ -124,7 +133,7 @@ class Dataset(object):
         num_images = len(self.image_ids)
 
         # Create the dataset.
-        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
+        dataset = h5py.File(os.path.join(self.save_dir, 'dataset.hdf5'), 'w')
         object_db = dataset.create_dataset('object_locations',
                                            (num_images, self.im_dim,
                                             self.im_dim, 20),
@@ -146,15 +155,12 @@ class Dataset(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Dataset creation for Pascal.')
-    parser.add_argument('--test', action='store_true',
-                        help='When true, the data is not split into training '
-                        'and validation sets')
     parser.add_argument('--save-dir', type=str, default=None,
                         help='where to save the ground truth masks, this '
                         'Location where dataset should be saved.')
     parser.add_argument('--img-dir', type=str, default=None,
                         help='Location where images are stored.')
-    parser.add_argument('--img-ids-file', type=str, default=None,
+    parser.add_argument('--image-ids-file', type=str, default=None,
                         help='File containing the images in the set.')
     parser.add_argument('--segmentation-dir', type=str, default=None,
                         help='Json with relationships for each image.')
@@ -179,7 +185,7 @@ if __name__ == '__main__':
         print('--image-ids-file not specified. Exiting!')
         sys.exit(0)
     if not os.path.isdir(args.save_dir):
-        os.mkdir(args.save_dir)
+        os.makedirs(args.save_dir)
 
     dataset = Dataset(args.save_dir,
                       args.segmentation_dir,

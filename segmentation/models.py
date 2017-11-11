@@ -28,7 +28,6 @@ class BaseModel(object):
         self.hidden_dim = args.hidden_dim
         self.num_objects = args.num_objects
         self.dropout = args.dropout
-        self.num_classes = args.num_classes 
         self.feat_map_layer = args.feat_map_layer
 
     def get_image_features(self, input_im):
@@ -70,10 +69,9 @@ class SemanticSegmentationModel(BaseModel):
     def build_model(self):
         input_image = Input(shape=(self.input_dim, self.input_dim, 3))
         image_features = self.get_image_features(input_image)
-        # adding 1 for background class 
-        object_regions = [Dense(1, activation="relu")(image_features) for i in range(self.num_classes + 1)]
+        object_regions = [Dense(1, activation="relu")(image_features) for i in range(self.num_objects)]
         upsampled_regions = Concatenate(axis=3)([self.upsample(x) for x in object_regions])
-        output = Activation("softmax")(upsampled_regions)
+        output = Activation('softmax')(upsampled_regions)
         model = Model(inputs=input_image, outputs=output)
         return model
 
@@ -86,7 +84,7 @@ class ClassSegmentationModel(BaseModel):
         input_image = Input(shape=(self.input_dim, self.input_dim, 3))
         input_object = Input(shape=(1,))
         image_features = self.get_image_features(input_image)
-        embed = Embedding(self.num_classes+1, self.hidden_dim, input_length=1)
+        embed = Embedding(self.num_objects, self.hidden_dim, input_length=1)
         embedded_object = embed(input_object)
         embedded_object = Activation("relu")(embedded_object)
         object_att = self.attend(image_features, embedded_object)
@@ -96,9 +94,6 @@ class ClassSegmentationModel(BaseModel):
 
 if __name__ == "__main__":
     args = parse_args()
-    sem_segm = SemanticSegmentationModel(args)
-    model = sem_segm.build_model()
+    segm = SemanticSegmentationModel(args)
+    model = segm.build_model()
     print(model.summary())
-#    class_segm = ClassSegmentationModel(args)
-#    model = class_segm.build_model()
-#    print(model.summary())
