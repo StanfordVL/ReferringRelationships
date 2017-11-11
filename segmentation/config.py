@@ -68,7 +68,6 @@ def parse_training_args(parser):
                         help='The dropout probability used in training.')
     parser.add_argument('--reg', type=float, default=0.2,
                         help='Weight regularizer.')
-
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')

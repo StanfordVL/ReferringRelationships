@@ -28,7 +28,6 @@ class BaseModel(object):
         self.hidden_dim = args.hidden_dim
         self.num_objects = args.num_objects
         self.dropout = args.dropout
-        self.num_objects = args.num_objects
         self.feat_map_layer = args.feat_map_layer
 
     def get_image_features(self, input_im):
@@ -70,7 +69,6 @@ class SemanticSegmentationModel(BaseModel):
     def build_model(self):
         input_image = Input(shape=(self.input_dim, self.input_dim, 3))
         image_features = self.get_image_features(input_image)
-        # adding 1 for background class
         object_regions = [Dense(1, activation="relu")(image_features) for i in range(self.num_objects)]
         upsampled_regions = Concatenate(axis=3)([self.upsample(x) for x in object_regions])
         output = Activation('softmax')(upsampled_regions)
@@ -97,6 +95,5 @@ class ClassSegmentationModel(BaseModel):
 if __name__ == "__main__":
     args = parse_args()
     segm = SemanticSegmentationModel(args)
-    #segm = ClassSegmentationModel(args)
     model = segm.build_model()
     print(model.summary())

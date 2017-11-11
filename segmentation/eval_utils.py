@@ -6,29 +6,6 @@ from keras import backend as K
 import tensorflow as tf
 
 
-def get_metrics(input_dim, heatmap_threshold):
-    """Returns all the metrics with the corresponding thresholds.
-
-    Args:
-        input_dim: The input size of the image.
-        heatmap_threshold: The heatmap thresholds we are evaluating with.
-
-    Returns:
-        A list of metric functions that take in the ground truth and the
-        predictins to evaluate the model.
-    """
-    metrics = []
-    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, input_dim)
-    iou_bbox_metric.__name__ = 'iou_bbox'
-    for metric_func in [iou, precision, recall, iou_acc, iou_bbox_metric]:
-        for thresh in heatmap_threshold:
-            metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
-                metric_func, thresh)
-            metric.__name__ = metric_func.__name__ + '_' + str(thresh)
-            metrics.append(metric)
-    return metrics
-
-
 def format_results(names, scalars):
     """Formats the results of training.
 
@@ -44,6 +21,21 @@ def format_results(names, scalars):
         res.append('%s: %2.3f' % (name, scalar))
     return ', '.join(res)
 
+
+
+def pixel_acc(y_true, y_pred):
+    y_true = K.argmax(y_true, axis=-1)
+    y_pred = K.argmax(y_pred, axis=-1) 
+    num_classes = y_true.shape[-1]
+    correct_preds =  K.cast(K.equal(y_true, y_pred), "float32")
+    return K.mean(correct_preds)
+
+def mean_iu(y_true, y_pred):
+    total = K.sum(K.sum(y_true, axis=1), axis=1)
+    total_pred = K.sum(K.sum(y_pred, axis=1), axis=1)
+    total_correct = K.sum(K.sum(K.cast(K.equal(y_true, y_pred), "float32"), axis=1), axis=1)
+    iou = K.mean(total_correct / (K.epsilon() + total + total_pred - total_correct), axis=1)
+    return K.mean(iou)
 
 def iou(y_true, y_pred, heatmap_threshold):
     """Measures the mean IoU of our predictions with ground truth.
