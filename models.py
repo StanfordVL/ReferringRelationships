@@ -5,7 +5,7 @@ from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.applications.vgg19 import VGG19
-from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization
+from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization, RepeatVector
 from keras.layers.convolutional import Conv2DTranspose, Conv2D, Conv1D
 from keras.layers.core import Lambda, Dropout, Reshape
 from keras.layers.embeddings import Embedding
@@ -108,8 +108,11 @@ class ReferringRelationshipsModel():
             embedded_object = subj_obj_embedding(input_obj)
             embedded_object =  Activation("relu")(embedded_object)
             embedded_object = Dropout(self.dropout)(embedded_object)
-
+       
+        #conv_att_op = Conv2D(1, 3, strides=(1, 1), padding='same')
         # Extract initial attention maps.
+        #subject_att = self.attend_1(im_features, embedded_subject, conv_att_op, name='subject-att-0')
+        #object_att = self.attend_1(im_features, embedded_object, conv_att_op, name='object-att-0')
         subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
         object_att = self.attend(im_features, embedded_object, name='object-att-0')
 
@@ -128,10 +131,12 @@ class ReferringRelationshipsModel():
             predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
             predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(predicate_att)
             new_image_features = Multiply()([im_features, predicate_att])
+            #new_object_att = self.attend_1(new_image_features, embedded_object, conv_att_op, name='object-att-{}'.format(iteration+1))
             new_object_att = self.attend(new_image_features, embedded_object, name='object-att-{}'.format(iteration+1))
             inv_predicate_att = self.transform_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
             inv_predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
             new_image_features = Multiply()([im_features, inv_predicate_att])
+            #new_subject_att = self.attend_1(new_image_features, embedded_subject, conv_att_op, name='subject-att-{}'.format(iteration+1))
             new_subject_att = self.attend(new_image_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
             if self.use_internal_loss:
                 object_outputs.append(new_object_att)
@@ -378,12 +383,21 @@ class ReferringRelationshipsModel():
                              strides=(1, 1), padding='same',
                              activation='relu')(im_features)
         im_features = Dropout(self.dropout)(im_features)
-        im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
-                             strides=(1, 1), padding='same')(im_features)
         return im_features
 
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
+ 
+    def attend_1(self, feature_map, query, conv_op, name=None):
+        query = Reshape((self.hidden_dim,))(query)
+        query = RepeatVector(self.feat_map_dim)(query)
+        query = Reshape((self.feat_map_dim * self.hidden_dim,))(query)
+        query = RepeatVector(self.feat_map_dim)(query)
+        query = Reshape((self.feat_map_dim, self.feat_map_dim, self.hidden_dim))(query)
+        attention_weights = Concatenate(axis=3)([feature_map, query])
+        attention_weights = conv_op(attention_weights)
+        attention_weights = Activation("relu", name=name)(attention_weights)
+        return attention_weights
 
     def attend(self, feature_map, query, name=None):
         query = Reshape((1, 1, self.hidden_dim))(query)
