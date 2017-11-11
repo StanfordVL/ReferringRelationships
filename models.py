@@ -19,6 +19,7 @@ import json
 import os
 import h5py
 
+
 class ReferringRelationshipsModel():
     """Given a relationship, this model locatlizes them.
     """
@@ -51,6 +52,8 @@ class ReferringRelationshipsModel():
         self.internal_loss_weight = args.internal_loss_weight
         self.iterations = args.iterations
         self.baseline_weights = args.baseline_weights
+        self.attention_conv_kernel = args.attention_conv_kernel
+        self.refinement_conv_kernel = args.refinement_conv_kernel
 
         # Discovery.
         if args.discovery:
@@ -108,13 +111,14 @@ class ReferringRelationshipsModel():
             embedded_object = subj_obj_embedding(input_obj)
             embedded_object =  Activation("relu")(embedded_object)
             embedded_object = Dropout(self.dropout)(embedded_object)
-       
-        #conv_att_op = Conv2D(1, 3, strides=(1, 1), padding='same')
+
+        # Refinement parameters
+        refinement_conv = Conv2D(self.hidden_dim, self.refinement_conv_kernel, strides=(1, 1), padding='same')
+        attention_conv = Conv2D(self.hidden_dim, self.attention_conv_kernel, strides=(1, 1), padding='same')
+
         # Extract initial attention maps.
-        #subject_att = self.attend_1(im_features, embedded_subject, conv_att_op, name='subject-att-0')
-        #object_att = self.attend_1(im_features, embedded_object, conv_att_op, name='object-att-0')
-        subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
-        object_att = self.attend(im_features, embedded_object, name='object-att-0')
+        subject_att = self.attend(im_features, embedded_subject, attention_conv, name='subject-att-0')
+        object_att = self.attend(im_features, embedded_object, attention_conv, name='object-att-0')
 
         # Create the predicate conv layers.
         if self.use_predicate:
@@ -126,25 +130,20 @@ class ReferringRelationshipsModel():
             subject_outputs = [subject_att]
             object_outputs = [object_att]
 
-        # Refinement parameters
-        refinement_conv = Conv2D(self.hidden_dim, 3, stride=(1, 1))
-
         # Iterate!
         for iteration in range(self.iterations):
             predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
             predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(predicate_att)
             new_image_features = Multiply()([im_features, predicate_att])
-            #new_object_att = self.attend_1(new_image_features, embedded_object, conv_att_op, name='object-att-{}'.format(iteration+1))
-            #new_image_features = Concatenate(axis=3)([im_features, new_image_features])
-            #new_image_features = refinement_conv(new_image_features)
-            new_object_att = self.attend(new_image_features, embedded_object, name='object-att-{}'.format(iteration+1))
+            new_image_features = Concatenate(axis=3)([im_features, new_image_features])
+            new_image_features = refinement_conv(new_image_features)
+            new_object_att = self.attend(new_image_features, embedded_object, attention_conv, name='object-att-{}'.format(iteration+1))
             inv_predicate_att = self.transform_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
             inv_predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
             new_image_features = Multiply()([im_features, inv_predicate_att])
-            #new_subject_att = self.attend_1(new_image_features, embedded_subject, conv_att_op, name='subject-att-{}'.format(iteration+1))
-            #new_image_features = Concatenate(axis=3)([im_features, new_image_features])
-            #new_image_features = refinement_conv(new_image_features)
-            new_subject_att = self.attend(new_image_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
+            new_image_features = Concatenate(axis=3)([im_features, new_image_features])
+            new_image_features = refinement_conv(new_image_features)
+            new_subject_att = self.attend(new_image_features, embedded_subject, attention_conv, name='subject-att-{}'.format(iteration+1))
             if self.use_internal_loss:
                 object_outputs.append(new_object_att)
                 subject_outputs.append(new_subject_att)
@@ -342,6 +341,9 @@ class ReferringRelationshipsModel():
             relationship_inputs.append(input_obj)
             num_classes.append(self.num_objects)
 
+        # Refinement parameters
+        attention_conv = Conv2D(self.hidden_dim, self.attention_conv_kernel, strides=(1, 1), padding='same')
+
         # Map the inputs to the outputs.
         im_features = self.build_image_model(input_im)
         rel_features = self.build_relationship_model(relationship_inputs, num_classes)
@@ -350,8 +352,8 @@ class ReferringRelationshipsModel():
         objects_features = Dense(self.hidden_dim)(rel_features)
         subjects_features = Dropout(self.dropout)(subjects_features)
         objects_features = Dropout(self.dropout)(objects_features)
-        subject_att = self.attend(im_features, subjects_features)
-        object_att = self.attend(im_features, objects_features)
+        subject_att = self.attend(im_features, subjects_features, attention_conv)
+        object_att = self.attend(im_features, objects_features, attention_conv)
         subject_regions = self.build_upsampling_layer(subject_att, name="subject")
         object_regions = self.build_upsampling_layer(object_att, name="object")
         model_inputs = [input_im] + relationship_inputs
@@ -381,20 +383,16 @@ class ReferringRelationshipsModel():
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
         im_features = Dropout(self.dropout)(im_features)
-        for i in range(self.nb_conv_im_map-1):
+        for i in range(self.nb_conv_im_map):
             im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
                                  strides=(1, 1), padding='same',
                                  activation='relu')(im_features)
             im_features = Dropout(self.dropout)(im_features)
-        im_features = Conv2D(self.hidden_dim, self.conv_im_kernel,
-                             strides=(1, 1), padding='same',
-                             activation='relu')(im_features)
-        im_features = Dropout(self.dropout)(im_features)
         return im_features
 
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
- 
+
     def attend_1(self, feature_map, query, conv_op, name=None):
         query = Reshape((self.hidden_dim,))(query)
         query = RepeatVector(self.feat_map_dim)(query)
@@ -406,8 +404,8 @@ class ReferringRelationshipsModel():
         attention_weights = Activation("relu", name=name)(attention_weights)
         return attention_weights
 
-    def attend(self, feature_map, query, name=None):
-        query = Reshape((1, 1, self.hidden_dim))(query)
+    def attend(self, feature_map, query, attention_conv, name=None):
+        query = Reshape((1, 1, self.hidden_dim,))(query)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation("relu", name=name)(attention_weights)

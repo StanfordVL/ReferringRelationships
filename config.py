@@ -79,8 +79,9 @@ def parse_training_args(parser):
                         'image.')
     parser.add_argument('--feat-map-layer', type=str, default='activation_40',
                         help='The feature map to use '
-                        'for resnet: (activation_40 for 14x14 and activation_22 for 28x28) '
-                        'for vgg: (block3_conv4 for 56x56, block4_conv4 for 28x28 and '
+                        'for resnet: (activation_40 for 14x14 and '
+                        'activation_22 for 28x28) for vgg: '
+                        '(block3_conv4 for 56x56, block4_conv4 for 28x28 and '
                         'block5_conv4 for 14x14)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
@@ -110,6 +111,11 @@ def parse_training_args(parser):
                         help='The number of iterations to finetune the heatmaps.')
     parser.add_argument('--baseline-weights', default=None, type=str,
                         help='baseline weights')
+    parser.add_argument('--attention-conv-kernel', default=3, type=int,
+                        help='kernel size for the attention module.')
+    parser.add_argument('--refinement-conv-kernel', default=3, type=int,
+                        help='kernel size for the attention module.')
+
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')
