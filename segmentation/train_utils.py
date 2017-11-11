@@ -14,7 +14,7 @@ import os
 import time
 
 
-def weighted_cross_entropy(y_true, y_pred, w1, eps=10e-8):
+def multinomial_logistic_loss(y_true, y_pred, eps=10e-8):
     """Weighted cross entropy implementation.
 
     Args:
@@ -27,9 +27,9 @@ def weighted_cross_entropy(y_true, y_pred, w1, eps=10e-8):
         The loss value.
     """
     y_pred = K.clip(y_pred, eps, 1 - eps)
-    loss_weights = 1. + (w1 - 1.) * y_true
-    s_ce_values = - y_true * K.log(y_pred) - (1. - y_true) * K.log(1. - y_pred)
-    loss = K.mean(s_ce_values * loss_weights)
+    loss_values = K.sum(y_true * y_pred, axis=3)
+    #loss_values = K.mean(K.reshape(loss_values, (y_true.shape[0], -1)), axis=1)
+    loss = K.mean(loss_values)
     return loss
 
 
