@@ -115,6 +115,8 @@ def parse_training_args(parser):
                         help='kernel size for the attention module.')
     parser.add_argument('--refinement-conv-kernel', default=3, type=int,
                         help='kernel size for the attention module.')
+    parser.add_argument('--upsampling-channels', default=100, type=int,
+                        help='Number of channels for the upsample module.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,

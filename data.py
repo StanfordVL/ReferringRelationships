@@ -105,7 +105,7 @@ class Dataset(object):
             The image as a numpy array.
         """
         img_path = os.path.join(self.img_dir, img_id)
-        img = image.load_img(img_path, target_size=(224, 224))
+        img = image.load_img(img_path, target_size=(self.im_dim, self.im_dim))
         img_array = image.img_to_array(img)
 
         # Preprocess the image according to the network we are using.
