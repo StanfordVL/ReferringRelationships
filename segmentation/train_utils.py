@@ -27,7 +27,7 @@ def multinomial_logistic_loss(y_true, y_pred, eps=10e-8):
         The loss value.
     """
     y_pred = K.clip(y_pred, eps, 1 - eps)
-    loss_values = K.sum(y_true * y_pred, axis=3)
+    loss_values = K.sum(K.abs(y_true - y_pred), axis=3)
     #loss_values = K.mean(K.reshape(loss_values, (y_true.shape[0], -1)), axis=1)
     loss = K.mean(loss_values)
     return loss

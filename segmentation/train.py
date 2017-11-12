@@ -70,7 +70,7 @@ if __name__=='__main__':
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
-    metrics = [pixel_acc, mean_iu] 
+    metrics = [pixel_acc, mean_iu]
 
     # create a new instance model
     segmentation_model = SegmentationModel(args)
@@ -79,10 +79,7 @@ if __name__=='__main__':
     optimizer = get_opt(opt=args.opt, lr=args.lr)
 
     # get the loss function and compile the model
-    if args.loss_func == 'weighted':
-        loss_func = get_loss_func(args.w1)
-    else:
-        loss_func = multinomial_logistic_loss
+    loss_func = multinomial_logistic_loss
     losses = loss_func
     model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
 
