@@ -73,6 +73,7 @@ if __name__=='__main__':
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
     metrics = [pixel_acc, mean_iu, categorical_accuracy, sparse_accuracy_ignoring_last_label]
+
     # create a new instance model
     #segmentation_model = SegmentationModel(args)
     model = AtrousFCN_Resnet50_16s((224,224,3), weight_decay=0.0001/2, batch_momentum=0.95, classes=21)

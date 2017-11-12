@@ -16,7 +16,7 @@ def parse_training_args(parser):
     parser.add_argument('--opt', type=str, default='rms',
                         help='The optimizer used during training. Currently'
                         ' supports rms, adam, adagrad and adadelta.')
-    parser.add_argument('--epochs', type=int, default=50,
+    parser.add_argument('--epochs', type=int, default=10,
                         help='The number of epochs to train.')
     parser.add_argument('--train-steps-per-epoch', type=int, default=-1,
                         help='The total number of steps (batches of samples) '
@@ -36,13 +36,15 @@ def parse_training_args(parser):
                         'examples in the CE loss')
     parser.add_argument('--shuffle', action='store_true', default=True,
                         help='Shuffle the dataset.')
-    parser.add_argument('--loss-func', type=str, default='basic',
-                         help='basic or weighted cross entropy loss.')
+    parser.add_argument('--upsampling-channels', type=int, default=20,
+                         help='The number of channels used for upsampling.')
+    parser.add_argument('--final-channels', type=int, default=21,
+                         help='21 for semantic and 1 for class segmentation.')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.001,
                         help='The learning rate for training.')
-    parser.add_argument('--patience', type=int, default=4,
+    parser.add_argument('--patience', type=int, default=0,
                         help='The number of epochs to wait if val loss is '
                         'increasing and decrease the learning rate.')
     parser.add_argument('--lr-reduce-rate', type=float, default=0.1,
@@ -84,13 +86,13 @@ def parse_training_args(parser):
 
     # Data parameters.
     parser.add_argument('--train-data-dir', type=str,
-                        default='/data/chami/VRD/09_20_2017/train/',
+                        default='../data/dataset-pascal/train',
                         help='Location of the training data.')
     parser.add_argument('--val-data-dir', type=str,
-                        default='/data/chami/VRD/09_20_2017/val/',
+                        default='../data/dataset-pascal/test',
                         help='Location of the validation data.')
     parser.add_argument('--test-data-dir', type=str,
-                        default='/data/chami/VRD/09_20_2017/test/',
+                        default='../data/dataset-pascal/test',
                         help='Location of the validation data.')
 
 
@@ -124,7 +126,7 @@ def parse_args(evaluation=False):
     # Session parameters.
     parser.add_argument('--task', type=str, default='semantic',
                         help='[semantic | class].')
-    parser.add_argument('--batch-size', type=int, default=256,
+    parser.add_argument('--batch-size', type=int, default=32,
                         help='The batch size used in training.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
