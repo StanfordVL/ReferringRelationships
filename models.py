@@ -112,11 +112,16 @@ class ReferringRelationshipsModel():
         b4 = Conv2D(1, (1, 1), kernel_initializer='he_normal', activation='linear',
                    padding='same', strides=(1, 1),
                    kernel_regularizer=l2(self.reg))
-        b5 = BilinearUpSampling2D(
-            target_size=(self.input_dim, self.input_dim))
 
-        subject_regions = b5(b4(b3(b2(b1(subject_att)))))
-        object_regions = b5(b4(b3(b2(b1(object_att)))))
+        subject_att = b4(b3(b2(b1(subject_att))))
+        object_att = b4(b3(b2(b1(object_att))))
+
+        subject_regions = BilinearUpSampling2D(
+            target_size=(self.input_dim, self.input_dim))(subject_att)
+        object_regions = BilinearUpSampling2D(
+            target_size=(self.input_dim, self.input_dim))(object_att)
+        subject_regions = Reshape((self.input_dim * self.input_dim,))(subject_regions)
+        object_regions = Reshape((self.input_dim * self.input_dim,))(object_regions)
 
         model = Model([input_im, input_subj, input_obj], [subject_regions, object_regions])
         weights_path = os.path.join(
