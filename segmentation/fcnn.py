@@ -57,7 +57,7 @@ def AtrousFCN_Resnet50_16s(input_shape = None, weight_decay=0., batch_momentum=0
     x = BilinearUpSampling2D(target_size=tuple(image_size))(x)
 
     model = Model(img_input, x)
-    weights_path = os.path.expanduser(os.path.join('~', '.keras/models/fcn_resnet50_weights_tf_dim_ordering_tf_kernels.h5'))
+    weights_path = os.path.join('/data/chami/fcn_resnet50_weights_tf_dim_ordering_tf_kernels.h5')
     model.load_weights(weights_path, by_name=True)
     return model
 

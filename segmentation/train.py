@@ -76,7 +76,7 @@ if __name__=='__main__':
 
     # create a new instance model
     #segmentation_model = SegmentationModel(args)
-    model = AtrousFCN_Resnet50_16s((224,224,3), weight_decay=0.0001/2, batch_momentum=0.95, classes=21)
+    model = AtrousFCN_Resnet50_16s((224,224,3), weight_decay=0.0001/2, batch_momentum=0.95, classes=args.num_objects)
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
     #optimizer = get_opt(opt=args.opt, lr=args.lr)
     lr_base = 0.01 * (float(args.batch_size) / 16)
