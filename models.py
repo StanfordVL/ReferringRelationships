@@ -59,6 +59,7 @@ class ReferringRelationshipsModel():
         self.upsampling_channels = args.upsampling_channels
         self.reg = args.reg
         self.batch_momentum = args.batch_momentum
+        self.fcnn = args.fcnn
 
         # Discovery.
         if args.discovery:
@@ -73,61 +74,10 @@ class ReferringRelationshipsModel():
             return self.build_iterative_sym_ssn_model()
         elif self.model == "baseline":
             return self.build_baseline_model()
-        elif self.model == "fcnn":
-            return self.build_fcnn()
         else:
             raise ValueError('model argument not recognized. '
                              'Model options: ssn, sym_ssn, baseline, '
                              'baseline_no_predicate')
-
-    def build_fcnn(self):
-        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_subj = Input(shape=(1,))
-        input_obj = Input(shape=(1,))
-        embed = Embedding(self.num_objects, self.hidden_dim, input_length=1)
-        embedded_subject = embed(input_subj)
-        embedded_subject = Activation("relu")(embedded_subject)
-        embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_object = embed(input_obj)
-        embedded_object =  Activation("relu")(embedded_object)
-        embedded_object = Dropout(self.dropout)(embedded_object)
-        im_features = self.build_custom_resnet_features(input_im)
-
-        attention_conv = Conv2D(self.hidden_dim, self.attention_conv_kernel, strides=(1, 1), padding='same')
-        subject_att = self.attend(im_features, embedded_subject, attention_conv, name='subject-att-0')
-        object_att = self.attend(im_features, embedded_object, attention_conv, name='object-att-0')
-
-        b1 = atrous_conv_block(3, [512, 512, 2048], stage=5, block='a',
-                              weight_decay=self.reg,
-                              atrous_rate=(2, 2),
-                              batch_momentum=self.batch_momentum)
-        b2 = atrous_identity_block(3, [512, 512, 2048], stage=5, block='b',
-                                  weight_decay=self.reg,
-                                  atrous_rate=(2, 2),
-                                  batch_momentum=self.batch_momentum)
-        b3 = atrous_identity_block(3, [512, 512, 2048], stage=5, block='c',
-                                  weight_decay=self.reg,
-                                  atrous_rate=(2, 2),
-                                  batch_momentum=self.batch_momentum)
-        b4 = Conv2D(1, (1, 1), kernel_initializer='he_normal', activation='linear',
-                   padding='same', strides=(1, 1),
-                   kernel_regularizer=l2(self.reg))
-
-        subject_att = b4(b3(b2(b1(subject_att))))
-        object_att = b4(b3(b2(b1(object_att))))
-
-        subject_regions = BilinearUpSampling2D(
-            target_size=(self.input_dim, self.input_dim))(subject_att)
-        object_regions = BilinearUpSampling2D(
-            target_size=(self.input_dim, self.input_dim))(object_att)
-        subject_regions = Reshape((self.input_dim * self.input_dim,), name='subject')(subject_regions)
-        object_regions = Reshape((self.input_dim * self.input_dim,), name='object')(object_regions)
-
-        model = Model([input_im, input_subj, input_obj], [subject_regions, object_regions])
-        weights_path = os.path.join(
-            '/data/chami/fcn_resnet50_weights_tf_dim_ordering_tf_kernels.h5')
-        model.load_weights(weights_path, by_name=True)
-        return model
 
     def build_custom_resnet_features(self, input_im):
         x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', name='conv1',
@@ -175,10 +125,36 @@ class ReferringRelationshipsModel():
         x = identity_block(3, [256, 256, 1024], stage=4, block='e',
                            weight_decay=self.reg,
                            batch_momentum=self.batch_momentum)(x)
-        x = identity_block(3, [256, 256, 1024], stage=4, block='f',
+        im_features = identity_block(3, [256, 256, 1024], stage=4, block='f',
                            weight_decay=self.reg,
                            batch_momentum=self.batch_momentum)(x)
-        return x
+
+        return im_features
+
+    def build_fcnn_upsampling_layer(self):
+        b1 = atrous_conv_block(3, [512, 512, 2048], stage=5, block='a',
+                              weight_decay=self.reg,
+                              atrous_rate=(2, 2),
+                              batch_momentum=self.batch_momentum)
+        b2 = atrous_identity_block(3, [512, 512, 2048], stage=5, block='b',
+                                  weight_decay=self.reg,
+                                  atrous_rate=(2, 2),
+                                  batch_momentum=self.batch_momentum)
+        b3 = atrous_identity_block(3, [512, 512, 2048], stage=5, block='c',
+                                  weight_decay=self.reg,
+                                  atrous_rate=(2, 2),
+                                  batch_momentum=self.batch_momentum)
+        b4 = Conv2D(1, (1, 1), kernel_initializer='he_normal', activation='linear',
+                   padding='same', strides=(1, 1),
+                   kernel_regularizer=l2(self.reg))
+        b5 = BilinearUpSampling2D(
+            target_size=(self.input_dim, self.input_dim))
+        return [b1, b2, b3, b4, b5]
+
+    def load_fcnn_weights(self, model):
+        weights_path = os.path.join(
+            '/data/chami/fcn_resnet50_weights_tf_dim_ordering_tf_kernels.h5')
+        model.load_weights(weights_path, by_name=True)
 
     def build_iterative_sym_ssn_model(self):
         """Iteratives build focusing on the subject and object over and over again.
@@ -212,7 +188,11 @@ class ReferringRelationshipsModel():
                 layer.trainable = False
             im_features, embedded_subject, embedded_object = baseline_branch([input_im, input_subj, input_obj])
         else:
-            im_features = self.build_image_model(input_im)
+            if self.fcnn:
+                im_features = self.build_custom_resnet_features(input_im)
+                upsampling_layers = self.build_fcnn_upsampling_layer()
+            else:
+                im_features = self.build_image_model(input_im)
             subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
             embedded_subject = subj_obj_embedding(input_subj)
             embedded_subject = Activation("relu")(embedded_subject)
@@ -278,11 +258,22 @@ class ReferringRelationshipsModel():
             subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
             object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
 
-        object_regions = self.build_upsampling_layer(object_att, name="object")
-        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
+        if self.fcnn:
+            subject_regions = subject_att
+            object_regions = object_att
+            for layer in upsampling_layers:
+                subject_regions = layer(subject_regions)
+                object_regions = layer(object_regions)
+            subject_regions = Reshape((self.input_dim * self.input_dim,), name='subject')(subject_regions)
+            object_regions = Reshape((self.input_dim * self.input_dim,), name='object')(object_regions)
+        else:
+            object_regions = self.build_upsampling_layer(object_att, name="object")
+            subject_regions = self.build_upsampling_layer(subject_att, name="subject")
 
         # Create and output the model.
         model = Model(inputs=inputs, outputs=[subject_regions, object_regions])
+        if self.fcnn:
+            self.load_fcnn_weights(model)
         return model
 
     def build_conv_modules(self, basename):
@@ -336,7 +327,6 @@ class ReferringRelationshipsModel():
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_object = subj_obj_embedding(input_obj)
         embedded_object = Activation('relu')(embedded_object)
-        embedded_object = Dropout(self.dropout)(embedded_object)
 
         # Extract subject attention map.
         subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
@@ -486,10 +476,12 @@ class ReferringRelationshipsModel():
             base_model = ResNet50(weights='imagenet',
                                   include_top=False,
                                   input_shape=(self.input_dim, self.input_dim, 3))
-        else:
+        elif self.cnn == 'vgg':
             base_model = VGG19(weights='imagenet',
                                include_top=False,
                                input_shape=(self.input_dim, self.input_dim, 3))
+        else:
+            raise ValueError('--cnn parameter not recognized.')
         for layer in base_model.layers:
             layer.trainable = False
             layer.training = False
@@ -507,7 +499,18 @@ class ReferringRelationshipsModel():
     def build_embedding_layer(self, num_categories, emb_dim):
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def attend_1(self, feature_map, query, conv_op, name=None):
+    def attend_add(self, feature_map, query, conv_op, name=None):
+        query = Reshape((self.hidden_dim,))(query)
+        query = RepeatVector(self.feat_map_dim)(query)
+        query = Reshape((self.feat_map_dim * self.hidden_dim,))(query)
+        query = RepeatVector(self.feat_map_dim)(query)
+        query = Reshape((self.feat_map_dim, self.feat_map_dim, self.hidden_dim))(query)
+        attention_weights = Concatenate(axis=3)([feature_map, query])
+        attention_weights = conv_op(attention_weights)
+        attention_weights = Activation("relu", name=name)(attention_weights)
+        return attention_weights
+
+    def attend_refine(self, feature_map, query, conv_op, name=None):
         query = Reshape((self.hidden_dim,))(query)
         query = RepeatVector(self.feat_map_dim)(query)
         query = Reshape((self.feat_map_dim * self.hidden_dim,))(query)
