@@ -78,7 +78,7 @@ class SemanticSegmentationIterator(Sequence):
 
         start_idx = idx * self.batch_size
         end_idx = min(self.samples, (idx + 1) * self.batch_size)
-
+        current_batch_size = end_idx - start_idx
         # Create the batches.
         batch_o_regions = self.objects[start_idx:end_idx]
         batch_image = self.images[start_idx:end_idx]
