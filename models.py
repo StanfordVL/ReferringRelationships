@@ -120,8 +120,8 @@ class ReferringRelationshipsModel():
             target_size=(self.input_dim, self.input_dim))(subject_att)
         object_regions = BilinearUpSampling2D(
             target_size=(self.input_dim, self.input_dim))(object_att)
-        subject_regions = Reshape((self.input_dim * self.input_dim,))(subject_regions)
-        object_regions = Reshape((self.input_dim * self.input_dim,))(object_regions)
+        subject_regions = Reshape((self.input_dim * self.input_dim,), name='subject')(subject_regions)
+        object_regions = Reshape((self.input_dim * self.input_dim,), name='object')(object_regions)
 
         model = Model([input_im, input_subj, input_obj], [subject_regions, object_regions])
         weights_path = os.path.join(
