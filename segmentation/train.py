@@ -11,10 +11,10 @@ from config import parse_args
 from models import SemanticSegmentationModel
 from iterator import SemanticSegmentationIterator
 from eval_utils import format_results
-from eval_utils import pixel_acc, mean_iu, sparse_accuracy_ignoring_last_label
+from eval_utils import pixel_acc, mean_iu, sparse_accuracy_ignoring_first_label
 from train_utils import Logger
 from train_utils import LrReducer
-from train_utils import get_loss_func, multinomial_logistic_loss, softmax_sparse_crossentropy_ignoring_last_label
+from train_utils import get_loss_func, multinomial_logistic_loss, softmax_sparse_crossentropy_ignoring_first_label
 from train_utils import get_dir_name
 from train_utils import get_opt
 from train_utils import format_args
@@ -72,8 +72,8 @@ if __name__=='__main__':
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
-    metrics = [pixel_acc, mean_iu, categorical_accuracy, sparse_accuracy_ignoring_last_label]
-
+    #metrics = [mean_iu, categorical_accuracy, sparse_accuracy_ignoring_first_label]
+    metrics = [sparse_accuracy_ignoring_first_label]
     # create a new instance model
     #segmentation_model = SegmentationModel(args)
     model = AtrousFCN_Resnet50_16s((224,224,3), weight_decay=0.0001/2, batch_momentum=0.95, classes=args.num_objects)
@@ -86,7 +86,7 @@ if __name__=='__main__':
     #    loss_func = get_loss_func(args.w1)
     #else:
     #    loss_func = multinomial_logistic_loss
-    losses = softmax_sparse_crossentropy_ignoring_last_label
+    losses = softmax_sparse_crossentropy_ignoring_first_label
     model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
 
     # load model weights from checkpoint
