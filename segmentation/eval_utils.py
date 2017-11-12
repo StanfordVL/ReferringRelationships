@@ -5,7 +5,20 @@ from keras import backend as K
 
 import tensorflow as tf
 
+
 def sparse_accuracy_ignoring_last_label(y_true, y_pred):
+    nb_classes = K.int_shape(y_pred)[-1]
+    y_pred = K.reshape(y_pred, (-1, nb_classes))
+
+    y_true = K.one_hot(tf.to_int32(K.flatten(y_true)),
+                       nb_classes)
+    #unpacked = tf.unstack(y_true, axis=-1)
+    legal_labels = ~tf.cast(y_true[-1], tf.bool)
+    #y_true = tf.stack(unpacked[1:], axis=-1)
+
+    return K.sum(tf.to_float(legal_labels & K.equal(K.argmax(y_true, axis=-1), K.argmax(y_pred, axis=-1)))) / K.sum(tf.to_float(legal_labels))
+
+def original_sparse_accuracy_ignoring_last_label(y_true, y_pred):
     nb_classes = K.int_shape(y_pred)[-1]
     y_pred = K.reshape(y_pred, (-1, nb_classes))
 
@@ -16,6 +29,7 @@ def sparse_accuracy_ignoring_last_label(y_true, y_pred):
     y_true = tf.stack(unpacked[1:], axis=-1)
 
     return K.sum(tf.to_float(legal_labels & K.equal(K.argmax(y_true, axis=-1), K.argmax(y_pred, axis=-1)))) / K.sum(tf.to_float(legal_labels))
+
 
 def format_results(names, scalars):
     """Formats the results of training.
@@ -34,7 +48,7 @@ def format_results(names, scalars):
 
 def pixel_acc(y_true, y_pred):
     y_true = K.argmax(y_true, axis=-1)
-    y_pred = K.argmax(y_pred, axis=-1) 
+    y_pred = K.argmax(y_pred, axis=-1)
     correct_preds =  K.mean(K.cast(K.equal(y_true, y_pred), "float32"), axis=1)
     return correct_preds
 
