@@ -103,8 +103,10 @@ def parse_training_args(parser):
     parser.add_argument('--conv-predicate-kernel', type=int, default=5,
                         help='The kernel size when using convolutions in '
                         'the ssn model to move heatmaps')
-    parser.add_argument('--reg', type=float, default=0.2,
+    parser.add_argument('--reg', type=float, default=0.,
                         help='Weight regularizer.')
+    parser.add_argument('--batch-momentum', type=float, default=0.9,
+                        help='Batch norm layer momentum.')
     parser.add_argument('--conv-predicate-channels', default=50, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--iterations', default=1, type=int,

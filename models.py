@@ -1,17 +1,19 @@
 """Defines the shifting attention referring relationship model.
 """
 
+from BilinearUpSampling import BilinearUpSampling2D
 from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.applications.vgg19 import VGG19
-from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization, RepeatVector
+from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization, RepeatVector, MaxPooling2D
 from keras.layers.convolutional import Conv2DTranspose, Conv2D, Conv1D
 from keras.layers.core import Lambda, Dropout, Reshape
 from keras.layers.embeddings import Embedding
 from keras.layers.merge import Multiply, Dot, Add, Concatenate
 from keras.models import Model
 from keras.regularizers import l2
+from resnet_helpers import conv_block, identity_block, atrous_conv_block, atrous_identity_block
 from utils.visualization_utils import objdict
 
 import numpy as np
@@ -55,6 +57,8 @@ class ReferringRelationshipsModel():
         self.attention_conv_kernel = args.attention_conv_kernel
         self.refinement_conv_kernel = args.refinement_conv_kernel
         self.upsampling_channels = args.upsampling_channels
+        self.reg = args.reg
+        self.batch_momentum = args.batch_momentum
 
         # Discovery.
         if args.discovery:
@@ -69,8 +73,107 @@ class ReferringRelationshipsModel():
             return self.build_iterative_sym_ssn_model()
         elif self.model == "baseline":
             return self.build_baseline_model()
+        elif self.model == "fcnn":
+            return self.build_fcnn()
         else:
-            raise ValueError("model argument not recognized. Model options: ssn, sym_ssn, baseline, baseline_no_predicate")
+            raise ValueError('model argument not recognized. '
+                             'Model options: ssn, sym_ssn, baseline, '
+                             'baseline_no_predicate')
+
+    def build_fcnn(self):
+        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_subj = Input(shape=(1,))
+        input_obj = Input(shape=(1,))
+        embed = Embedding(self.num_objects, self.hidden_dim, input_length=1)
+        embedded_subject = embed(input_subj)
+        embedded_subject = Activation("relu")(embedded_subject)
+        embedded_subject = Dropout(self.dropout)(embedded_subject)
+        embedded_object = embed(input_obj)
+        embedded_object =  Activation("relu")(embedded_object)
+        embedded_object = Dropout(self.dropout)(embedded_object)
+        im_features = self.build_custom_resnet_features(input_im)
+
+        attention_conv = Conv2D(self.hidden_dim, self.attention_conv_kernel, strides=(1, 1), padding='same')
+        subject_att = self.attend(im_features, embedded_subject, attention_conv, name='subject-att-0')
+        object_att = self.attend(im_features, embedded_object, attention_conv, name='object-att-0')
+
+        b1 = atrous_conv_block(3, [512, 512, 2048], stage=5, block='a',
+                              weight_decay=self.reg,
+                              atrous_rate=(2, 2),
+                              batch_momentum=self.batch_momentum)
+        b2 = atrous_identity_block(3, [512, 512, 2048], stage=5, block='b',
+                                  weight_decay=self.reg,
+                                  atrous_rate=(2, 2),
+                                  batch_momentum=self.batch_momentum)
+        b3 = atrous_identity_block(3, [512, 512, 2048], stage=5, block='c',
+                                  weight_decay=self.reg,
+                                  atrous_rate=(2, 2),
+                                  batch_momentum=self.batch_momentum)
+        b4 = Conv2D(1, (1, 1), kernel_initializer='he_normal', activation='linear',
+                   padding='same', strides=(1, 1),
+                   kernel_regularizer=l2(self.reg))
+        b5 = BilinearUpSampling2D(
+            target_size=(self.input_dim, self.input_dim))
+
+        subject_regions = b5(b4(b3(b2(b1(subject_att)))))
+        object_regions = b5(b4(b3(b2(b1(object_att)))))
+
+        model = Model([input_im, input_subj, input_obj], [subject_regions, object_regions])
+        weights_path = os.path.join(
+            '/data/chami/fcn_resnet50_weights_tf_dim_ordering_tf_kernels.h5')
+        model.load_weights(weights_path, by_name=True)
+        return model
+
+    def build_custom_resnet_features(self, input_im):
+        x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', name='conv1',
+                   kernel_regularizer=l2(self.reg))(input_im)
+        x = BatchNormalization(axis=3, name='bn_conv1',
+                               momentum=self.batch_momentum)(x)
+        x = Activation('relu')(x)
+        x = MaxPooling2D((3, 3), strides=(2, 2))(x)
+
+        x = conv_block(3, [64, 64, 256], stage=2, block='a',
+                       weight_decay=self.reg, strides=(1, 1),
+                       batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [64, 64, 256], stage=2, block='b',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [64, 64, 256], stage=2, block='c',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+
+        x = conv_block(3, [128, 128, 512], stage=3, block='a',
+                       weight_decay=self.reg,
+                       batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [128, 128, 512], stage=3, block='b',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [128, 128, 512], stage=3, block='c',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [128, 128, 512], stage=3, block='d',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+
+        x = conv_block(3, [256, 256, 1024], stage=4, block='a',
+                       weight_decay=self.reg,
+                       batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [256, 256, 1024], stage=4, block='b',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [256, 256, 1024], stage=4, block='c',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [256, 256, 1024], stage=4, block='d',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [256, 256, 1024], stage=4, block='e',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        x = identity_block(3, [256, 256, 1024], stage=4, block='f',
+                           weight_decay=self.reg,
+                           batch_momentum=self.batch_momentum)(x)
+        return x
 
     def build_iterative_sym_ssn_model(self):
         """Iteratives build focusing on the subject and object over and over again.
