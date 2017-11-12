@@ -36,7 +36,7 @@ def parse_training_args(parser):
                         'examples in the CE loss')
     parser.add_argument('--shuffle', action='store_true', default=True,
                         help='Shuffle the dataset.')
-    parser.add_argument('--loss-func', type=str, default='weighted',
+    parser.add_argument('--loss-func', type=str, default='basic',
                          help='basic or weighted cross entropy loss.')
 
     # Learning rate parameters.
@@ -62,7 +62,7 @@ def parse_training_args(parser):
                         'block5_conv4 for 14x14)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
-    parser.add_argument('--num-objects', type=int, default=20,
+    parser.add_argument('--num-objects', type=int, default=21,
                         help='The number of objects in the dataset.')
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='The dropout probability used in training.')
