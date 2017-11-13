@@ -211,7 +211,9 @@ class Logger(Callback):
         if self.log_every_batch:
             logging.info("="*30)
         logging.info("Epoch took %2.3f seconds" % epoch_time)
-        logging.info(self.format_logs(logs))
+        lr = K.get_value(self.model.optimizer.lr)
+        lr_string = 'lr: %0.5f, ' % lr
+        logging.info(lr_string + self.format_logs(logs))
         if self.log_every_batch:
             logging.info("="*30)
         self.epoch += 1
@@ -236,4 +238,6 @@ class Logger(Callback):
         if self.log_every_batch:
             batch_time = time.time() - self.batch_start_time
             time_string = 'Time: %2.3f, ' % batch_time
-            logging.info(time_string + self.format_logs(logs))
+            lr = K.get_value(self.model.optimizer.lr)
+            lr_string = 'lr: %0.5f, ' % lr
+            logging.info(time_string + lr_string + self.format_logs(logs))

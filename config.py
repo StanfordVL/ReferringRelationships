@@ -85,6 +85,8 @@ def parse_training_args(parser):
                         'block5_conv4 for 14x14)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
+    parser.add_argument('--output-dim', type=int, default=224,
+                        help='Size of the output predictions.')
     parser.add_argument('--num-predicates', type=int, default=70,
                         help='The number of predicates in the dataset.')
     parser.add_argument('--num-objects', type=int, default=100,
@@ -103,8 +105,10 @@ def parse_training_args(parser):
     parser.add_argument('--conv-predicate-kernel', type=int, default=5,
                         help='The kernel size when using convolutions in '
                         'the ssn model to move heatmaps')
-    parser.add_argument('--reg', type=float, default=0.2,
+    parser.add_argument('--reg', type=float, default=0.,
                         help='Weight regularizer.')
+    parser.add_argument('--batch-momentum', type=float, default=0.9,
+                        help='Batch norm layer momentum.')
     parser.add_argument('--conv-predicate-channels', default=50, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--iterations', default=1, type=int,
@@ -117,6 +121,8 @@ def parse_training_args(parser):
                         help='kernel size for the attention module.')
     parser.add_argument('--upsampling-channels', default=100, type=int,
                         help='Number of channels for the upsample module.')
+    parser.add_argument('--fcnn', action='store_true',
+                        help='Use FCNN with the bilinear upsampling module.')
 
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,

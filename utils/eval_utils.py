@@ -6,11 +6,11 @@ from keras import backend as K
 import tensorflow as tf
 
 
-def get_metrics(input_dim, heatmap_threshold):
+def get_metrics(output_dim, heatmap_threshold):
     """Returns all the metrics with the corresponding thresholds.
 
     Args:
-        input_dim: The input size of the image.
+        output_dim: The size of the predictions.
         heatmap_threshold: The heatmap thresholds we are evaluating with.
 
     Returns:
@@ -18,7 +18,7 @@ def get_metrics(input_dim, heatmap_threshold):
         predictins to evaluate the model.
     """
     metrics = []
-    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, input_dim)
+    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, output_dim)
     iou_bbox_metric.__name__ = 'iou_bbox'
     for metric_func in [iou, precision, recall, iou_acc, iou_bbox_metric]:
         for thresh in heatmap_threshold:
@@ -125,7 +125,7 @@ def iou_acc(y_true, y_pred, heatmap_threshold):
     return K.mean(acc)
 
 
-def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
+def iou_bbox(y_true, y_pred, heatmap_threshold, output_dim):
     """Measures the mean IoU of our bbox predictions with ground truth.
 
     Args:
@@ -138,15 +138,15 @@ def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
         A float containing the mean accuracy of our bbox predictions.
     """
     pred = K.cast(K.greater(y_pred, heatmap_threshold), "float32")
-    pred = K.reshape(pred, (-1, input_dim, input_dim))
+    pred = K.reshape(pred, (-1, output_dim, output_dim))
     horiz = K.sum(pred, axis=1, keepdims=True)
     horiz = K.cast(K.greater(horiz, 0), "float32")
-    mask_horiz = K.repeat_elements(horiz, input_dim, axis=1)
+    mask_horiz = K.repeat_elements(horiz, output_dim, axis=1)
     vert = K.sum(pred, axis=2, keepdims=True)
     vert = K.cast(K.greater(vert, 0), "float32")
-    mask_vert = K.repeat_elements(vert, input_dim, axis=2)
+    mask_vert = K.repeat_elements(vert, output_dim, axis=2)
     mask = mask_vert * mask_horiz
-    mask = K.reshape(mask, (-1, input_dim * input_dim))
+    mask = K.reshape(mask, (-1, output_dim * output_dim))
     intersection = y_true * mask
     union = K.cast(K.greater(y_true + mask, 0), "float32")
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
@@ -156,9 +156,9 @@ def iou_bbox(y_true, y_pred, heatmap_threshold, input_dim):
 if __name__ == "__main__":
     import numpy as np;
     x = np.random.random((3, 3))
-    input_dim = 3
+    output_dim = 3
     y = np.array([[0., 1., 1.],[1., 1., 1.],[1., 0, 1.]])
     print(x)
     print(y)
     tf.InteractiveSession()
-    print(iou_bbox(y, x, 0.6, input_dim).eval())
+    print(iou_bbox(y, x, 0.6, output_dim).eval())

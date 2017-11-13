@@ -19,7 +19,8 @@ class Dataset(object):
     """
 
     def __init__(self, data_path, img_dir, im_metadata_path,
-                 im_dim=224, num_images=None, max_rels_per_image=None):
+                 im_dim=224, output_dim=224, num_images=None,
+                 max_rels_per_image=None):
         """Constructor for the VRD dataset object.
 
         Args:
@@ -27,6 +28,7 @@ class Dataset(object):
             img_dir: Location of the images.
             im_metadata_path: Location of the file containing image metadata.
             im_dim: The size of images.
+            output_dim: The size of predictions.
             num_images: The number of images to save.
             max_rels_per_image: The maximum number of relationships per image.
         """
@@ -38,13 +40,14 @@ class Dataset(object):
             self.data = data
         self.im_metadata = json.load(open(im_metadata_path))
         self.im_dim = im_dim
-        self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
-        self.row_template = np.arange(self.im_dim).reshape(self.im_dim, 1)
+        self.output_dim = output_dim
+        self.col_template = np.arange(self.output_dim).reshape(1, self.output_dim)
+        self.row_template = np.arange(self.output_dim).reshape(self.output_dim, 1)
         self.img_dir = img_dir
         self.max_rels_per_image = max_rels_per_image
 
     def rescale_bbox_coordinates(self, bbox, height, width):
-        """Rescales the bbox coords according to the `im_dim`.
+        """Rescales the bbox coords according to the `output_dim`.
 
         Args:
             bbox: A tuple of (top, bottom, left, right) coordinates of the
@@ -54,13 +57,17 @@ class Dataset(object):
         Returns:
             A tuple containing the rescaled bbox coordinates.
         """
-        h_ratio = self.im_dim * 1. / height
-        w_ratio = self.im_dim * 1. / width
+        h_ratio = self.output_dim * 1. / height
+        w_ratio = self.output_dim * 1. / width
         y_min, y_max, x_min, x_max = bbox
         y0 = max(int(y_min * h_ratio), 0)
         x0 = max(int(x_min * w_ratio), 0)
-        y1 = min(int(y_max * h_ratio), self.im_dim - 1)
-        x1 = min(int(x_max * w_ratio), self.im_dim - 1)
+        y1 = min(int(y_max * h_ratio), self.output_dim - 1)
+        x1 = min(int(x_max * w_ratio), self.output_dim - 1)
+        if (y_min < height and y_max < height
+            and x_min < width and x_max < width):
+            assert(y0 <= y1)
+            assert(x0 <= x1)
         return y0, x0, y1, x1
 
     def get_regions_from_bbox(self, bbox):
@@ -74,11 +81,11 @@ class Dataset(object):
             An image array with 0 or 1 for ground truth regions.
         """
         top, left, bottom, right = bbox
-        col_indexes = (1 * (self.col_template > left) *
-                       (self.col_template < right)).repeat(self.im_dim, 0)
-        row_indexes = (1 * (self.row_template > top) *
-                       (self.row_template < bottom)).repeat(self.im_dim, 1)
-        return (col_indexes * row_indexes).reshape((self.im_dim, self.im_dim))
+        col_indexes = (1 * (self.col_template >= left) *
+                       (self.col_template <= right)).repeat(self.output_dim, 0)
+        row_indexes = (1 * (self.row_template >= top) *
+                       (self.row_template <= bottom)).repeat(self.output_dim, 1)
+        return (col_indexes * row_indexes).reshape((self.output_dim, self.output_dim))
 
     def get_train_val_splits(self, val_percent):
         """Splits the dataset into train and val splits.
@@ -142,8 +149,8 @@ class Dataset(object):
         """
         num_images = len(image_ids)
         images = np.zeros((num_images, self.im_dim, self.im_dim, 3))
-        s_regions = np.zeros((num_images, self.im_dim * self.im_dim))
-        o_regions = np.zeros((num_images, self.im_dim * self.im_dim))
+        s_regions = np.zeros((num_images, self.output_dim * self.output_dim))
+        o_regions = np.zeros((num_images, self.output_dim * self.output_dim))
         for i, image_id in enumerate(image_ids):
             s_bbox = subject_bboxes[i]
             o_bbox = object_bboxes[i]
@@ -200,124 +207,6 @@ class Dataset(object):
         raise NotImplementedError
 
 
-class PredicateDataset(Dataset):
-    """Create individual datasets for each predicate.
-    """
-
-    def build_and_save_dataset(self, save_dir, image_ids=None):
-        """Converts the dataset into format we will use for training.
-
-        Converts the dataset into a series of images, relationship labels
-        and heatmaps.
-
-        Args:
-            save_dir: Location to save the data.
-            image_ids: List of image ids.
-        """
-        total_relationships = collections.Counter()
-
-        # Grab the image ids.
-        if not image_ids:
-            image_ids = self.data.keys()
-        image_ids = sorted(image_ids)
-        num_images = len(image_ids)
-
-        # Iterate and count the number of relationships.
-        for image_index, image_id in enumerate(image_ids):
-            try:
-                im_data = self.im_metadata[image_id]
-            except:
-                print('Image %s not found' % str(image_id))
-                continue
-            seen = {}
-            for j, relationship in enumerate(self.data[image_id]):
-                subject_cat = relationship['subject']['category']
-                predicate_cat = relationship['predicate']
-                object_cat = relationship['object']['category']
-                seen_key = '_'.join([str(x) for x in
-                                     [subject_cat, predicate_cat, object_cat]])
-                seen[seen_key] = predicate_cat
-            for predicate_cat in seen.values():
-                total_relationships[predicate_cat] += 1
-        print('predicate counts: ', total_relationships)
-
-        # Create the dataset.
-        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
-        dbs = {}
-        for predicate_cat in total_relationships.keys():
-            size = total_relationships[predicate_cat]
-            group = dataset.create_group(str(predicate_cat))
-            categories_db = group.create_dataset('categories',
-                                                 (size, 4),
-                                                 dtype='f')
-            subject_db = group.create_dataset('subject_locations',
-                                              (size, self.im_dim, self.im_dim),
-                                              dtype='f')
-            object_db = group.create_dataset('object_locations',
-                                             (size, self.im_dim, self.im_dim),
-                                             dtype='f')
-            dbs[predicate_cat] = {'subject_db': subject_db,
-                                  'object_db': object_db,
-                                  'categories_db': categories_db}
-
-        # Now save all the relationships.
-        db_index = {predicate_cat: 0 for predicate_cat in total_relationships}
-        for image_index, image_id in enumerate(image_ids):
-            try:
-                im_data = self.im_metadata[image_id]
-            except:
-                print('Image %s not found' % str(image_id))
-                continue
-            seen = {}
-
-            # Iterate over all the relationships in the image
-            for j, relationship in enumerate(self.data[image_id]):
-                subject_cat = relationship['subject']['category']
-                predicate_cat = relationship['predicate']
-                object_cat = relationship['object']['category']
-                s_bbox = self.rescale_bbox_coordinates(
-                    relationship['subject']['bbox'],
-                    im_data['height'],
-                    im_data['width'])
-                o_bbox= self.rescale_bbox_coordinates(
-                    relationship['object']['bbox'],
-                    im_data['height'],
-                    im_data['width'])
-                s_region = self.get_regions_from_bbox(s_bbox)
-                o_region = self.get_regions_from_bbox(o_bbox)
-                seen_key = '_'.join([str(x) for x in
-                                     [subject_cat, predicate_cat, object_cat]])
-                if seen_key not in seen:
-                    rel = {'image_index': image_index,
-                           'subject': s_region,
-                           'object': o_region,
-                           'subject_cat': subject_cat,
-                           'predicate_cat': predicate_cat,
-                           'object_cat': object_cat}
-                    seen[seen_key] = rel
-                else:
-                    rel = seen[seen_key]
-                    rel['subject'] = (rel['subject'] + s_region
-                                      - np.multiply(rel['subject'], s_region))
-                    rel['object'] = (rel['object'] + o_region
-                                     - np.multiply(rel['object'], o_region))
-
-            for rel in seen.values():
-                cat_db = dbs[rel['predicate_cat']]
-                index = db_index[rel['predicate_cat']]
-                cat_db['subject_db'][index] = rel['subject']
-                cat_db['object_db'][index] = rel['object']
-                cat_db['categories_db'][index, 0] = rel['subject_cat']
-                cat_db['categories_db'][index, 1] = rel['predicate_cat']
-                cat_db['categories_db'][index, 2] = rel['object_cat']
-                cat_db['categories_db'][index, 3] = rel['image_index']
-                db_index[rel['predicate_cat']] += 1
-
-            # Log the progress.
-            if image_index % 100 == 0:
-                print('| {}/{} images processed'.format(image_index, num_images))
-
-
 class SmartDataset(Dataset):
     """Parses the dataset into a format used for training.
     """
@@ -365,11 +254,11 @@ class SmartDataset(Dataset):
                                                dtype='f')
         subject_db = dataset.create_dataset('subject_locations',
                                             (total_relationships,
-                                             self.im_dim, self.im_dim),
+                                             self.output_dim, self.output_dim),
                                             dtype='f')
         object_db = dataset.create_dataset('object_locations',
                                            (total_relationships,
-                                            self.im_dim, self.im_dim),
+                                            self.output_dim, self.output_dim),
                                            dtype='f')
 
         # Now save all the relationships.
@@ -434,141 +323,6 @@ class SmartDataset(Dataset):
         print("Total relationships in dataset: %d" % total_relationships)
 
 
-class DuplicatedDataset(Dataset):
-    """Parses the dataset into a format used for training.
-    """
-
-    def build_and_save_dataset(self, save_dir, image_ids=None):
-        """Converts the dataset into format we will use for training.
-
-        Converts the dataset into a series of images, relationship labels
-        and heatmaps.
-
-        Args:
-            save_dir: Location to save the data.
-            image_ids: List of image ids.
-        """
-        relationships = self.build_dataset(image_ids=image_ids)
-        self.save_dataset(save_dir, relationships)
-
-    def build_dataset(self, image_ids=None):
-        """Converts the dataset into a list of relationships and categories.
-
-        Args:
-            image_ids: List of image ids.
-
-        Returns:
-            relationships: A list containing objects that contain:
-                - 'image': The numpy image representation.
-                - 'subject': The numpy subject location mask.
-                - 'object': The numpy object location mask.
-                - 'subject_cat': Int index of the subject category.
-                - 'predicate_cat': Int index of the predicate category.
-                - 'object_cat': Int index of the object category.
-        """
-        # Initialize output and logging variables.
-        relationships = []
-        total_relationships = 0
-
-        # Grab the image ids.
-        if not image_ids:
-            image_ids = sorted(self.data.keys())
-        num_images = len(image_ids)
-
-        # Iterate over all the images
-        for i, image_id in enumerate(image_ids):
-            seen = {}
-            try:
-                im_data = self.im_metadata[image_id]
-                image = self.get_image_from_img_id(image_id)
-            except KeyError:
-                print('Image %s not found' % str(image_id))
-                continue
-            total_relationships += len(self.data[image_id])
-
-            # Iterate over all the relationships in the image
-            for j, relationship in enumerate(self.data[image_id]):
-                subject_cat = relationship['subject']['category']
-                predicate_cat = relationship['predicate']
-                object_cat = relationship['object']['category']
-                s_bbox = self.rescale_bbox_coordinates(
-                    relationship['subject']['bbox'],
-                    im_data['height'],
-                    im_data['width'])
-                o_bbox= self.rescale_bbox_coordinates(
-                    relationship['object']['bbox'],
-                    im_data['height'],
-                    im_data['width'])
-                s_region = self.get_regions_from_bbox(s_bbox)
-                o_region = self.get_regions_from_bbox(o_bbox)
-                seen_key = '_'.join([str(x) for x in
-                                     [subject_cat, predicate_cat, object_cat]])
-                if seen_key not in seen:
-                    rel = {'image': image,
-                           'subject': s_region,
-                           'object': o_region,
-                           'subject_cat': subject_cat,
-                           'predicate_cat': predicate_cat,
-                           'object_cat': object_cat}
-                    seen[seen_key] = rel
-                else:
-                    rel = seen[seen_key]
-                    rel['subject'] = (rel['subject'] + s_region
-                                      - np.multiply(rel['subject'], s_region))
-                    rel['object'] = (rel['object'] + o_region
-                                     - np.multiply(rel['object'], o_region))
-
-            relationships.extend(seen.values())
-
-            # Log the progress.
-            if i % 100 == 0:
-                print('| {}/{} images processed'.format(i, num_images))
-
-        # Log the number of relationships we have seen.
-        print("Total relationships in dataset: %d" % total_relationships)
-        print("Total UNIQUE relationships per image: %d" % len(relationships))
-
-        return relationships
-
-    def save_dataset(self, save_dir, relationships):
-        """Converts the dataset into hdf5.
-
-        Args:
-            save_dir: Location to save the data.
-            relationships: A list containing objects that contain:
-                - 'image': The numpy image representation.
-                - 'subject': The numpy subject location mask.
-                - 'object': The numpy object location mask.
-                - 'subject_cat': Int index of the subject category.
-                - 'predicate_cat': Int index of the predicate category.
-                - 'object_cat': Int index of the object category.
-        """
-        total_relationships = len(relationships)
-        dataset = h5py.File(os.path.join(save_dir, 'dataset.hdf5'), 'w')
-        images_db = dataset.create_dataset('images',
-                                           (total_relationships,
-                                            self.im_dim, self.im_dim, 3),
-                                           dtype='f')
-        categories_db = dataset.create_dataset('categories',
-                                               (total_relationships, 3),
-                                               dtype='f')
-        subject_db = dataset.create_dataset('subject_locations',
-                                            (total_relationships,
-                                             self.im_dim, self.im_dim),
-                                            dtype='f')
-        object_db = dataset.create_dataset('object_locations',
-                                           (total_relationships,
-                                            self.im_dim, self.im_dim),
-                                           dtype='f')
-        for i, rel in enumerate(relationships):
-            images_db[i] = rel['image']
-            subject_db[i] = rel['subject']
-            object_db[i] = rel['object']
-            categories_db[i, 0] = rel['subject_cat']
-            categories_db[i, 1] = rel['predicate_cat']
-            categories_db[i, 2] = rel['object_cat']
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Dataset creation for Visual '
                                      'Relationship model. This scripts saves '
@@ -597,6 +351,8 @@ if __name__ == '__main__':
                         help='Image metadata json file.')
     parser.add_argument('--image-dim', type=int, default=224,
                         help='The size the images should be saved as.')
+    parser.add_argument('--output-dim', type=int, default=224,
+                        help='The size the predictions should be saved as.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
     parser.add_argument('--num-images', type=int, default=None,
@@ -604,8 +360,6 @@ if __name__ == '__main__':
     parser.add_argument('--save-images', action='store_true',
                         help='Use this flag to specify that the images '
                         'should also be saved.')
-    parser.add_argument('--dataset-type', type=str, default='smart',
-                        help='Choice between [smart/predicate].')
     parser.add_argument('--max-rels-per-image', type=int, default=None,
                         help='Maximum number of relationships per image.')
     args = parser.parse_args()
@@ -623,11 +377,10 @@ if __name__ == '__main__':
     # set the random seed.
     np.random.seed(args.seed)
 
-    dataset_type_map = {'smart': SmartDataset, 'predicate': PredicateDataset}
-
-    dataset = dataset_type_map[args.dataset_type](
+    dataset = SmartDataset(
         args.annotations, args.img_dir, args.image_metadata,
-        im_dim=args.image_dim, num_images=args.num_images,
+        im_dim=args.image_dim, output_dim=args.output_dim,
+        num_images=args.num_images,
         max_rels_per_image=args.max_rels_per_image)
     if args.test:
         # Build the test dataset.
