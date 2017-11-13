@@ -106,6 +106,12 @@ class ReferringRelationshipsModel():
                                 kernel_initializer='he_normal',
                                 data_format='channels_last',
                                 bias_initializer='zeros')
+        refinement_conv = Conv2D(self.hidden_dim, self.refinement_conv_kernel,
+                                 strides=(1, 1), padding='same',
+                                 kernel_initializer='he_normal',
+                                 data_format='channels_last',
+                                 bias_initializer='zeros')
+
         # Create the predicate conv layers.
         if self.use_predicate:
             predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
@@ -145,20 +151,20 @@ class ReferringRelationshipsModel():
                 subject_att, predicate_modules, predicate_masks)
             predicate_att = Lambda(
                 lambda x: x, name='shift-{}'.format(iteration+1))(predicate_att)
-            shifted_query = self.refine_features(im_features, predicate_att)
-            shifted_query = Add()([embedded_object, shifted_query])
+            new_image_features = self.refine_features(
+                im_features, predicate_att, refinement_conv)
             new_object_att = self.attend(
-                im_features, shifted_query, attention_conv,
+                new_image_features, embedded_object, attention_conv,
                 name='object-att-{}'.format(iteration+1))
 
             inv_predicate_att = self.transform_conv_attention(
                 object_att, inverse_predicate_modules, predicate_masks)
             inv_predicate_att = Lambda(
                 lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
-            shifted_query = self.refine_features(im_features, inv_predicate_att)
-            shifted_query = Add()([embedded_subject, embedded_subject])
+            new_image_features = self.refine_features(
+                im_features, inv_predicate_att, refinement_conv)
             new_subject_att = self.attend(
-                im_features, shifted_query, attention_conv,
+                new_image_features, embedded_subject, attention_conv,
                 name='subject-att-{}'.format(iteration+1))
 
             if self.use_internal_loss:
@@ -182,12 +188,11 @@ class ReferringRelationshipsModel():
         model = Model(inputs=inputs, outputs=[subject_regions, object_regions])
         return model
 
-    def refine_features(self, im_features, predicate_att):
-        im_query = Multiply()([predicate_att, im_features])
-        im_query = Reshape((self.feat_map_dim * self.feat_map_dim,
-                            self.hidden_dim))(im_query)
-        im_query = Lambda(lambda x: K.sum(x, axis=1))(im_query)
-        return im_query
+    def refine_features(self, im_features, predicate_att, refinement_conv):
+        shifted_features = Multiply()([predicate_att, im_features])
+        combined_features = Concatenate(axis=3)([im_features, shifted_features])
+        new_image_features = refinement_conv(combined_features)
+        return new_image_features
 
     def build_clean_model(self):
         # ALL LAYERS:
