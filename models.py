@@ -60,6 +60,7 @@ class ReferringRelationshipsModel():
         self.reg = args.reg
         self.batch_momentum = args.batch_momentum
         self.fcnn = args.fcnn
+        self.output_dim = args.output_dim
 
         # Discovery.
         if args.discovery:
@@ -74,10 +75,180 @@ class ReferringRelationshipsModel():
             return self.build_iterative_sym_ssn_model()
         elif self.model == "baseline":
             return self.build_baseline_model()
+        elif self.model == "clean":
+            return self.build_clean_model()
+        elif self.model == "dirty":
+            return self.build_dirty_model()
         else:
             raise ValueError('model argument not recognized. '
                              'Model options: ssn, sym_ssn, baseline, '
                              'baseline_no_predicate')
+
+    def build_dirty_model(self):
+        # Inputs.
+        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_subj = Input(shape=(1,))
+        input_obj = Input(shape=(1,))
+        if self.use_predicate:
+            input_pred = Input(shape=(self.num_predicates,))
+            inputs=[input_im, input_subj, input_pred, input_obj]
+        else:
+            inputs=[input_im, input_subj, input_obj]
+
+        # ALL LAYERS:
+        image_conv = Conv2D(self.hidden_dim, self.conv_im_kernel,
+                            strides=(1, 1), padding='same', name='image_conv',
+                            kernel_initializer='he_normal', activation='relu',
+                            data_format='channels_last',
+                            bias_initializer='zeros')
+        attention_conv = Conv2D(self.hidden_dim, self.attention_conv_kernel,
+                                strides=(1, 1), padding='same',
+                                kernel_initializer='he_normal',
+                                data_format='channels_last',
+                                bias_initializer='zeros')
+        # Create the predicate conv layers.
+        if self.use_predicate:
+            predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
+            predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
+            inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
+
+                # Embeddings
+        embedding_layer = Embedding(self.num_objects, self.hidden_dim)
+        embedded_subject = embedding_layer(input_subj)
+        embedded_object = embedding_layer(input_obj)
+
+        # Image features
+        base_model = ResNet50(weights='imagenet',
+                              include_top=False,
+                              input_shape=(self.input_dim, self.input_dim, 3))
+        for layer in base_model.layers:
+            layer.trainable = False
+            layer.training = False
+        output = base_model.get_layer(self.feat_map_layer).output
+        image_branch = Model(inputs=base_model.input, outputs=output)
+        im_features = image_branch(input_im)
+        im_features = image_conv(im_features)
+
+        # Attention
+        subject_att = self.attend(im_features, embedded_subject, attention_conv,
+                                  name='subject-att-0')
+        object_att = self.attend(im_features, embedded_object, attention_conv,
+                                 name='object-att-0')
+
+        if self.use_internal_loss:
+            subject_outputs = [subject_att]
+            object_outputs = [object_att]
+
+        # Iterate!
+        for iteration in range(self.iterations):
+            predicate_att = self.transform_conv_attention(
+                subject_att, predicate_modules, predicate_masks)
+            predicate_att = Lambda(
+                lambda x: x, name='shift-{}'.format(iteration+1))(predicate_att)
+            shifted_query = self.refine_features(im_features, predicate_att)
+            shifted_query = Add()([embedded_object, shifted_query])
+            new_object_att = self.attend(
+                im_features, shifted_query, attention_conv,
+                name='object-att-{}'.format(iteration+1))
+
+            inv_predicate_att = self.transform_conv_attention(
+                object_att, inverse_predicate_modules, predicate_masks)
+            inv_predicate_att = Lambda(
+                lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
+            shifted_query = self.refine_features(im_features, inv_predicate_att)
+            shifted_query = Add()([embedded_subject, embedded_subject])
+            new_subject_att = self.attend(
+                im_features, shifted_query, attention_conv,
+                name='subject-att-{}'.format(iteration+1))
+
+            if self.use_internal_loss:
+                object_outputs.append(new_object_att)
+                subject_outputs.append(new_subject_att)
+            object_att = new_object_att
+            subject_att = new_subject_att
+
+        if self.use_internal_loss and self.iterations > 0:
+            subject_att = Concatenate(axis=3)(subject_outputs)
+            object_att = Concatenate(axis=3)(object_outputs)
+            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
+            object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
+
+
+        # outputting
+        subject_regions = Reshape((self.output_dim * self.output_dim,),
+                                  name='subject')(subject_att)
+        object_regions = Reshape((self.output_dim * self.output_dim,),
+                                 name='object')(object_att)
+        model = Model(inputs=inputs, outputs=[subject_regions, object_regions])
+        return model
+
+    def refine_features(self, im_features, predicate_att):
+        im_query = Multiply()([predicate_att, im_features])
+        im_query = Reshape((self.feat_map_dim * self.feat_map_dim,
+                            self.hidden_dim))(im_query)
+        im_query = Lambda(lambda x: K.sum(x, axis=1))(im_query)
+        return im_query
+
+    def build_clean_model(self):
+        # ALL LAYERS:
+        image_conv = Conv2D(self.hidden_dim, self.conv_im_kernel,
+                            strides=(1, 1), padding='same', name='image_conv',
+                            kernel_initializer='he_normal', activation='relu',
+                            data_format='channels_last',
+                            bias_initializer='zeros')
+        attention_conv = Conv2D(self.hidden_dim, self.attention_conv_kernel,
+                                strides=(1, 1), padding='same',
+                                kernel_initializer='he_normal',
+                                data_format='channels_last',
+                                bias_initializer='zeros')
+
+        # Inputs.
+        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
+        input_subj = Input(shape=(1,))
+        input_obj = Input(shape=(1,))
+        if self.use_predicate:
+            input_pred = Input(shape=(self.num_predicates,))
+            inputs=[input_im, input_subj, input_pred, input_obj]
+        else:
+            inputs=[input_im, input_subj, input_obj]
+
+        # Embeddings
+        embedding_layer = Embedding(self.num_objects, self.hidden_dim)
+        embedded_subject = embedding_layer(input_subj)
+        embedded_object = embedding_layer(input_obj)
+
+        # Image features
+        base_model = ResNet50(weights='imagenet',
+                              include_top=False,
+                              input_shape=(self.input_dim, self.input_dim, 3))
+        for layer in base_model.layers:
+            layer.trainable = False
+            layer.training = False
+        output = base_model.get_layer(self.feat_map_layer).output
+        image_branch = Model(inputs=base_model.input, outputs=output)
+        im_features = image_branch(input_im)
+        im_features = image_conv(im_features)
+
+        # Attention
+        subject_att = self.attend(im_features, embedded_subject, attention_conv,
+                                  name='subject-att-0')
+        object_att = self.attend(im_features, embedded_object, attention_conv,
+                                 name='object-att-0')
+
+        # outputting
+        subject_regions = Reshape((self.output_dim * self.output_dim,),
+                                  name='subject')(subject_att)
+        object_regions = Reshape((self.output_dim * self.output_dim,),
+                                 name='object')(object_att)
+        model = Model(inputs=inputs, outputs=[subject_regions, object_regions])
+        return model
+
+    def upsample_clean(att, upsamplers, conv_transposes):
+        for upsample_layer, conv_transpose_layer in zip(upsamplers,
+                                                        conv_transposes):
+            att = upsample_layer(att)
+            att = conv_transpose_layer(att)
+        return att
 
     def build_custom_resnet_features(self, input_im):
         x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', name='conv1',
@@ -288,20 +459,18 @@ class ReferringRelationshipsModel():
         predicate_modules = []
         for k in range(self.num_predicates):
             predicate_module_group = []
-            for i in range(self.nb_conv_att_map-1):
+            for i in range(self.nb_conv_att_map):
+                channels = self.conv_predicate_channels
+                if i == self.nb_conv_att_map-1:
+                    # last conv with only one channel
+                    channels = 1
                 predicate_conv = Conv2D(
-                    self.conv_predicate_channels, self.conv_predicate_kernel,
+                    channels, self.conv_predicate_kernel,
                     strides=(1, 1), padding='same', use_bias=False,
-                    activation='relu',
+                    kernel_initializer='he_normal', activation='relu',
+                    data_format='channels_last',
                     name=basename.format(i, k))
                 predicate_module_group.append(predicate_conv)
-            # last conv with only one channel
-            predicate_conv = Conv2D(
-                self.hidden_dim, self.conv_predicate_kernel,
-                strides=(1, 1), padding='same', use_bias=False,
-                activation='relu',
-                name=basename.format(self.nb_conv_att_map-1, k))
-            predicate_module_group.append(predicate_conv)
             predicate_modules.append(predicate_module_group)
         return predicate_modules
 
@@ -407,7 +576,7 @@ class ReferringRelationshipsModel():
         Returns:
             The shifted attention.
         """
-        shapify = Reshape((self.feat_map_dim, self.feat_map_dim, self.hidden_dim, 1))
+        shapify = Reshape((self.feat_map_dim, self.feat_map_dim, 1, 1))
         conv_outputs = []
         for group in merged_modules:
             att_map = att
@@ -524,7 +693,7 @@ class ReferringRelationshipsModel():
     def attend(self, feature_map, query, attention_conv, name=None):
         query = Reshape((1, 1, self.hidden_dim,))(query)
         attention_weights = Multiply()([feature_map, query])
-        #attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
+        attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation("relu", name=name)(attention_weights)
         return attention_weights
 

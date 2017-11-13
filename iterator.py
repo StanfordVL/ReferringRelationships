@@ -148,6 +148,7 @@ class SmartIterator(Sequence):
         """
         self.data_dir = data_dir
         self.input_dim = args.input_dim
+        self.output_dim = args.output_dim
         self.use_subject = args.use_subject
         self.use_predicate = args.use_predicate
         self.use_object = args.use_object
@@ -156,8 +157,8 @@ class SmartIterator(Sequence):
         self.use_internal_loss = args.use_internal_loss
         self.num_predicates = args.num_predicates
         # Set the sizes of targets and images.
-        self.target_size = args.input_dim * args.input_dim
-        self.image_shape = (args.input_dim, args.input_dim, 3)
+        self.target_size = self.output_dim * self.output_dim
+        self.image_shape = (self.input_dim, self.input_dim, 3)
         self.data_format = K.set_image_data_format('channels_last')
 
         # Load the dataset

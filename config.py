@@ -85,6 +85,8 @@ def parse_training_args(parser):
                         'block5_conv4 for 14x14)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
+    parser.add_argument('--output-dim', type=int, default=224,
+                        help='Size of the output predictions.')
     parser.add_argument('--num-predicates', type=int, default=70,
                         help='The number of predicates in the dataset.')
     parser.add_argument('--num-objects', type=int, default=100,
