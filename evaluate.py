@@ -20,6 +20,10 @@ if __name__=='__main__':
     args = parse_args(evaluation=True)
     models_dir = os.path.dirname(args.model_checkpoint)
     params = objdict(json.load(open(os.path.join(models_dir, "args.json"), "r")))
+    try:
+        params.baseline_weights
+    except AttributeError:
+        params.baseline_weights = None
     params.batch_size = args.batch_size
     params.dropout = 0.
     params.discovery = args.discovery
