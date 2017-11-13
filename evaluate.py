@@ -6,8 +6,8 @@ from keras.models import load_model
 from config import parse_args
 from iterator import DiscoveryIterator, SmartIterator
 from keras.optimizers import RMSprop
-from models import ReferringRelationshipsModel
-from utils.eval_utils import format_results
+from old_models import ReferringRelationshipsModel
+from utils.eval_utils import format_results_eval
 from utils.visualization_utils import objdict
 from utils.eval_utils import get_metrics
 from utils.train_utils import format_args, get_loss_func
@@ -49,7 +49,6 @@ if __name__=='__main__':
     else:
         Iterator = SmartIterator
     generator = Iterator(args.data_dir, params)
-
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
     metrics = get_metrics(params.output_dim, args.heatmap_threshold)
@@ -72,5 +71,5 @@ if __name__=='__main__':
                                        steps=steps,
                                        use_multiprocessing=args.multiprocessing,
                                        workers=args.workers)
-    results = format_results(model.metrics_names, outputs)
+    results = format_results_eval(model.metrics_names, outputs)
     print('Test results - ' + results)

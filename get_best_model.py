@@ -30,7 +30,7 @@ for model_idx in next(os.walk(directory))[1]:
         print(model_idx)
         continue
     data = [x.split() for x in data if len(x.split())>1]
-    data = [x for x in data if x[0]=="epoch"]
+    data = [x for x in data if x[0]=="lr:"]
     if len(data)>0:
         i, j = data[0].index(args.s_metric.format(params["heatmap_threshold"][0]))+1, data[0].index(args.o_metric.format(params["heatmap_threshold"][0]))+1
         x = np.array([[x[i][:-1], x[j][:-1]] for x in data]).astype(np.float)

@@ -7,7 +7,8 @@ from keras.optimizers import Adam
 from keras.models import load_model
 
 from config import parse_args
-from models import ReferringRelationshipsModel
+from old_models import ReferringRelationshipsModel
+#from models import ReferringRelationshipsModel
 from iterator import SmartIterator, DiscoveryIterator
 from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics

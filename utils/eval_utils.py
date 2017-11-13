@@ -18,16 +18,13 @@ def get_metrics(output_dim, heatmap_threshold):
         predictins to evaluate the model.
     """
     metrics = []
-    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, output_dim)
-    iou_bbox_metric.__name__ = 'iou_bbox'
-    for metric_func in [iou, precision, recall, iou_acc, iou_bbox_metric]:
+    for metric_func in [iou, precision, recall]:
         for thresh in heatmap_threshold:
             metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
                 metric_func, thresh)
             metric.__name__ = metric_func.__name__ + '_' + str(thresh)
             metrics.append(metric)
     return metrics
-
 
 def format_results(names, scalars):
     """Formats the results of training.
@@ -44,6 +41,20 @@ def format_results(names, scalars):
         res.append('%s: %2.3f' % (name, scalar))
     return ', '.join(res)
 
+def format_results_eval(names, scalars):
+    """Formats the results of training.
+
+    Args:
+        names: The names of the metrics.
+        scalars: The values of the metrics.
+
+    Returns:
+        A string that contains the formatted scalars.
+    """
+    res = []
+    for name, scalar in zip(names, scalars):
+        res.append('%s: %2.3f' % (name, scalar))
+    return '\n '.join(res)
 
 def iou(y_true, y_pred, heatmap_threshold):
     """Measures the mean IoU of our predictions with ground truth.

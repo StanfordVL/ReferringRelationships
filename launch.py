@@ -28,14 +28,15 @@ args = parser.parse_args()
 
 for _ in range(args.nruns):
     params = {
-        'lr': 0.001, 
+        'lr': 0.0001, 
         'patience': 4,
         'lr-reduce-rate': 0.8,
-        'dropout': '%.1f' % random.uniform(0.0, 0.5),
+        'dropout': np.random.choice([0., 0.1, 0.2]),
         'opt': "rms", 
         'batch-size': 128, 
         'hidden-dim': np.random.choice([256, 512, 1024]),
         'input-dim': 224, 
+        'output-dim': 14, 
         'cnn': 'resnet', 
         'feat-map-layer': 'activation_40',
         'feat-map-dim': 14,
@@ -45,18 +46,21 @@ for _ in range(args.nruns):
         'conv-predicate-kernel': np.random.choice([3, 4, 5, 7]),
         'heatmap-threshold': np.random.choice([0.5, 0.6, 0.7]),
         'conv-predicate-channels': np.random.choice([1, 3, 5, 10]),
-        'w1': np.random.choice([2.5, 5., 7.5, 10.]),
+        'w1': np.random.choice([2.5, 5., 7.5]),
         'loss-func': 'weighted',
-        'internal-loss-weight': np.random.choice([5., 10.]),
-        'iterations': np.random.choice([1, 2, 3, 4, 5])
+        'internal-loss-weight': np.random.choice([1., 2., 5.]),
+        'iterations': np.random.choice([1, 2, 3, 4])
     }
     arguments = ' '.join(['--' + k + ' ' + str(params[k]) for k in params])
+    finetune = np.random.choice([True, False])
     train = 'CUDA_VISIBLE_DEVICES=' + args.gpu + ' python train.py --use-models-dir --model ' + args.model + ' --epochs ' + args.epochs + ' --workers ' + args.workers
     train += ' --models-dir ' + args.models_dir + ' --train-data-dir ' + args.train_data_dir + ' --val-data-dir ' + args.val_data_dir + ' --test-data-dir ' + args.test_data_dir
     if args.categorical_predicate:
         train += ' --categorical-predicate'
     if args.use_internal_loss:
         train += ' --use-internal-loss'
+    if finetune:
+        train += ' --finetune-cnn'
     train += ' --num-predicates ' + args.num_predicates + ' --num-objects ' + args.num_objects + ' --use-predicate ' + args.use_predicate
     train += ' ' + arguments
     print('\n' +'*'*89 + '\n')
