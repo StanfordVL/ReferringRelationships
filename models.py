@@ -176,8 +176,8 @@ class ReferringRelationshipsModel():
         if self.use_internal_loss and self.iterations > 0:
             subject_att = Concatenate(axis=3)(subject_outputs)
             object_att = Concatenate(axis=3)(object_outputs)
-            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
-            object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
+            subject_att = Lambda(lambda x: K.mean(x, axis=3, keepdims=True))(subject_att)
+            object_att = Lambda(lambda x: K.mean(x, axis=3, keepdims=True))(object_att)
 
 
         # outputting
@@ -699,7 +699,8 @@ class ReferringRelationshipsModel():
         query = Reshape((1, 1, self.hidden_dim,))(query)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
-        attention_weights = Activation("relu", name=name)(attention_weights)
+        attention_weights = Activation("relu")(attention_weights)
+        attention_weights = Activation("tanh", name=name)(attention_weights)
         return attention_weights
 
     def build_upsampling_layer(self, feature_map, name=None):
