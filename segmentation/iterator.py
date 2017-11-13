@@ -24,10 +24,10 @@ class SemanticSegmentationIterator(Sequence):
         self.data_dir = data_dir
         self.input_dim = args.input_dim
         self.batch_size = args.batch_size
-        self.num_classes = args.num_classes
+        self.num_objects = args.num_objects
 
         # Set the sizes of targets and images.
-        self.target_size = (args.input_dim, args.input_dim, args.num_classes)
+        self.target_size = (args.input_dim, args.input_dim, args.num_objects+1)
         self.image_shape = (args.input_dim, args.input_dim, 3)
         self.data_format = K.set_image_data_format('channels_last')
 
@@ -78,15 +78,14 @@ class SemanticSegmentationIterator(Sequence):
 
         start_idx = idx * self.batch_size
         end_idx = min(self.samples, (idx + 1) * self.batch_size)
-
+        current_batch_size = end_idx - start_idx
         # Create the batches.
         batch_o_regions = self.objects[start_idx:end_idx]
-        current_batch_size = end_idx - start_idx
         batch_image = self.images[start_idx:end_idx]
 
         # Choose the inputs based on the parts of the relationship we will use.
         inputs = batch_image
-        outputs = batch_o_regions
+        outputs = batch_o_regions.reshape((current_batch_size,) + self.target_size)
         return inputs, outputs
 
 

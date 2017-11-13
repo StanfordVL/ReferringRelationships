@@ -6,6 +6,17 @@ from keras import backend as K
 import tensorflow as tf
 
 
+def sparse_accuracy_ignoring_first_label(y_true, y_pred):
+    nb_classes = K.int_shape(y_pred)[-1]
+    y_pred = K.reshape(y_pred, (-1, nb_classes))
+    y_true = K.reshape(y_true, (-1, nb_classes + 1))
+    unpacked = tf.unstack(y_true, axis=-1)
+    legal_labels = ~tf.cast(unpacked[0], tf.bool)
+    y_true = tf.stack(unpacked[1:], axis=-1)
+
+    return K.sum(tf.to_float(legal_labels & K.equal(K.argmax(y_true, axis=-1), K.argmax(y_pred, axis=-1)))) / K.sum(tf.to_float(legal_labels))
+
+
 def format_results(names, scalars):
     """Formats the results of training.
 
@@ -21,21 +32,18 @@ def format_results(names, scalars):
         res.append('%s: %2.3f' % (name, scalar))
     return ', '.join(res)
 
-
-
 def pixel_acc(y_true, y_pred):
     y_true = K.argmax(y_true, axis=-1)
-    y_pred = K.argmax(y_pred, axis=-1) 
-    num_classes = y_true.shape[-1]
-    correct_preds =  K.cast(K.equal(y_true, y_pred), "float32")
-    return K.mean(correct_preds)
+    y_pred = K.argmax(y_pred, axis=-1)
+    correct_preds =  K.mean(K.cast(K.equal(y_true, y_pred), "float32"), axis=1)
+    return correct_preds
 
 def mean_iu(y_true, y_pred):
-    total = K.sum(K.sum(y_true, axis=1), axis=1)
-    total_pred = K.sum(K.sum(y_pred, axis=1), axis=1)
-    total_correct = K.sum(K.sum(K.cast(K.equal(y_true, y_pred), "float32"), axis=1), axis=1)
+    total = K.sum(y_true, axis=1)
+    total_pred = K.sum(y_pred, axis=1)
+    total_correct = K.sum(K.cast(K.equal(y_true, y_pred), "float32"), axis=1)
     iou = K.mean(total_correct / (K.epsilon() + total + total_pred - total_correct), axis=1)
-    return K.mean(iou)
+    return iou
 
 def iou(y_true, y_pred, heatmap_threshold):
     """Measures the mean IoU of our predictions with ground truth.

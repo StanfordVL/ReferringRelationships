@@ -3,20 +3,22 @@
 
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 from keras.models import load_model
+from keras.metrics import categorical_accuracy
 
 from config import parse_args
 from models import SemanticSegmentationModel
 from iterator import SemanticSegmentationIterator
 from eval_utils import format_results
-from eval_utils import pixel_acc, mean_iu
+from eval_utils import pixel_acc, mean_iu, sparse_accuracy_ignoring_first_label
 from train_utils import Logger
 from train_utils import LrReducer
-from train_utils import get_loss_func, multinomial_logistic_loss
+from train_utils import get_loss_func, multinomial_logistic_loss, softmax_sparse_crossentropy_ignoring_first_label
 from train_utils import get_dir_name
 from train_utils import get_opt
 from train_utils import format_args
+from fcnn import AtrousFCN_Resnet50_16s
 
 import json
 import logging
@@ -56,11 +58,11 @@ if __name__=='__main__':
     logging.info(format_args(args))
 
     # Choose the correct Iterator and Model.
-    SegmentationModel = SemanticSegmentationModel
+    #SegmentationModel = SemanticSegmentationModel
     Iterator = SemanticSegmentationIterator
-    if args.task == 'class':
-        SegmentationModel = ClassSegmentationModel
-        Iterator = ClassSegmentationIterator
+    #if args.task == 'class':
+    #    SegmentationModel = ClassSegmentationModel
+    #    Iterator = ClassSegmentationIterator
 
     # Setup the training and validation data iterators
     train_generator = Iterator(args.train_data_dir, args)
@@ -70,20 +72,21 @@ if __name__=='__main__':
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
-    metrics = [pixel_acc, mean_iu] 
-
+    #metrics = [mean_iu, categorical_accuracy, sparse_accuracy_ignoring_first_label]
+    metrics = [sparse_accuracy_ignoring_first_label]
     # create a new instance model
-    segmentation_model = SegmentationModel(args)
-    model = segmentation_model.build_model()
+    #segmentation_model = SegmentationModel(args)
+    model = AtrousFCN_Resnet50_16s((224,224,3), weight_decay=0.0001/2, batch_momentum=0.95, classes=args.num_objects)
     model.summary(print_fn=lambda x: logging.info(x + '\n'))
-    optimizer = get_opt(opt=args.opt, lr=args.lr)
-
+    #optimizer = get_opt(opt=args.opt, lr=args.lr)
+    lr_base = 0.01 * (float(args.batch_size) / 16)
+    optimizer = SGD(lr=lr_base, momentum=0.9)
     # get the loss function and compile the model
-    if args.loss_func == 'weighted':
-        loss_func = get_loss_func(args.w1)
-    else:
-        loss_func = multinomial_logistic_loss
-    losses = loss_func
+    #if args.loss_func == 'weighted':
+    #    loss_func = get_loss_func(args.w1)
+    #else:
+    #    loss_func = multinomial_logistic_loss
+    losses = softmax_sparse_crossentropy_ignoring_first_label
     model.compile(loss=losses, optimizer=optimizer, metrics=metrics)
 
     # load model weights from checkpoint

@@ -29,6 +29,8 @@ class BaseModel(object):
         self.num_objects = args.num_objects
         self.dropout = args.dropout
         self.feat_map_layer = args.feat_map_layer
+        self.upsampling_channels = args.upsampling_channels
+        self.final_channels = args.final_channels
 
     def get_image_features(self, input_im):
         base_model = ResNet50(weights='imagenet',
@@ -39,17 +41,16 @@ class BaseModel(object):
         output = base_model.get_layer(self.feat_map_layer).output
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
-        im_features = Dropout(self.dropout)(im_features)
-        im_features = Conv2D(self.hidden_dim, 1,
-                             strides=(1, 1), padding='same',
-                             activation='relu')(im_features)
-        im_features = Dropout(self.dropout)(im_features)
+#        im_features = Dropout(self.dropout)(im_features)
+#        im_features = Conv2D(self.hidden_dim, 1,
+#                             strides=(1, 1), padding='same',
+#                             activation='relu')(im_features)
+#        im_features = Dropout(self.dropout)(im_features)
         return im_features
 
     def attend(self, feature_map, query):
         query = Reshape((1, 1, self.hidden_dim,))(query)
         attention_weights = Multiply()([feature_map, query])
-        attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation("relu")(attention_weights)
         return attention_weights
 
@@ -58,20 +59,29 @@ class BaseModel(object):
         k = int(np.log(upsampling_factor) / np.log(2))
         for i in range(k):
             res = UpSampling2D(size=(2, 2))(res)
-            res = Conv2DTranspose(1, 3, padding='same', use_bias=False, activation="relu")(res)
+            #res = Conv2DTranspose(self.num_objects, 3, padding='same', use_bias=False, activation="relu")(res)
+            channels = self.upsampling_channels
+            if i == k - 1:
+                channels = self.final_channels
+            res = Conv2DTranspose(channels, 3, padding='same', use_bias=False, activation="relu")(res)
         return res
 
 
 class SemanticSegmentationModel(BaseModel):
-    """Semantic segmentation model give the category.
+    """Semantic segmentation model.
     """
 
     def build_model(self):
         input_image = Input(shape=(self.input_dim, self.input_dim, 3))
         image_features = self.get_image_features(input_image)
-        object_regions = [Dense(1, activation="relu")(image_features) for i in range(self.num_objects)]
-        upsampled_regions = Concatenate(axis=3)([self.upsample(x) for x in object_regions])
-        output = Activation('softmax')(upsampled_regions)
+        object_regions = Dense(self.num_objects, activation="relu")(image_features)
+        upsampled_regions = self.upsample(object_regions)
+        upsampled_regions = Activation('softmax')(upsampled_regions)
+        output = Reshape((self.input_dim * self.input_dim, self.num_objects))(upsampled_regions)
+        #object_regions = [Dense(1, activation="relu")(image_features) for i in range(self.num_objects)]
+        #upsampled_regions = Concatenate(axis=3)([self.upsample(x) for x in object_regions])
+        #upsampled_regions = self.upsample(image_features)
+        #output = Activation('softmax')(upsampled_regions)
         model = Model(inputs=input_image, outputs=output)
         return model
 

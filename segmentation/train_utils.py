@@ -7,7 +7,7 @@ from keras.optimizers import RMSprop, Adam, Adagrad, Adadelta
 from keras.callbacks import Callback
 from keras import backend as K
 
-
+import tensorflow as tf
 import logging
 import numpy as np
 import os
@@ -26,11 +26,23 @@ def multinomial_logistic_loss(y_true, y_pred, eps=10e-8):
     Returns:
         The loss value.
     """
-    y_pred = K.clip(y_pred, eps, 1 - eps)
-    loss_values = K.sum(y_true * y_pred, axis=3)
-    #loss_values = K.mean(K.reshape(loss_values, (y_true.shape[0], -1)), axis=1)
-    loss = K.mean(loss_values)
-    return loss
+    loss_values = K.sum(y_true * y_pred, axis=2)
+    loss = K.mean(loss_values, axis=1)
+    return K.mean(loss)
+
+
+def softmax_sparse_crossentropy_ignoring_first_label(y_true, y_pred):
+    y_pred = K.reshape(y_pred, (-1, K.int_shape(y_pred)[-1]))
+    log_softmax = tf.nn.log_softmax(y_pred)
+    #y_true = K.one_hot(tf.to_int32(K.flatten(y_true)), K.int_shape(y_pred)[-1]+1)
+    y_true = K.reshape(y_true, (-1, K.int_shape(y_pred)[-1] + 1))
+    unpacked = tf.unstack(y_true, axis=-1)
+    y_true = tf.stack(unpacked[1:], axis=-1)
+
+    cross_entropy = -K.sum(y_true * log_softmax, axis=1)
+    cross_entropy_mean = K.mean(cross_entropy)
+
+    return cross_entropy_mean
 
 
 def get_loss_func(w1):
