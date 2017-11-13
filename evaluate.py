@@ -48,7 +48,7 @@ if __name__=='__main__':
 
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
-    metrics = get_metrics(params.input_dim, args.heatmap_threshold)
+    metrics = get_metrics(params.output_dim, args.heatmap_threshold)
 
     # create a new instance model
     relationships_model = ReferringRelationshipsModel(params)
