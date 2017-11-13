@@ -19,7 +19,8 @@ class Dataset(object):
     """
 
     def __init__(self, data_path, img_dir, im_metadata_path,
-                 im_dim=224, num_images=None, max_rels_per_image=None):
+                 im_dim=224, output_dim=224, num_images=None,
+                 max_rels_per_image=None):
         """Constructor for the VRD dataset object.
 
         Args:
@@ -27,6 +28,7 @@ class Dataset(object):
             img_dir: Location of the images.
             im_metadata_path: Location of the file containing image metadata.
             im_dim: The size of images.
+            output_dim: The size of predictions.
             num_images: The number of images to save.
             max_rels_per_image: The maximum number of relationships per image.
         """
@@ -38,13 +40,14 @@ class Dataset(object):
             self.data = data
         self.im_metadata = json.load(open(im_metadata_path))
         self.im_dim = im_dim
-        self.col_template = np.arange(self.im_dim).reshape(1, self.im_dim)
-        self.row_template = np.arange(self.im_dim).reshape(self.im_dim, 1)
+        self.output_dim = output_dim
+        self.col_template = np.arange(self.output_dim).reshape(1, self.output_dim)
+        self.row_template = np.arange(self.output_dim).reshape(self.output_dim, 1)
         self.img_dir = img_dir
         self.max_rels_per_image = max_rels_per_image
 
     def rescale_bbox_coordinates(self, bbox, height, width):
-        """Rescales the bbox coords according to the `im_dim`.
+        """Rescales the bbox coords according to the `output_dim`.
 
         Args:
             bbox: A tuple of (top, bottom, left, right) coordinates of the
@@ -54,13 +57,13 @@ class Dataset(object):
         Returns:
             A tuple containing the rescaled bbox coordinates.
         """
-        h_ratio = self.im_dim * 1. / height
-        w_ratio = self.im_dim * 1. / width
+        h_ratio = self.output_dim * 1. / height
+        w_ratio = self.output_dim * 1. / width
         y_min, y_max, x_min, x_max = bbox
         y0 = max(int(y_min * h_ratio), 0)
         x0 = max(int(x_min * w_ratio), 0)
-        y1 = min(int(y_max * h_ratio), self.im_dim - 1)
-        x1 = min(int(x_max * w_ratio), self.im_dim - 1)
+        y1 = min(int(y_max * h_ratio), self.output_dim - 1)
+        x1 = min(int(x_max * w_ratio), self.output_dim - 1)
         return y0, x0, y1, x1
 
     def get_regions_from_bbox(self, bbox):
@@ -75,10 +78,10 @@ class Dataset(object):
         """
         top, left, bottom, right = bbox
         col_indexes = (1 * (self.col_template > left) *
-                       (self.col_template < right)).repeat(self.im_dim, 0)
+                       (self.col_template < right)).repeat(self.output_dim, 0)
         row_indexes = (1 * (self.row_template > top) *
-                       (self.row_template < bottom)).repeat(self.im_dim, 1)
-        return (col_indexes * row_indexes).reshape((self.im_dim, self.im_dim))
+                       (self.row_template < bottom)).repeat(self.output_dim, 1)
+        return (col_indexes * row_indexes).reshape((self.output_dim, self.output_dim))
 
     def get_train_val_splits(self, val_percent):
         """Splits the dataset into train and val splits.
@@ -142,8 +145,8 @@ class Dataset(object):
         """
         num_images = len(image_ids)
         images = np.zeros((num_images, self.im_dim, self.im_dim, 3))
-        s_regions = np.zeros((num_images, self.im_dim * self.im_dim))
-        o_regions = np.zeros((num_images, self.im_dim * self.im_dim))
+        s_regions = np.zeros((num_images, self.output_dim * self.output_dim))
+        o_regions = np.zeros((num_images, self.output_dim * self.output_dim))
         for i, image_id in enumerate(image_ids):
             s_bbox = subject_bboxes[i]
             o_bbox = object_bboxes[i]
@@ -251,10 +254,10 @@ class PredicateDataset(Dataset):
                                                  (size, 4),
                                                  dtype='f')
             subject_db = group.create_dataset('subject_locations',
-                                              (size, self.im_dim, self.im_dim),
+                                              (size, self.output_dim, self.output_dim),
                                               dtype='f')
             object_db = group.create_dataset('object_locations',
-                                             (size, self.im_dim, self.im_dim),
+                                             (size, self.output_dim, self.output_dim),
                                              dtype='f')
             dbs[predicate_cat] = {'subject_db': subject_db,
                                   'object_db': object_db,
@@ -365,11 +368,11 @@ class SmartDataset(Dataset):
                                                dtype='f')
         subject_db = dataset.create_dataset('subject_locations',
                                             (total_relationships,
-                                             self.im_dim, self.im_dim),
+                                             self.output_dim, self.output_dim),
                                             dtype='f')
         object_db = dataset.create_dataset('object_locations',
                                            (total_relationships,
-                                            self.im_dim, self.im_dim),
+                                            self.output_dim, self.output_dim),
                                            dtype='f')
 
         # Now save all the relationships.
@@ -597,6 +600,8 @@ if __name__ == '__main__':
                         help='Image metadata json file.')
     parser.add_argument('--image-dim', type=int, default=224,
                         help='The size the images should be saved as.')
+    parser.add_argument('--output-dim', type=int, default=224,
+                        help='The size the predictions should be saved as.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
     parser.add_argument('--num-images', type=int, default=None,
@@ -627,7 +632,8 @@ if __name__ == '__main__':
 
     dataset = dataset_type_map[args.dataset_type](
         args.annotations, args.img_dir, args.image_metadata,
-        im_dim=args.image_dim, num_images=args.num_images,
+        im_dim=args.image_dim, output_dim=args.output_dim,
+        num_images=args.num_images,
         max_rels_per_image=args.max_rels_per_image)
     if args.test:
         # Build the test dataset.
