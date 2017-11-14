@@ -59,7 +59,8 @@ class ReferringRelationshipsModel():
         self.refinement_conv_kernel = args.refinement_conv_kernel
         self.upsampling_channels = args.upsampling_channels
         self.output_dim = args.output_dim 
-
+        self.embedding_dim = args.embedding_dim 
+ 
         # Discovery.
         if args.discovery:
             self.num_objects += 1
@@ -110,12 +111,14 @@ class ReferringRelationshipsModel():
             im_features, embedded_subject, embedded_object = baseline_branch([input_im, input_subj, input_obj])
         else:
             im_features = self.build_image_model(input_im)
-            subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
+            subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.embedding_dim)
             embedded_subject = subj_obj_embedding(input_subj)
-            embedded_subject = Activation("relu")(embedded_subject)
+            embedded_subject = Dense(self.hidden_dim, activation="relu")(embedded_subject)
+            #embedded_subject = Activation("relu")(embedded_subject)
             embedded_subject = Dropout(self.dropout)(embedded_subject)
             embedded_object = subj_obj_embedding(input_obj)
-            embedded_object =  Activation("relu")(embedded_object)
+            embedded_object = Dense(self.hidden_dim, activation="relu")(embedded_object)
+            #embedded_object =  Activation("relu")(embedded_object)
             embedded_object = Dropout(self.dropout)(embedded_object)
 
         # Refinement parameters
@@ -339,21 +342,20 @@ class ReferringRelationshipsModel():
             relationship_inputs.append(input_obj)
             num_classes.append(self.num_objects)
 
-        # Refinement parameters
-        attention_conv = Conv2D(self.hidden_dim, self.attention_conv_kernel, strides=(1, 1), padding='same')
-
         # Map the inputs to the outputs.
         im_features = self.build_image_model(input_im)
         rel_features = self.build_relationship_model(relationship_inputs, num_classes)
         rel_features = Dropout(self.dropout)(rel_features)
-        subjects_features = Dense(self.hidden_dim)(rel_features)
-        objects_features = Dense(self.hidden_dim)(rel_features)
+        subjects_features = Dense(self.hidden_dim, activation="relu")(rel_features)
+        objects_features = Dense(self.hidden_dim, activation="relu")(rel_features)
         subjects_features = Dropout(self.dropout)(subjects_features)
         objects_features = Dropout(self.dropout)(objects_features)
-        subject_att = self.attend(im_features, subjects_features, attention_conv)
-        object_att = self.attend(im_features, objects_features, attention_conv)
-        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        object_regions = self.build_upsampling_layer(object_att, name="object")
+        subject_att = self.attend(im_features, subjects_features)
+        object_att = self.attend(im_features, objects_features)
+        subject_att = Activation("tanh")(subject_att)
+        object_att = Activation("tanh")(object_att)
+        subject_regions = Reshape((self.output_dim * self.output_dim,), name="subject")(subject_att)
+        object_regions = Reshape((self.output_dim * self.output_dim,), name="object")(object_att)
         model_inputs = [input_im] + relationship_inputs
         model = Model(inputs=model_inputs, outputs=[subject_regions, object_regions])
         return model
@@ -449,7 +451,7 @@ class ReferringRelationshipsModel():
         embeddings = []
         for rel_input, num_categories in zip(relationship_inputs, num_classes):
             embedding_layer = Embedding(num_categories,
-                                        int(self.hidden_dim/len(relationship_inputs)),
+                                        self.embedding_dim,
                                         input_length=1)
             embeddings.append(embedding_layer(rel_input))
 
@@ -459,8 +461,7 @@ class ReferringRelationshipsModel():
         else:
             concatenated_inputs = embeddings[0]
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
-        rel_features = Dense(self.hidden_dim, activation='relu')(concatenated_inputs)
-        return rel_features
+        return concatenated_inputs
 
 if __name__ == "__main__":
     args = parse_args()

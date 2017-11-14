@@ -71,6 +71,8 @@ def parse_training_args(parser):
                         help='1/0 indicating whether to use the objects.')
     parser.add_argument('--hidden-dim', type=int, default=1024,
                         help='Number of dimensions in the hidden unit.')
+    parser.add_argument('--embedding-dim', type=int, default=512,
+                         help='Number of dimensions in the embedding unit.')
     parser.add_argument('--cnn', type=str, default='resnet',
                         help='The pretrained cnn architecture [resnet, vgg] '
                         'to use to extract image features')
@@ -85,7 +87,7 @@ def parse_training_args(parser):
                         'block5_conv4 for 14x14)')
     parser.add_argument('--input-dim', type=int, default=224,
                         help='Size of the input image.')
-    parser.add_argument('--output-dim', type=int, default=224,
+    parser.add_argument('--output-dim', type=int, default=14,
                         help='Size of the output predictions.')
     parser.add_argument('--num-predicates', type=int, default=70,
                         help='The number of predicates in the dataset.')
@@ -93,10 +95,10 @@ def parse_training_args(parser):
                         help='The number of objects in the dataset.')
     parser.add_argument('--dropout', type=float, default=0.2,
                         help='The dropout probability used in training.')
-    parser.add_argument('--nb-conv-im-map', type=int, default=1,
+    parser.add_argument('--nb-conv-im-map', type=int, default=0,
                         help='Number of convolution layers to use '
                         'to learn image feature maps')
-    parser.add_argument('--nb-conv-att-map', type=int, default=6,
+    parser.add_argument('--nb-conv-att-map', type=int, default=4,
                         help='Number of convolution layers to use to move '
                         'heatmaps in ssn model')
     parser.add_argument('--conv-im-kernel', type=int, default=1,
@@ -109,9 +111,9 @@ def parse_training_args(parser):
                         help='Weight regularizer.')
     parser.add_argument('--batch-momentum', type=float, default=0.9,
                         help='Batch norm layer momentum.')
-    parser.add_argument('--conv-predicate-channels', default=50, type=int,
+    parser.add_argument('--conv-predicate-channels', default=10, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
-    parser.add_argument('--iterations', default=1, type=int,
+    parser.add_argument('--iterations', default=2, type=int,
                         help='The number of iterations to finetune the heatmaps.')
     parser.add_argument('--baseline-weights', default=None, type=str,
                         help='baseline weights')
