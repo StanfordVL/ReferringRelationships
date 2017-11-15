@@ -17,7 +17,7 @@ def get_metrics(output_dim, heatmap_threshold):
         A list of metric functions that take in the ground truth and the
         predictins to evaluate the model.
     """
-    metrics = []
+    metrics = [cc]
     iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, output_dim)
     iou_bbox_metric.__name__ = 'iou_bbox'
     for metric_func in [iou, precision, recall, iou_acc, iou_bbox_metric]:
@@ -100,6 +100,41 @@ def recall(y_true, y_pred, heatmap_threshold):
     fn = K.sum(K.cast(K.greater(y_true - pred, 0), 'float32'), axis=1)
     recall_values = tp/(tp + fn + K.epsilon())
     return K.mean(recall_values)
+
+
+def cc(y_true, y_pred):
+    """Measure the cross correlation of our predictions with ground truth.
+
+    Args:
+        y_true: The ground truth bounding box locations.
+        y_pred: Our heatmap predictions.
+
+    Returns:
+        A float containing the cross correlation of our predictions.
+    """
+    sigma_true = K.var(y_true, axis=1)
+    mu_true = K.mean(y_true, axis=1)
+    sigma_pred = K.var(y_pred, axis=1)
+    mu_pred = K.mean(y_pred, axis=1)
+    mu_sub = (y_true - mu_true) * (y_pred - mu_pred)
+    cov = sigma_pred * sigma_true
+    return K.mean(mu_sub)/(K.sqrt(cov.mean()) + K.epsilon())
+
+
+def kl(y_true, y_pred):
+    """Measure the KL divergence of our predictions with ground truth.
+
+    Args:
+        y_true: The ground truth bounding box locations.
+        y_pred: Our heatmap predictions.
+
+    Returns:
+        A float containing the KL divergence of our predictions.
+    """
+    norm_true = y_true / (K.sum(y_true) + K.epsilon())
+    norm_pred = y_pred / (K.sum(y_pred) + K.epsilon())
+    x = K.log(K.epsilon() + norm_true/(K.epsilon() + norm_pred))
+    return K.mean(x*norm_true)
 
 
 def iou_acc(y_true, y_pred, heatmap_threshold):
