@@ -24,7 +24,7 @@ def get_metrics(output_dim, heatmap_threshold):
                 metric_func, thresh)
             metric.__name__ = metric_func.__name__ + '_' + str(thresh)
             metrics.append(metric)
-    metrics += [kl, cc]
+    metrics += [kl, cc, sim]
     return metrics
 
 def format_results(names, scalars):
@@ -183,8 +183,17 @@ def cc(y_true, y_pred):
      sigma_pred = K.std(y_pred, axis=1, keepdims=True)
      mu_pred = K.mean(y_pred, axis=1, keepdims=True)
      mu_sub = (y_true - mu_true) * (y_pred - mu_pred)
-     cov = K.mean(mu_sub, axis=1)
+     cov = K.mean(mu_sub, axis=1, keepdims=True)
      return K.mean(cov/((sigma_pred * sigma_true) + K.epsilon()))
+
+
+def sim(y_true, y_pred):
+    y_true = y_true / (K.epsilon() + K.sum(y_true, axis=1, keepdims=True))
+    y_pred = y_pred / (K.epsilon() + K.sum(y_pred, axis=1, keepdims=True))
+    indices_1 = K.cast(K.greater(y_pred, y_true), "float32")
+    indices_2 = K.cast(K.greater(y_true, y_pred), "float32")
+    mini = K.sum((y_true * indices_1) + (y_pred * indices_2), axis=1)
+    return K.mean(mini)
 
 
 def kl(y_true, y_pred):
