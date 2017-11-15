@@ -60,7 +60,8 @@ class ReferringRelationshipsModel():
         self.upsampling_channels = args.upsampling_channels
         self.output_dim = args.output_dim 
         self.embedding_dim = args.embedding_dim 
- 
+        self.finetune_cnn = args.finetune_cnn 
+
         # Discovery.
         if args.discovery:
             self.num_objects += 1
@@ -97,21 +98,21 @@ class ReferringRelationshipsModel():
         # Extract image features and embeddings
         if self.baseline_weights:
             params = objdict(json.load(open(os.path.join(os.path.dirname(self.baseline_weights), "args.json"), "r")))
-            params.baseline_weights = None
+            params.embedding_dim = 1024
             model_weights = h5py.File(self.baseline_weights)
             relationships_model = ReferringRelationshipsModel(params)
             base_model = relationships_model.build_model()
             base_model.load_weights(self.baseline_weights)
-            output_im = base_model.get_layer("model_1").output
+            output_im = base_model.get_layer("dropout_1").output
             output_emb_s = base_model.get_layer("activation_50").output
             output_emb_o = base_model.get_layer("activation_51").output
             baseline_branch = Model(inputs=base_model.input, outputs=[output_im, output_emb_s, output_emb_o])
             for layer in baseline_branch.layers:
-                layer.trainable = False
+                layer.trainable = True
             im_features, embedded_subject, embedded_object = baseline_branch([input_im, input_subj, input_obj])
         else:
             im_features = self.build_image_model(input_im)
-            subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.embedding_dim)
+            subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.embedding_dim)#self.hidden_dim)
             embedded_subject = subj_obj_embedding(input_subj)
             embedded_subject = Dense(self.hidden_dim, activation="relu")(embedded_subject)
             #embedded_subject = Activation("relu")(embedded_subject)
@@ -120,7 +121,6 @@ class ReferringRelationshipsModel():
             embedded_object = Dense(self.hidden_dim, activation="relu")(embedded_object)
             #embedded_object =  Activation("relu")(embedded_object)
             embedded_object = Dropout(self.dropout)(embedded_object)
-
         # Refinement parameters
         subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
         object_att = self.attend(im_features, embedded_object, name='object-att-0')
@@ -162,7 +162,6 @@ class ReferringRelationshipsModel():
             # Multiply with the internal losses.
             subject_outputs = Lambda(lambda x: [internal_weights[i]*x[i] for i in range(len(x))])(subject_outputs)
             object_outputs = Lambda(lambda x: [internal_weights[i]*x[i] for i in range(len(x))])(object_outputs)
-
             # Concatenate all the internal outputs.
             subject_att = Concatenate(axis=3)(subject_outputs)
             object_att = Concatenate(axis=3)(object_outputs)
@@ -223,11 +222,13 @@ class ReferringRelationshipsModel():
         im_features = self.build_image_model(input_im)
 
         # Extract object embeddings.
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.hidden_dim)
+        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.embedding_dim)#self.hidden_dim)
         embedded_subject = subj_obj_embedding(input_subj)
+        #embedded_subject = Dense(self.hidden_dim, activation="relu")(embedded_subject)
         embedded_subject = Activation('relu')(embedded_subject)
         embedded_subject = Dropout(self.dropout)(embedded_subject)
         embedded_object = subj_obj_embedding(input_obj)
+        #embedded_object = Dense(self.hidden_dim, activation="relu")(embedded_object)
         embedded_object = Activation('relu')(embedded_object)
         embedded_object = Dropout(self.dropout)(embedded_object)
 
@@ -287,10 +288,10 @@ class ReferringRelationshipsModel():
             # Sum across the internal values.
             object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
 
-        # Upsample the subject regions.
-        subject_regions = self.build_upsampling_layer(subject_att, name="subject")
-        # Upsample the object regions.
-        object_regions = self.build_upsampling_layer(object_att, name="object")
+        subject_regions = Activation("tanh")(subject_att)
+        object_att = Activation("tanh")(object_att)
+        subject_regions = Reshape((self.output_dim * self.output_dim,), name="subject")(subject_att)
+        object_regions = Reshape((self.output_dim * self.output_dim,), name="object")(object_att)
 
         # Create and output the model.
         model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
@@ -379,9 +380,14 @@ class ReferringRelationshipsModel():
                                input_shape=(self.input_dim, self.input_dim, 3))
         else:
             base_model = AtrousFCN_Resnet50_16s(input_shape=(self.input_dim, self.input_dim, 3)) 
-        for layer in base_model.layers:
-            layer.trainable = True
-            layer.training = True
+        if self.finetune_cnn:
+            for layer in base_model.layers:
+                layer.trainable = True
+                layer.training = True
+        else:
+            for layer in base_model.layers:
+                layer.trainable = False
+                layer.training = False
         output = base_model.get_layer(self.feat_map_layer).output
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)

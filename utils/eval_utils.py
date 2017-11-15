@@ -18,12 +18,13 @@ def get_metrics(output_dim, heatmap_threshold):
         predictins to evaluate the model.
     """
     metrics = []
-    for metric_func in [iou, precision, recall]:
+    for metric_func in [iou, recall, precision]:
         for thresh in heatmap_threshold:
             metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
                 metric_func, thresh)
             metric.__name__ = metric_func.__name__ + '_' + str(thresh)
             metrics.append(metric)
+    metrics += [kl, cc]
     return metrics
 
 def format_results(names, scalars):
@@ -54,6 +55,9 @@ def format_results_eval(names, scalars):
     res = []
     for name, scalar in zip(names, scalars):
         res.append('%s: %2.3f' % (name, scalar))
+    
+    res.append(' & '.join(names))
+    res.append(' & '.join(['%2.4f' % x for x in scalars]))
     return '\n '.join(res)
 
 def iou(y_true, y_pred, heatmap_threshold):
@@ -163,6 +167,40 @@ def iou_bbox(y_true, y_pred, heatmap_threshold, output_dim):
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
 
+
+def cc(y_true, y_pred):
+     """Measure the cross correlation of our predictions with ground truth.
+
+    Args:
+         y_true: The ground truth bounding box locations.
+         y_pred: Our heatmap predictions.
+
+    Returns:
+         A float containing the cross correlation of our predictions.
+     """
+     sigma_true = K.std(y_true, axis=1, keepdims=True)
+     mu_true = K.mean(y_true, axis=1, keepdims=True)
+     sigma_pred = K.std(y_pred, axis=1, keepdims=True)
+     mu_pred = K.mean(y_pred, axis=1, keepdims=True)
+     mu_sub = (y_true - mu_true) * (y_pred - mu_pred)
+     cov = K.mean(mu_sub, axis=1)
+     return K.mean(cov/((sigma_pred * sigma_true) + K.epsilon()))
+
+
+def kl(y_true, y_pred):
+     """Measure the KL divergence of our predictions with ground truth.
+
+    Args:
+         y_true: The ground truth bounding box locations.
+         y_pred: Our heatmap predictions.
+
+    Returns:
+         A float containing the KL divergence of our predictions.
+     """
+     norm_true = y_true / (K.sum(y_true, axis=1, keepdims=True) + K.epsilon())
+     norm_pred = y_pred / (K.sum(y_pred, axis=1, keepdims=True) + K.epsilon())
+     x = K.log(K.epsilon() + (norm_true/(K.epsilon() + norm_pred)))
+     return K.mean(K.sum((x * norm_true), axis=1))
 
 if __name__ == "__main__":
     import numpy as np;

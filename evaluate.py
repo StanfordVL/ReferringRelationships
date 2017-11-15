@@ -20,17 +20,15 @@ if __name__=='__main__':
     args = parse_args(evaluation=True)
     models_dir = os.path.dirname(args.model_checkpoint)
     params = objdict(json.load(open(os.path.join(models_dir, "args.json"), "r")))
-    try:
-        params.baseline_weights
-    except AttributeError:
-        params.baseline_weights = None
     params.batch_size = args.batch_size
+    #params.embedding_dim = 1024
+    params.finetune_cnn = True
     params.dropout = 0.
     params.discovery = args.discovery
     params.shuffle = False
     params.subject_droprate = args.subject_droprate
     params.object_droprate = args.object_droprate
-
+    #params.embedding_dim = 256
     # If the dataset does exists, alert the user.
     if not os.path.isdir(args.data_dir):
         raise ValueError('The directory %s doesn\'t exist. '
@@ -67,6 +65,7 @@ if __name__=='__main__':
 
     # Run Evaluation.
     steps = len(generator)
+    print('Total number of steps for batch size = {} : {}'.format(args.batch_size, steps))
     outputs = model.evaluate_generator(generator=generator,
                                        steps=steps,
                                        use_multiprocessing=args.multiprocessing,

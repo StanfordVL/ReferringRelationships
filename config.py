@@ -125,7 +125,7 @@ def parse_training_args(parser):
                         help='Number of channels for the upsample module.')
     parser.add_argument('--fcnn', action='store_true',
                         help='Use FCNN with the bilinear upsampling module.')
-    parser.add_argument('--finetune_cnn', action='store_true',
+    parser.add_argument('--finetune-cnn', action='store_true',
                         help='Finetune the pretrained cnn networks.')
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
