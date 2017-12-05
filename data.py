@@ -6,7 +6,6 @@ from keras.preprocessing import image
 
 import abc
 import argparse
-import collections
 import h5py
 import json
 import numpy as np
@@ -134,7 +133,7 @@ class Dataset(object):
             images[i] = self.get_image_from_img_id(image_id)
         return images
 
-    def get_images_and_regions(self, image_ids, subject_bboxs, object_bboxs):
+    def get_images_and_regions(self, image_ids, subject_bboxes, object_bboxes):
         """Grabs the image and subject-object locations.
 
         Args:
@@ -182,7 +181,6 @@ class Dataset(object):
         # Iterate and save all the images first.
         for image_index, image_id in enumerate(image_ids):
             try:
-                im_data = self.im_metadata[image_id]
                 image = self.get_image_from_img_id(image_id)
             except KeyError:
                 print('Image %s not found' % str(image_id))
