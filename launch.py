@@ -28,27 +28,29 @@ args = parser.parse_args()
 
 for _ in range(args.nruns):
     params = {
-        'lr': 0.001, 
-        'patience': 4,
-        'lr-reduce-rate': 0.8,
-        'dropout': '%.1f' % random.uniform(0.0, 0.5),
+        'lr': 0.0001, 
+        'patience': 3,
+        'lr-reduce-rate': 0.7,
+        'dropout': 0, 
         'opt': "rms", 
-        'batch-size': 128, 
-        'hidden-dim': np.random.choice([256, 512, 1024]),
+        'batch-size': 64, 
+        'hidden-dim': 1024, 
+        'embedding-dim': np.random.choice([256, 512, 1024]),
         'input-dim': 224, 
+        'output-dim': 14, 
         'cnn': 'resnet', 
         'feat-map-layer': 'activation_40',
         'feat-map-dim': 14,
-        'nb-conv-im-map': 1,
+        'nb-conv-im-map': 0,
         'conv-im-kernel': 1,
-        'nb-conv-att-map': np.random.choice([1, 2, 3, 4, 5]),
+        'nb-conv-att-map': np.random.choice([4, 5, 6]),
         'conv-predicate-kernel': np.random.choice([3, 4, 5, 7]),
-        'heatmap-threshold': np.random.choice([0.5, 0.6, 0.7]),
-        'conv-predicate-channels': np.random.choice([1, 3, 5, 10]),
-        'w1': np.random.choice([2.5, 5., 7.5, 10.]),
+        'heatmap-threshold': 0.5, 
+        'conv-predicate-channels': np.random.choice([10, 20, 50]),
+        'w1': 7.5, 
         'loss-func': 'weighted',
-        'internal-loss-weight': np.random.choice([5., 10.]),
-        'iterations': np.random.choice([1, 2, 3, 4, 5])
+        'internal-loss-weight': np.random.choice([1., 2., 5.]),
+        'iterations': np.random.choice([2, 3])
     }
     arguments = ' '.join(['--' + k + ' ' + str(params[k]) for k in params])
     train = 'CUDA_VISIBLE_DEVICES=' + args.gpu + ' python train.py --use-models-dir --model ' + args.model + ' --epochs ' + args.epochs + ' --workers ' + args.workers

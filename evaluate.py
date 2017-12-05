@@ -6,8 +6,8 @@ from keras.models import load_model
 from config import parse_args
 from iterator import DiscoveryIterator, SmartIterator
 from keras.optimizers import RMSprop
-from models import ReferringRelationshipsModel
-from utils.eval_utils import format_results
+from old_models import ReferringRelationshipsModel
+from utils.eval_utils import format_results_eval
 from utils.visualization_utils import objdict
 from utils.eval_utils import get_metrics
 from utils.train_utils import format_args, get_loss_func
@@ -21,12 +21,14 @@ if __name__=='__main__':
     models_dir = os.path.dirname(args.model_checkpoint)
     params = objdict(json.load(open(os.path.join(models_dir, "args.json"), "r")))
     params.batch_size = args.batch_size
+    #params.embedding_dim = 1024
+    params.finetune_cnn = True
     params.dropout = 0.
     params.discovery = args.discovery
     params.shuffle = False
     params.subject_droprate = args.subject_droprate
     params.object_droprate = args.object_droprate
-
+    #params.embedding_dim = 256
     # If the dataset does exists, alert the user.
     if not os.path.isdir(args.data_dir):
         raise ValueError('The directory %s doesn\'t exist. '
@@ -45,7 +47,6 @@ if __name__=='__main__':
     else:
         Iterator = SmartIterator
     generator = Iterator(args.data_dir, params)
-
     # Setup all the metrics we want to report. The names of the metrics need to
     # be set so that Keras can log them correctly.
     metrics = get_metrics(params.output_dim, args.heatmap_threshold)
@@ -64,9 +65,10 @@ if __name__=='__main__':
 
     # Run Evaluation.
     steps = len(generator)
+    print('Total number of steps for batch size = {} : {}'.format(args.batch_size, steps))
     outputs = model.evaluate_generator(generator=generator,
                                        steps=steps,
                                        use_multiprocessing=args.multiprocessing,
                                        workers=args.workers)
-    results = format_results(model.metrics_names, outputs)
+    results = format_results_eval(model.metrics_names, outputs)
     print('Test results - ' + results)

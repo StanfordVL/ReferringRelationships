@@ -6,11 +6,11 @@ from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.applications.vgg19 import VGG19
-from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization, RepeatVector, MaxPooling2D
-from keras.layers.convolutional import Conv2DTranspose, Conv2D, Conv1D
+from keras.layers import Dense, UpSampling2D, Input, Activation, BatchNormalization, RepeatVector, MaxPooling2D
+from keras.layers.convolutional import Conv2DTranspose, Conv2D
 from keras.layers.core import Lambda, Dropout, Reshape
 from keras.layers.embeddings import Embedding
-from keras.layers.merge import Multiply, Dot, Add, Concatenate
+from keras.layers.merge import Multiply, Concatenate
 from keras.models import Model
 from keras.regularizers import l2
 from resnet_helpers import conv_block, identity_block, atrous_conv_block, atrous_identity_block
@@ -60,6 +60,7 @@ class ReferringRelationshipsModel():
         self.reg = args.reg
         self.batch_momentum = args.batch_momentum
         self.fcnn = args.fcnn
+        self.finetune_cnn = args.finetune_cnn
         self.output_dim = args.output_dim
 
         # Discovery.
@@ -128,8 +129,14 @@ class ReferringRelationshipsModel():
                               include_top=False,
                               input_shape=(self.input_dim, self.input_dim, 3))
         for layer in base_model.layers:
-            layer.trainable = False
-            layer.training = False
+            if self.finetune_cnn:
+                for layer in base_model.layers:
+                    layer.trainable = True
+                    layer.training = True
+            else:
+                for layer in base_model.layers:
+                    layer.trainable = False
+                    layer.training = False
         output = base_model.get_layer(self.feat_map_layer).output
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
@@ -656,9 +663,14 @@ class ReferringRelationshipsModel():
                                input_shape=(self.input_dim, self.input_dim, 3))
         else:
             raise ValueError('--cnn parameter not recognized.')
-        for layer in base_model.layers:
-            layer.trainable = False
-            layer.training = False
+        if self.finetune_cnn:
+            for layer in base_model.layers:
+                layer.trainable = True
+                layer.training = True
+        else:
+            for layer in base_model.layers:
+                layer.trainable = False
+                layer.training = False
         output = base_model.get_layer(self.feat_map_layer).output
         image_branch = Model(inputs=base_model.input, outputs=output)
         im_features = image_branch(input_im)
@@ -699,7 +711,7 @@ class ReferringRelationshipsModel():
         query = Reshape((1, 1, self.hidden_dim,))(query)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
-        attention_weights = Activation("relu")(attention_weights)
+        attention_weights = Activation("relu", name=name)(attention_weights)
         attention_weights = Activation("tanh", name=name)(attention_weights)
         return attention_weights
 

@@ -27,7 +27,7 @@ class SemanticSegmentationIterator(Sequence):
         self.num_objects = args.num_objects
 
         # Set the sizes of targets and images.
-        self.target_size = (args.input_dim, args.input_dim, args.num_objects+1)
+        self.target_size = (args.input_dim, args.input_dim, args.num_objects + 1)
         self.image_shape = (args.input_dim, args.input_dim, 3)
         self.data_format = K.set_image_data_format('channels_last')
 

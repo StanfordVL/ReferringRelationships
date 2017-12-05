@@ -17,17 +17,15 @@ def get_metrics(output_dim, heatmap_threshold):
         A list of metric functions that take in the ground truth and the
         predictins to evaluate the model.
     """
-    metrics = [cc]
-    iou_bbox_metric = lambda gt, pred, t: iou_bbox(gt, pred, t, output_dim)
-    iou_bbox_metric.__name__ = 'iou_bbox'
-    for metric_func in [iou, precision, recall, iou_acc, iou_bbox_metric]:
+    metrics = []
+    for metric_func in [iou, recall, precision]:
         for thresh in heatmap_threshold:
             metric = (lambda f, t: lambda gt, pred: f(gt, pred, t))(
                 metric_func, thresh)
             metric.__name__ = metric_func.__name__ + '_' + str(thresh)
             metrics.append(metric)
+    metrics += [kl, cc, sim]
     return metrics
-
 
 def format_results(names, scalars):
     """Formats the results of training.
@@ -44,6 +42,23 @@ def format_results(names, scalars):
         res.append('%s: %2.3f' % (name, scalar))
     return ', '.join(res)
 
+def format_results_eval(names, scalars):
+    """Formats the results of training.
+
+    Args:
+        names: The names of the metrics.
+        scalars: The values of the metrics.
+
+    Returns:
+        A string that contains the formatted scalars.
+    """
+    res = []
+    for name, scalar in zip(names, scalars):
+        res.append('%s: %2.3f' % (name, scalar))
+
+    res.append(' & '.join(names))
+    res.append(' & '.join(['%2.4f' % x for x in scalars]))
+    return '\n '.join(res)
 
 def iou(y_true, y_pred, heatmap_threshold):
     """Measures the mean IoU of our predictions with ground truth.
@@ -102,41 +117,6 @@ def recall(y_true, y_pred, heatmap_threshold):
     return K.mean(recall_values)
 
 
-def cc(y_true, y_pred):
-    """Measure the cross correlation of our predictions with ground truth.
-
-    Args:
-        y_true: The ground truth bounding box locations.
-        y_pred: Our heatmap predictions.
-
-    Returns:
-        A float containing the cross correlation of our predictions.
-    """
-    sigma_true = K.var(y_true, axis=1)
-    mu_true = K.mean(y_true, axis=1)
-    sigma_pred = K.var(y_pred, axis=1)
-    mu_pred = K.mean(y_pred, axis=1)
-    mu_sub = (y_true - mu_true) * (y_pred - mu_pred)
-    cov = sigma_pred * sigma_true
-    return K.mean(mu_sub)/(K.sqrt(cov.mean()) + K.epsilon())
-
-
-def kl(y_true, y_pred):
-    """Measure the KL divergence of our predictions with ground truth.
-
-    Args:
-        y_true: The ground truth bounding box locations.
-        y_pred: Our heatmap predictions.
-
-    Returns:
-        A float containing the KL divergence of our predictions.
-    """
-    norm_true = y_true / (K.sum(y_true) + K.epsilon())
-    norm_pred = y_pred / (K.sum(y_pred) + K.epsilon())
-    x = K.log(K.epsilon() + norm_true/(K.epsilon() + norm_pred))
-    return K.mean(x*norm_true)
-
-
 def iou_acc(y_true, y_pred, heatmap_threshold):
     """Measures the mean accuracy of our predictions with ground truth.
 
@@ -187,6 +167,58 @@ def iou_bbox(y_true, y_pred, heatmap_threshold, output_dim):
     iou_values = K.sum(intersection, axis=1) / (K.epsilon() + K.sum(union, axis=1))
     return K.mean(iou_values)
 
+
+def cc(y_true, y_pred):
+    """Measure the cross correlation of our predictions with ground truth.
+
+    Args:
+         y_true: The ground truth bounding box locations.
+         y_pred: Our heatmap predictions.
+
+    Returns:
+         A float containing the cross correlation of our predictions.
+    """
+    sigma_true = K.std(y_true, axis=1, keepdims=True)
+    mu_true = K.mean(y_true, axis=1, keepdims=True)
+    sigma_pred = K.std(y_pred, axis=1, keepdims=True)
+    mu_pred = K.mean(y_pred, axis=1, keepdims=True)
+    mu_sub = (y_true - mu_true) * (y_pred - mu_pred)
+    cov = K.mean(mu_sub, axis=1, keepdims=True)
+    return K.mean(cov/((sigma_pred * sigma_true) + K.epsilon()))
+
+
+def sim(y_true, y_pred):
+    """Measures the similarity between our predictions with ground truth.
+
+    Args:
+         y_true: The ground truth bounding box locations.
+         y_pred: Our heatmap predictions.
+
+    Returns:
+         A float containing the similarity of our predictions.
+    """
+    y_true = y_true / (K.epsilon() + K.sum(y_true, axis=1, keepdims=True))
+    y_pred = y_pred / (K.epsilon() + K.sum(y_pred, axis=1, keepdims=True))
+    indices_1 = K.cast(K.greater(y_pred, y_true), "float32")
+    indices_2 = K.cast(K.greater(y_true, y_pred), "float32")
+    mini = K.sum((y_true * indices_1) + (y_pred * indices_2), axis=1)
+    return K.mean(mini)
+
+
+def kl(y_true, y_pred):
+     """Measure the KL divergence of our predictions with ground truth.
+
+    Args:
+         y_true: The ground truth bounding box locations.
+         y_pred: Our heatmap predictions.
+
+    Returns:
+         A float containing the KL divergence of our predictions.
+     """
+     norm_true = y_true / (K.sum(y_true, axis=1, keepdims=True) + K.epsilon())
+     norm_pred = y_pred / (K.sum(y_pred, axis=1, keepdims=True) + K.epsilon())
+     x = K.log(K.epsilon() + (norm_true/(K.epsilon() + norm_pred)))
+     return K.mean(K.sum((x * norm_true), axis=1))
 
 if __name__ == "__main__":
     import numpy as np;
