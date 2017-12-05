@@ -1,7 +1,15 @@
-"""Training script for referring relationships.
-"""
+"""Evaluation script for discovery experiment on referring relationships.
 
-from keras.models import load_model
+This runs 4 evaluation experiments:
+    1. s = 0, o = 0
+    2. s = 0, o = 1
+    3. s = 1, o = 0
+    4. s = 1, o = 1
+Here, s and o refer to the subject-droprate and object-droprate in the
+`config.py` file. So, when s = 1 and o = 1, both the subject and object
+are not included in the evaluation and the model only has the predicate
+to ground the subject an the object.
+"""
 
 from config import parse_args
 from iterator import DiscoveryIterator
@@ -11,7 +19,6 @@ from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics
 from utils.train_utils import format_args
 
-import json
 import logging
 import os
 
@@ -47,10 +54,7 @@ if __name__=='__main__':
     # create a new instance model
     relationships_model = ReferringRelationshipsModel(args)
     model = relationships_model.build_model()
-    if args.loss_func == 'weighted':
-        loss_func = get_loss_func(args.w1)
-    else:
-        loss_func = 'binary_crossentropy'
+    loss_func = 'binary_crossentropy'
     model.compile(loss=[loss_func, loss_func],
                   optimizer=RMSprop(lr=0.01),
                   metrics=metrics)

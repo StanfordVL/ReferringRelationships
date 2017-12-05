@@ -31,24 +31,24 @@ def parse_training_args(parser):
     parser.add_argument('--val-steps-per-epoch', type=int, default=-1,
                         help='Number of steps to yield from validation '
                         'generator at the end of every epoch.')
-    parser.add_argument('--w1', type=float, default=2.,
-                        help='The coefficient to use on the positive '
-                        'examples in the CE loss')
     parser.add_argument('--shuffle', action='store_true', default=True,
                         help='Shuffle the dataset.')
     parser.add_argument('--categorical-predicate', action='store_true',
                         default=False,
                         help='wheteher to return indexes or masks for the '
-                        'iterator, should only be used for ssn and '
-                        'sym_ssn models')
+                        'iterator, should only be used ssas models.')
     parser.add_argument('--use-internal-loss', action='store_true', default=False,
-                        help='Whether to add intermediate losses in the sym_ssn model')
+                        help='Whether to add intermediate losses in the ssas model')
     parser.add_argument('--internal-loss-weight', type=float, default=1.,
                         help='The co-officient of the internal loss of the '
-                        'subject and object. Must use --model sym-ssn, '
+                        'subject and object. Must use --model ssas, '
                         '--use-internal-loss.')
     parser.add_argument('--loss-func', type=str, default='basic',
-                         help='basic or weighted cross entropy loss.')
+                         help='[basic, weighted] cross entropy loss. '
+                         'Must set --w1 when using --loss-func weighted.')
+    parser.add_argument('--w1', type=float, default=2.,
+                        help='The coefficient to use on the positive '
+                        'examples in the CE loss')
 
     # Learning rate parameters.
     parser.add_argument('--lr', type=float, default=0.001,
@@ -60,15 +60,11 @@ def parse_training_args(parser):
                         help='Multiple to reduce the learning rate by.')
 
     # Model parameters.
-    parser.add_argument('--model', type=str, default='sym_ssn',
+    parser.add_argument('--model', type=str, default='ssas',
                         help='Indicates which model to use: '
-                        '[ssn, baseline, sym_ssn].')
-    parser.add_argument('--use-subject', type=int, default=1,
-                        help='1/0 indicating whether to use the subjects.')
+                        '[co-occurrence, vrd, ssas] Check paper for details.')
     parser.add_argument('--use-predicate', type=int, default=1,
                         help='1/0 indicating whether to use the predicates.')
-    parser.add_argument('--use-object', type=int, default=1,
-                        help='1/0 indicating whether to use the objects.')
     parser.add_argument('--hidden-dim', type=int, default=1024,
                         help='Number of dimensions in the hidden unit.')
     parser.add_argument('--embedding-dim', type=int, default=512,
@@ -99,34 +95,25 @@ def parse_training_args(parser):
                         help='Number of convolution layers to use '
                         'to learn image feature maps')
     parser.add_argument('--nb-conv-att-map', type=int, default=4,
-                        help='Number of convolution layers to use to move '
-                        'heatmaps in ssn model')
+                        help='Number of convolution layers to use to shift '
+                        'attention in ssas model')
     parser.add_argument('--conv-im-kernel', type=int, default=1,
                         help='The kernel size when using convolutions in '
-                        'the ssn model to compute image feature maps')
+                        'the ssas model to compute image feature maps')
     parser.add_argument('--conv-predicate-kernel', type=int, default=5,
                         help='The kernel size when using convolutions in '
-                        'the ssn model to move heatmaps')
-    parser.add_argument('--reg', type=float, default=0.,
-                        help='Weight regularizer.')
-    parser.add_argument('--batch-momentum', type=float, default=0.9,
-                        help='Batch norm layer momentum.')
+                        'the ssas model to move heatmaps')
     parser.add_argument('--conv-predicate-channels', default=10, type=int,
                         help='Number of channels to use in convolution filters that shift attention')
     parser.add_argument('--iterations', default=2, type=int,
                         help='The number of iterations to finetune the heatmaps.')
-    parser.add_argument('--baseline-weights', default=None, type=str,
-                        help='baseline weights')
     parser.add_argument('--attention-conv-kernel', default=3, type=int,
                         help='kernel size for the attention module.')
     parser.add_argument('--refinement-conv-kernel', default=3, type=int,
                         help='kernel size for the attention module.')
-    parser.add_argument('--upsampling-channels', default=100, type=int,
-                        help='Number of channels for the upsample module.')
-    parser.add_argument('--fcnn', action='store_true',
-                        help='Use FCNN with the bilinear upsampling module.')
     parser.add_argument('--finetune-cnn', action='store_true',
                         help='Finetune the pretrained cnn networks.')
+
     # Locations read and written to in the filesystem.
     parser.add_argument('--save-dir', type=str, default=None,
                         help='The location to save the model and the results.')

@@ -5,22 +5,17 @@ from config import parse_args
 from keras import backend as K
 from keras.applications.resnet50 import ResNet50
 from keras.applications.vgg19 import VGG19
-from keras.layers import Dense, Flatten, UpSampling2D, Input, Activation, BatchNormalization, RepeatVector
-from keras.layers.convolutional import Conv2DTranspose, Conv2D, Conv1D
-from keras.layers.core import Lambda, Dropout, Reshape
+from keras.layers import Dense, Input, Activation
+from keras.layers.convolutional import Conv2D
+from keras.layers.core import Dropout
+from keras.layers.core import Lambda
+from keras.layers.core import Reshape
 from keras.layers.embeddings import Embedding
-from keras.layers.merge import Multiply, Dot, Add, Concatenate
+from keras.layers.merge import Concatenate
+from keras.layers.merge import Multiply
 from keras.models import Model
-from keras.regularizers import l2
-from utils.visualization_utils import objdict
-from fcnn import AtrousFCN_Resnet50_16s 
-from fcnn_skip import AtrousFCN_Resnet50_16s_skip
-from segmentation.BilinearUpSampling import BilinearUpSampling2D
 
 import numpy as np
-import json
-import os
-import h5py
 
 
 class ReferringRelationshipsModel():
@@ -50,42 +45,46 @@ class ReferringRelationshipsModel():
         self.conv_predicate_kernel = args.conv_predicate_kernel
         self.conv_predicate_channels = args.conv_predicate_channels
         self.model = args.model
-        self.reg = args.reg
         self.use_internal_loss = args.use_internal_loss
         self.internal_loss_weight = args.internal_loss_weight
         self.iterations = args.iterations
-        self.baseline_weights = args.baseline_weights
         self.attention_conv_kernel = args.attention_conv_kernel
         self.refinement_conv_kernel = args.refinement_conv_kernel
         self.upsampling_channels = args.upsampling_channels
-        self.output_dim = args.output_dim 
-        self.embedding_dim = args.embedding_dim 
-        self.finetune_cnn = args.finetune_cnn 
+        self.output_dim = args.output_dim
+        self.embedding_dim = args.embedding_dim
+        self.finetune_cnn = args.finetune_cnn
 
-        # Discovery.
+        # Discovery. Create a general object attention embedding option.
         if args.discovery:
             self.num_objects += 1
 
     def build_model(self):
         """Chooses which model based on the arguments.
         """
-        if self.model == "ssn":
-            return self.build_iterative_ssn_model()
-        elif self.model == "sym_ssn":
-            return self.build_iterative_sym_ssn_model()
-        elif self.model == "baseline":
-            return self.build_baseline_model()
+        if self.model == "co-occurrence":
+            if self.use_predicate:
+                raise ValueError('co-occurrence model must be run with '
+                                 '--use-predicate False.')
+            return self.build_vrd()
+        elif self.model == "vrd":
+            if not self.use_predicate:
+                raise ValueError('vrd model must be run with '
+                                 '--use-predicate True.')
+            return self.build_vrd()
+        elif self.model == "ssas":
+            return self.build_ssas()
         else:
-            raise ValueError("model argument not recognized. Model options: ssn, sym_ssn, baseline, baseline_no_predicate")
+            raise ValueError('Model argument not recognized. Model options: '
+                             'ssas, co-occurrence, vrd.')
 
-
-    def build_iterative_sym_ssn_model(self):
-        """Iteratives build focusing on the subject and object over and over again.
+    def build_ssas(self):
+        """Focusing on the subject and object iteratively.
 
         Returns:
             The Keras model.
         """
-        # Inputs.
+        # Create Inputs.
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
         input_subj = Input(shape=(1,))
         input_obj = Input(shape=(1,))
@@ -95,55 +94,44 @@ class ReferringRelationshipsModel():
         else:
             inputs=[input_im, input_subj, input_obj]
 
-        # Extract image features and embeddings
-        if self.baseline_weights:
-            params = objdict(json.load(open(os.path.join(os.path.dirname(self.baseline_weights), "args.json"), "r")))
-            params.embedding_dim = 1024
-            model_weights = h5py.File(self.baseline_weights)
-            relationships_model = ReferringRelationshipsModel(params)
-            base_model = relationships_model.build_model()
-            base_model.load_weights(self.baseline_weights)
-            output_im = base_model.get_layer("dropout_1").output
-            output_emb_s = base_model.get_layer("activation_50").output
-            output_emb_o = base_model.get_layer("activation_51").output
-            baseline_branch = Model(inputs=base_model.input, outputs=[output_im, output_emb_s, output_emb_o])
-            for layer in baseline_branch.layers:
-                layer.trainable = True
-            im_features, embedded_subject, embedded_object = baseline_branch([input_im, input_subj, input_obj])
-        else:
-            im_features = self.build_image_model(input_im)
-            subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.embedding_dim)#self.hidden_dim)
-            embedded_subject = subj_obj_embedding(input_subj)
-            embedded_subject = Dense(self.hidden_dim, activation="relu")(embedded_subject)
-            #embedded_subject = Activation("relu")(embedded_subject)
-            embedded_subject = Dropout(self.dropout)(embedded_subject)
-            embedded_object = subj_obj_embedding(input_obj)
-            embedded_object = Dense(self.hidden_dim, activation="relu")(embedded_object)
-            #embedded_object =  Activation("relu")(embedded_object)
-            embedded_object = Dropout(self.dropout)(embedded_object)
-        # Refinement parameters
+        # Generate the embedding and image feature layers.
+        im_features = self.build_image_model(input_im)
+        subj_obj_embedding = self.build_embedding_layer(
+            self.num_objects, self.embedding_dim)
+        embedded_subject = subj_obj_embedding(input_subj)
+        embedded_subject = Dense(self.hidden_dim, activation="relu")(
+            embedded_subject)
+        embedded_subject = Dropout(self.dropout)(embedded_subject)
+        embedded_object = subj_obj_embedding(input_obj)
+        embedded_object = Dense(self.hidden_dim, activation="relu")(
+            embedded_object)
+        embedded_object = Dropout(self.dropout)(embedded_object)
+
+        # Initial attention over the subject and object.
         subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
         object_att = self.attend(im_features, embedded_object, name='object-att-0')
-
 
         # Create the predicate conv layers.
         if self.use_predicate:
             predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
-            predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
-            inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
+            predicate_modules = self.build_conv_modules(
+                basename='conv{}-predicate{}')
+            inverse_predicate_modules = self.build_conv_modules(
+                basename='conv{}-inv-predicate{}')
 
+        # Save the initial predictions when using the internal loss.
         if self.use_internal_loss:
             subject_outputs = [subject_att]
             object_outputs = [object_att]
 
         # Iterate!
         for iteration in range(self.iterations):
-            predicate_att = self.transform_conv_attention(subject_att, predicate_modules, predicate_masks)
+            predicate_att = self.shift_conv_attention(subject_att, predicate_modules, predicate_masks)
             predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(predicate_att)
             new_image_features = Multiply()([im_features, predicate_att])
             new_object_att = self.attend(new_image_features, embedded_object, name='object-att-{}'.format(iteration+1))
 
-            inv_predicate_att = self.transform_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
+            inv_predicate_att = self.shift_conv_attention(object_att, inverse_predicate_modules, predicate_masks)
             inv_predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(iteration+1))(inv_predicate_att)
             new_image_features = Multiply()([im_features, inv_predicate_att])
             new_subject_att = self.attend(new_image_features, embedded_subject, name='subject-att-{}'.format(iteration+1))
@@ -162,6 +150,7 @@ class ReferringRelationshipsModel():
             # Multiply with the internal losses.
             subject_outputs = Lambda(lambda x: [internal_weights[i]*x[i] for i in range(len(x))])(subject_outputs)
             object_outputs = Lambda(lambda x: [internal_weights[i]*x[i] for i in range(len(x))])(object_outputs)
+
             # Concatenate all the internal outputs.
             subject_att = Concatenate(axis=3)(subject_outputs)
             object_att = Concatenate(axis=3)(object_outputs)
@@ -174,10 +163,10 @@ class ReferringRelationshipsModel():
         object_att = Activation("tanh")(object_att)
         subject_regions = Reshape((self.output_dim * self.output_dim,), name="subject")(subject_att)
         object_regions = Reshape((self.output_dim * self.output_dim,), name="object")(object_att)
+
         # Create and output the model.
         model = Model(inputs=inputs, outputs=[subject_regions, object_regions])
         return model
-
 
     def build_conv_modules(self, basename):
         """Creates the convolution modules used to shift attention.
@@ -206,98 +195,7 @@ class ReferringRelationshipsModel():
             predicate_modules.append(predicate_module_group)
         return predicate_modules
 
-    def build_iterative_ssn_model(self):
-        """Iteratives build focusing on the subject and object over and over again.
-
-        Returns:
-            The Keras model.
-        """
-        # Inputs.
-        input_im = Input(shape=(self.input_dim, self.input_dim, 3))
-        input_subj = Input(shape=(1,))
-        input_pred = Input(shape=(self.num_predicates,))
-        input_obj = Input(shape=(1,))
-
-        # Extract image features.
-        im_features = self.build_image_model(input_im)
-
-        # Extract object embeddings.
-        subj_obj_embedding = self.build_embedding_layer(self.num_objects, self.embedding_dim)#self.hidden_dim)
-        embedded_subject = subj_obj_embedding(input_subj)
-        #embedded_subject = Dense(self.hidden_dim, activation="relu")(embedded_subject)
-        embedded_subject = Activation('relu')(embedded_subject)
-        embedded_subject = Dropout(self.dropout)(embedded_subject)
-        embedded_object = subj_obj_embedding(input_obj)
-        #embedded_object = Dense(self.hidden_dim, activation="relu")(embedded_object)
-        embedded_object = Activation('relu')(embedded_object)
-        embedded_object = Dropout(self.dropout)(embedded_object)
-
-        # Extract subject attention map.
-        subject_att = self.attend(im_features, embedded_subject, name='subject-att-0')
-
-        # Create the predicate conv layers.
-        predicate_masks = Reshape((1, 1, self.num_predicates))(input_pred)
-        predicate_modules = self.build_conv_modules(basename='conv{}-predicate{}')
-        inverse_predicate_modules = self.build_conv_modules(basename='conv{}-inv-predicate{}')
-
-        # Iterate!
-        if self.use_internal_loss:
-            subject_outputs = [subject_att]
-            object_outputs = []
-        for iteration in range(self.iterations):
-            if iteration % 2 == 0:
-                predicate_att = self.transform_conv_attention(
-                    subject_att, predicate_modules, predicate_masks)
-                predicate_att = Lambda(lambda x: x, name='shift-{}'.format(iteration+1))(
-                    predicate_att)
-                new_im_features = Multiply()([im_features, predicate_att])
-                object_att = self.attend(new_im_features, embedded_object,
-                                         name='object-att-{}'.format(iteration+1))
-                if self.use_internal_loss:
-                    object_outputs.append(object_att)
-            else:
-                predicate_att = self.transform_conv_attention(
-                    object_att, inverse_predicate_modules, predicate_masks)
-                predicate_att = Lambda(lambda x: x, name='inv-shift-{}'.format(
-                    iteration+1))(predicate_att)
-                new_im_features = Multiply()([im_features, predicate_att])
-                subject_att = self.attend(new_im_features, embedded_subject,
-                                          name='subject-att-{}'.format(iteration+1))
-                if self.use_internal_loss:
-                    subject_outputs.append(subject_att)
-
-        # Combine all the internal subject predictions..
-        if self.use_internal_loss and len(subject_outputs) > 1:
-            internal_subject_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(subject_outputs))])
-            internal_subject_weights = internal_subject_weights/internal_subject_weights.sum()
-            # Multiply with the internal losses.
-            subject_outputs = Lambda(lambda x: [internal_subject_weights[i]*x[i] for i in range(len(x))])(subject_outputs)
-            # Concatenate all the internal outputs.
-            subject_att = Concatenate(axis=3)(subject_outputs)
-            # Sum across the internal values.
-            subject_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(subject_att)
-
-        # Combine all the internal object predictions.
-        if self.use_internal_loss and len(object_outputs) > 1:
-            internal_object_weights = np.array([self.internal_loss_weight**iteration for iteration in range(len(object_outputs))])
-            internal_object_weights = internal_object_weights/internal_object_weights.sum()
-            # Multiply with the internal losses.
-            object_outputs = Lambda(lambda x: [internal_object_weights[i]*x[i] for i in range(len(x))])(object_outputs)
-            # Concatenate all the internal outputs.
-            object_att = Concatenate(axis=3)(object_outputs)
-            # Sum across the internal values.
-            object_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(object_att)
-
-        subject_regions = Activation("tanh")(subject_att)
-        object_att = Activation("tanh")(object_att)
-        subject_regions = Reshape((self.output_dim * self.output_dim,), name="subject")(subject_att)
-        object_regions = Reshape((self.output_dim * self.output_dim,), name="object")(object_att)
-
-        # Create and output the model.
-        model = Model(inputs=[input_im, input_subj, input_pred, input_obj], outputs=[subject_regions, object_regions])
-        return model
-
-    def transform_conv_attention(self, att, merged_modules, predicate_masks):
+    def shift_conv_attention(self, att, merged_modules, predicate_masks):
         """Takes an intial attention map and shifts it using the predicate convs.
         Args:
             att: An initial attention by the object or the subject.
@@ -319,42 +217,46 @@ class ReferringRelationshipsModel():
         predicate_att = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(predicate_att)
         predicate_att = Activation("tanh")(predicate_att)
         return predicate_att
-    
-    def build_baseline_model(self):
+
+    def build_vrd(self):
         """Initializes the baseline model that uses predicates.
+
         Returns:
             The Keras model.
         """
-
         # Setup the inputs.
         input_im = Input(shape=(self.input_dim, self.input_dim, 3))
         relationship_inputs = []
         num_classes = []
-        if self.use_subject:
-            input_sub = Input(shape=(1,))
-            relationship_inputs.append(input_sub)
-            num_classes.append(self.num_objects)
+        input_sub = Input(shape=(1,))
+        relationship_inputs.append(input_sub)
+        num_classes.append(self.num_objects)
         if self.use_predicate:
             input_pred = Input(shape=(1,))
             relationship_inputs.append(input_pred)
             num_classes.append(self.num_predicates)
-        if self.use_object:
-            input_obj = Input(shape=(1,))
-            relationship_inputs.append(input_obj)
-            num_classes.append(self.num_objects)
+        input_obj = Input(shape=(1,))
+        relationship_inputs.append(input_obj)
+        num_classes.append(self.num_objects)
 
-        # Map the inputs to the outputs.
+        # Grab the image features.
         im_features = self.build_image_model(input_im)
+
+        # Embed the relationship.
         rel_features = self.build_relationship_model(relationship_inputs, num_classes)
         rel_features = Dropout(self.dropout)(rel_features)
         subjects_features = Dense(self.hidden_dim, activation="relu")(rel_features)
         objects_features = Dense(self.hidden_dim, activation="relu")(rel_features)
         subjects_features = Dropout(self.dropout)(subjects_features)
         objects_features = Dropout(self.dropout)(objects_features)
+
+        # Attend over the image regions.
         subject_att = self.attend(im_features, subjects_features)
         object_att = self.attend(im_features, objects_features)
         subject_att = Activation("tanh")(subject_att)
         object_att = Activation("tanh")(object_att)
+
+        # Output the predictions.
         subject_regions = Reshape((self.output_dim * self.output_dim,), name="subject")(subject_att)
         object_regions = Reshape((self.output_dim * self.output_dim,), name="object")(object_att)
         model_inputs = [input_im] + relationship_inputs
@@ -364,6 +266,8 @@ class ReferringRelationshipsModel():
     def build_image_model(self, input_im):
         """Grab the image features.
 
+        Finetunes the image feature layers if self.finetune_cnn = True.
+
         Args:
             input_im: The input image to the model.
 
@@ -371,15 +275,16 @@ class ReferringRelationshipsModel():
             The image feature map.
         """
         if self.cnn == "resnet":
-            base_model = ResNet50(weights='imagenet',
-                                  include_top=False,
-                                  input_shape=(self.input_dim, self.input_dim, 3))
+            base_model = ResNet50(
+                weights='imagenet', include_top=False,
+                input_shape=(self.input_dim, self.input_dim, 3))
         elif self.cnn == "vgg":
-            base_model = VGG19(weights='imagenet',
-                               include_top=False,
-                               input_shape=(self.input_dim, self.input_dim, 3))
+            base_model = VGG19(
+                weights='imagenet', include_top=False,
+                input_shape=(self.input_dim, self.input_dim, 3))
         else:
-            base_model = AtrousFCN_Resnet50_16s(input_shape=(self.input_dim, self.input_dim, 3)) 
+            raise ValueError('--cnn must be [resnet, vgg] but got {}'.format(
+                self.cnn))
         if self.finetune_cnn:
             for layer in base_model.layers:
                 layer.trainable = True
@@ -400,57 +305,44 @@ class ReferringRelationshipsModel():
         return im_features
 
     def build_embedding_layer(self, num_categories, emb_dim):
+        """Creates an embedding layer.
+
+        Args:
+            num_categories: The number of categories we want embeddings for.
+            emb_dim: The dimensions in the embedding.
+
+        Returns:
+            An embedding layer.
+        """
         return Embedding(num_categories, emb_dim, input_length=1)
 
-    def attend_1(self, feature_map, query, conv_op, name=None):
-        query = Reshape((self.hidden_dim,))(query)
-        query = RepeatVector(self.feat_map_dim)(query)
-        query = Reshape((self.feat_map_dim * self.hidden_dim,))(query)
-        query = RepeatVector(self.feat_map_dim)(query)
-        query = Reshape((self.feat_map_dim, self.feat_map_dim, self.hidden_dim))(query)
-        attention_weights = Concatenate(axis=3)([feature_map, query])
-        attention_weights = conv_op(attention_weights)
-        attention_weights = Activation("relu", name=name)(attention_weights)
-        return attention_weights
-
-    def attend_2(self, feature_map, query, name=None):
-        query = Reshape((self.hidden_dim,))(query)
-        query = RepeatVector(self.feat_map_dim)(query)
-        query = Reshape((self.feat_map_dim * self.hidden_dim,))(query)
-        query = RepeatVector(self.feat_map_dim)(query)
-        query = Reshape((self.feat_map_dim, self.feat_map_dim, self.hidden_dim))(query)
-        mul = Multiply()([query, feature_map])
-        attention_weights = Concatenate(axis=3)([feature_map, query, mul])
-        attention_weights = Dense(1, activation="relu", name=name)(attention_weights)
-        return attention_weights
-
     def attend(self, feature_map, query, name=None):
+        """Uses the embedded query to attend over the image features.
+
+        Args:
+            feature_map: The image features to attend over.
+            query: The embedding of the category used as the attention query.
+            name: The name of the layer.
+
+        Returns:
+            The attention weights over the feature map.
+        """
         query = Reshape((1, 1, self.hidden_dim,))(query)
         attention_weights = Multiply()([feature_map, query])
         attention_weights = Lambda(lambda x: K.sum(x, axis=3, keepdims=True))(attention_weights)
         attention_weights = Activation("relu", name=name)(attention_weights)
         return attention_weights
-    
-    def build_upsampling_layer(self, feature_map, name=None):
-        feat_map_dim = feature_map.shape[1].value
-        upsampling_factor = self.input_dim / feat_map_dim
-        k = int(np.log(upsampling_factor) / np.log(2))
-        res = feature_map
-        for i in range(k):
-            res = UpSampling2D(size=(2, 2), name=name+"-upsampling-{}".format(i))(res)
-            res = Conv2DTranspose(1, 3, padding='same', use_bias=False, name=name+"-convT-{}".format(i), activation="relu")(res)
-        res = Reshape((self.input_dim * self.input_dim,))(res)
-        predictions = Activation("tanh", name=name)(res)
-        return predictions
 
     def build_relationship_model(self, relationship_inputs, num_classes):
         """Converts the input relationship into a feature space.
+
         Args:
             relationship_inputs: A list of inputs to the model. Can contains
               input_sub, input_pred or input_obj depending on the args.
             num_classes: A list containing how many categories each input can
               take in the relatinoship_inputs list. Used to initialize the
               embedding layer.
+
         Returns:
             The feature representation for the relationship.
         """
@@ -469,7 +361,9 @@ class ReferringRelationshipsModel():
         concatenated_inputs = Dropout(self.dropout)(concatenated_inputs)
         return concatenated_inputs
 
+
 if __name__ == "__main__":
+    # This file can be executed to make sure the model compiles.
     args = parse_args()
     rel = ReferringRelationshipsModel(args)
     model = rel.build_model()
