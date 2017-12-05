@@ -51,15 +51,15 @@ the following script to test and evaluate the model:
 ```
 # For the CLEVR dataset.
 ./scripts/create_clevr_dataset.sh $LOCATION_OF_CLEVR_TRAIN_IMAGES $LOCATION_OF_CLEVR_VAL_IMAGES
-./scripts/train_clevr.sh
-./scripts/evaluate_clevr.sh
+./scripts/train_clevr.sh $LOCATION_OF_MODEL
+./scripts/evaluate_clevr.sh $LOCATION_OF_MODEL
 ```
 
 ```
 # For the Visual Genome dataset.
 ./scripts/create_visualgenome_dataset.sh $LOCATION_OF_VISUAL_GENOME_IMAGES
-./scripts/train_visualgenome.sh
-./scripts/evaluate_visualgenome.sh
+./scripts/train_visualgenome.sh $LOCATION_OF_MODEL
+./scripts/evaluate_visualgenome.sh $LOCATION_OF_MODEL
 ```
 
 This script will train the model and save the weights in the `--save-dir`
