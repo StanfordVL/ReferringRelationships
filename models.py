@@ -170,8 +170,10 @@ class ReferringRelationshipsModel():
 
     def build_conv_modules(self, basename):
         """Creates the convolution modules used to shift attention.
+
         Args:
             basename: String representing the name of the conv.
+
         Returns:
             A list of length `self.num_predicates` convolution modules.
         """
@@ -197,12 +199,14 @@ class ReferringRelationshipsModel():
 
     def shift_conv_attention(self, att, merged_modules, predicate_masks):
         """Takes an intial attention map and shifts it using the predicate convs.
+
         Args:
             att: An initial attention by the object or the subject.
             merged_modules: A list containing `self.num_predicate` elements
               where each element is a list of `self.nb_conv_att_map` convs.
             predicate_masks: A helpful tensor indicating which predicate
               is involved for relationship element in the batch.
+
         Returns:
             The shifted attention.
         """

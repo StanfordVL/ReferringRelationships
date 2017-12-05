@@ -1,4 +1,6 @@
-# ReferringRelationships
+# Referring Relationships
+
+![Referring Relationships model](https://cs.stanford.edu/people/ranjaykrishna/referringrelationships/model.jpg)
 
 This repository contains code used to produce the results in the following paper:
 
