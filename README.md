@@ -43,21 +43,21 @@ the following script to test and evaluate the model:
 
 ```
 # For the VRD dataset.
-./scripts/create_vrd_dataset.sh
+./scripts/create_vrd_dataset.sh $LOCATION_OF_VRD_TRAIN_IMAGES $LOCATION_OF_VRD_TEST_IMAGES
 ./scripts/train_vrd.sh
 ./scripts/evaluate_vrd.sh
 ```
 
 ```
 # For the CLEVR dataset.
-./scripts/create_clevr_dataset.sh
+./scripts/create_clevr_dataset.sh $LOCATION_OF_CLEVR_TRAIN_IMAGES $LOCATION_OF_CLEVR_VAL_IMAGES
 ./scripts/train_clevr.sh
 ./scripts/evaluate_clevr.sh
 ```
 
 ```
 # For the Visual Genome dataset.
-./scripts/create_visualgenome_dataset.sh
+./scripts/create_visualgenome_dataset.sh $LOCATION_OF_VISUAL_GENOME_IMAGES
 ./scripts/train_visualgenome.sh
 ./scripts/evaluate_visualgenome.sh
 ```
@@ -150,28 +150,16 @@ The evaluations can be run using `python evaluate.py` with the following options
   --workers             Number workers used to load the data.
   --heatmap-threshold   The thresholds above which we consider a heatmap to
                         contain an object.
-  --discovery           Used when we run the discovery experinent where
-                        objects are dropped during training.
-  --always-drop-file    Location of list of objects that should always be
-                        dropped.
-  --subject-droprate    Rate at which subjects are dropped.
-  --object-droprate     Rate at which objects are dropped.
   --model-checkpoint    The model to evaluate.
   --data-dir            Location of the data to evluate with.
 ```
 
 ## Customized discovery evaluation.
 
-The discovery based experiments can be run on the dataset by calling
-`python evaluate_discovery.py`
+The discovery based experiments can be run by setting the following flags 
+during training and using `python evaluate_discovery.py` when evaluating.
 
 ```
-  -h, --help            show this help message and exit
-  --batch-size          The batch size used in training.
-  --seed                The random seed used to reproduce results.
-  --workers             Number workers used to load the data.
-  --heatmap-threshold   The thresholds above which we consider a heatmap to
-                        contain an object.
   --discovery           Used when we run the discovery experinent where
                         objects are dropped during training.
   --always-drop-file    Location of list of objects that should always be
