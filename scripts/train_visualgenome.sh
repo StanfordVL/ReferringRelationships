@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+SAVE_DIR=$1
+python train.py --workers 8 --lr 0.0001 --epochs 50 --patience 3 --lr-reduce-rate 0.8 --opt rms --loss-func weighted --w1 7.5 --batch-size 64 --dropout 0. --heatmap-threshold 0.5 --hidden-dim 1024 --embedding-dim 512 --num-predicates 70 --num-objects 100 --cnn resnet --nb-conv-im-map 0 --conv-im-kernel 0 --nb-conv-att-map 6 --conv-predicate-kernel 7 --conv-predicate-channels 10 --feat-map-dim 14 --feat-map-layer activation_40 --train-data-dir data/dataset-visualgenome/train --val-data-dir data/dataset-visualgenome/val --test-data-dir data/dataset-visualgenome/test --save-dir $SAVE_DIR --iterations 3 --model ssas --use-predicate 1 --output-dim 14 --categorical-predicate --internal-loss-weight 1. --use-internal-loss --finetune-cnn

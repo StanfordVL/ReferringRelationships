@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+SAVE_DIR=$1
+python train.py --workers 8 --lr 0.0001 --epochs 25 --patience 4 --lr-reduce-rate 0.8 --opt rms --loss-func weighted --w1 7.5 --batch-size 32 --dropout 0. --heatmap-threshold 0.5 --hidden-dim 1024 --num-predicates 6 --num-objects 48 --cnn resnet --nb-conv-im-map 0 --conv-im-kernel 0 --nb-conv-att-map 4 --conv-predicate-kernel 5 --conv-predicate-channels 5 --feat-map-dim 14 --feat-map-layer activation_40 --train-data-dir data/dataset-clevr/train --val-data-dir data/dataset-clevr/val --test-data-dir data/dataset-clevr/test --save-dir $SAVE_DIR --iterations 3 --model ssas --use-predicate 1 --output-dim 14 --categorical-predicate --use-internal-loss --internal-loss-weight 2.
