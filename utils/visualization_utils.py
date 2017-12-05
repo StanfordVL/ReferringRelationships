@@ -1,13 +1,13 @@
+"""Utility functions used for visualization.
+"""
+
+from PIL import Image
+from PIL import ImageDraw
+
 import os
 import json
 import numpy as np
 import argparse
-
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
-from keras.models import load_model
-from iterator import RefRelDataIterator
 
 
 def add_attention(original_image, heatmap, input_dim):
@@ -209,22 +209,3 @@ def parse_args():
                         help='where to save the attention heatmaps visualizations')
     args = parser.parse_args()
     return args
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    val_generator = PredicateIterator(args.val_data_dir, args)
-    x_val, y_val = next(val_generator)
-    predicates, obj_subj = get_dict(args.vocab_dir)
-    relationships_model = ReferringRelationshipsModel(args)
-    model = relationships_model.build_model()
-    model = load_model(args.model)
-    preds = model.predict(x_val)
-    model_name = os.path.basename(args.model)
-    for i in range(len(x_val[0])):
-        img, subj_id, pred_id, obj_id = x_val[0][i], int(x_val[1][i][0]), int(x_val[2][i][0]), int(x_val[3][i][0])
-        relationship = [obj_subj[subj_id], predicates[pred_id], obj_subj[obj_id]]
-        subj_pred = preds[0][i]
-        obj_pred = preds[1][i]
-        attention_map = get_att_map(img, subj_pred, obj_pred, args.input_dim, relationship)
-        attention_map.save(os.path.join(args.save_dir, 'att-{}-'.format(i) + model_name+ '.png'))

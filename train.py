@@ -3,12 +3,9 @@
 
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
-from keras.optimizers import Adam
-from keras.models import load_model
 
 from config import parse_args
-from old_models import ReferringRelationshipsModel
-#from models import ReferringRelationshipsModel
+from models import ReferringRelationshipsModel
 from iterator import SmartIterator, DiscoveryIterator
 from utils.eval_utils import format_results
 from utils.eval_utils import get_metrics
@@ -21,7 +18,6 @@ from utils.train_utils import format_args
 
 import json
 import logging
-import numpy as np
 import os
 
 

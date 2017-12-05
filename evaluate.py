@@ -4,7 +4,7 @@
 from config import parse_args
 from iterator import DiscoveryIterator, SmartIterator
 from keras.optimizers import RMSprop
-from old_models import ReferringRelationshipsModel
+from models import ReferringRelationshipsModel
 from utils.eval_utils import format_results_eval
 from utils.visualization_utils import objdict
 from utils.eval_utils import get_metrics

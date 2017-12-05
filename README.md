@@ -1,28 +1,82 @@
-# ReferringRelationships, User Guide
+# ReferringRelationships
 
-## Environment Variables
+This repository contains code used to produce the results in the following paper:
 
-First, set the environment variables. You might have to change these
- depending on where you have your LD LIBRARY and PYTHON PATHS set in
- your machine.
+TODO: Cite paper here.
+
+If you are using this repository, please use the following citation:
+
+TODO: Add citation here.
+
+## Clone the repository and install the dependencies.
+
+You can clone the repository and install the requirements by running the
+following:
 
 ```
+git clone https://github.com/stanfordvl/ReferringRelationships.git
 cd ReferringRelationships
-source set_env.sh
+virtualenv -p python3 env
+source env/bin/activate
+pip install -r requirements.txt
 ```
 
-## Building the dataset
+To download the dataset used in the project, run:
 
-Next, create the dataset for the Visual Relationship model.
- The script `data.py` will save masks for objects and subjects
- in train/val/test directories that will be created in the directory
- `--save-dir`. The script also saves numpy arrays for relationships.
+```
+./scripts/download_data.sh
+```
+
+Note that we only distribute the annotations for the datasets. To
+download the images for these datasets, please use the following links:
+
+- [VRD](http://cs.stanford.edu/people/ranjaykrishna/vrd/)
+- [CLEVR](http://cs.stanford.edu/people/jcjohns/clevr/)
+- [Visual Genome](https://visualgenome.org)
+
+## Model training
+
+To train the models, you will need to create an `hdf5` dataset and then run
+the following script to test and evaluate the model:
+
+```
+# For the VRD dataset.
+./scripts/create_vrd_dataset.sh
+./scripts/train_vrd.sh
+./scripts/evaluate_vrd.sh
+```
+
+```
+# For the CLEVR dataset.
+./scripts/create_clevr_dataset.sh
+./scripts/train_clevr.sh
+./scripts/evaluate_clevr.sh
+```
+
+```
+# For the Visual Genome dataset.
+./scripts/create_visualgenome_dataset.sh
+./scripts/train_visualgenome.sh
+./scripts/evaluate_visualgenome.sh
+```
+
+This script will train the model and save the weights in the `--save-dir`
+directory.  It will also save the configuration parameters in a 
+`params.json` file and log events in `train.log`.
+
+However, if you decide that you want more control over the training or
+evaluation scripts, check out the instructions below.
+
+## Customized dataset creation
+
+The script `data.py` will save masks for objects and subjects
+in train/val/test directories that will be created in the directory
+`--save-dir`. The script also saves numpy arrays for relationships.
 
 The script has the following command line arguments to modify the dataset
 pre-processing:
 
 ```
-optional arguments:
   -h, --help            show this help message and exit
   --test                When true, the data is not split into training and
                         validation sets
@@ -32,10 +86,16 @@ optional arguments:
   --img-dir             Location where images are stored.
   --annotations         Json with relationships for each image.
   --image-metadata      Image metadata json file.
+  --image-dim           The size the images should be saved as.
+  --output-dim          The size the predictions should be saved as.
   --seed                The random seed used to reproduce results.
+  --num-images          The random seed used to reproduce results.
+  --save-images         Use this flag to specify that the images should also
+                        be saved.
+  --max-rels-per-image  Maximum number of relationships per image.
 ```
 
-## Model Configuration
+## Customized Training.
 
 The model can be trained by calling `python train.py` with the following command
 line arguments to modify your training:
@@ -77,9 +137,54 @@ optional arguments:
                         contain an object.
 ```
 
-## Model training
+## Customized evaluation
 
-```./run.sh```
+The evaluations can be run using `python evaluate.py` with the following options:
 
-This script will train the model and save the weights in the save_dir directory. 
-It will also save the configuration parameters in a params.json file, as well as the training log in a train.log file.
+```
+  -h, --help            show this help message and exit
+  --batch-size          The batch size used in training.
+  --seed                The random seed used to reproduce results.
+  --workers             Number workers used to load the data.
+  --heatmap-threshold   The thresholds above which we consider a heatmap to
+                        contain an object.
+  --discovery           Used when we run the discovery experinent where
+                        objects are dropped during training.
+  --always-drop-file    Location of list of objects that should always be
+                        dropped.
+  --subject-droprate    Rate at which subjects are dropped.
+  --object-droprate     Rate at which objects are dropped.
+  --model-checkpoint    The model to evaluate.
+  --data-dir            Location of the data to evluate with.
+```
+
+## Customized discovery evaluation.
+
+The discovery based experiments can be run on the dataset by calling
+`python evaluate_discovery.py`
+
+```
+  -h, --help            show this help message and exit
+  --batch-size          The batch size used in training.
+  --seed                The random seed used to reproduce results.
+  --workers             Number workers used to load the data.
+  --heatmap-threshold   The thresholds above which we consider a heatmap to
+                        contain an object.
+  --discovery           Used when we run the discovery experinent where
+                        objects are dropped during training.
+  --always-drop-file    Location of list of objects that should always be
+                        dropped.
+  --subject-droprate    Rate at which subjects are dropped.
+  --object-droprate     Rate at which objects are dropped.
+  --model-checkpoint    The model to evaluate.
+  --data-dir            Location of the data to evluate with.
+
+```
+
+## Contributing.
+
+We welcome everyone to contribute to this reporsitory. Send us a pull request.
+
+## License:
+
+The code is under the MIT license. Check `LICENSE` for details.
