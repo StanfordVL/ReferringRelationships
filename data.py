@@ -349,7 +349,7 @@ if __name__ == '__main__':
                         help='Image metadata json file.')
     parser.add_argument('--image-dim', type=int, default=224,
                         help='The size the images should be saved as.')
-    parser.add_argument('--output-dim', type=int, default=224,
+    parser.add_argument('--output-dim', type=int, default=14,
                         help='The size the predictions should be saved as.')
     parser.add_argument('--seed', type=int, default=1234,
                         help='The random seed used to reproduce results.')
