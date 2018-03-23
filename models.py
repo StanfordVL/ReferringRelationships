@@ -50,7 +50,6 @@ class ReferringRelationshipsModel():
         self.iterations = args.iterations
         self.attention_conv_kernel = args.attention_conv_kernel
         self.refinement_conv_kernel = args.refinement_conv_kernel
-        self.upsampling_channels = args.upsampling_channels
         self.output_dim = args.output_dim
         self.embedding_dim = args.embedding_dim
         self.finetune_cnn = args.finetune_cnn
@@ -142,7 +141,7 @@ class ReferringRelationshipsModel():
             object_att = new_object_att
             subject_att = new_subject_att
 
-        # Upsample the subject and objects regions.
+        # Collect the subject and objects regions.
         if self.use_internal_loss and self.iterations > 0:
             internal_weights = np.array([self.internal_loss_weight**i for i in range(len(subject_outputs))])
             internal_weights = internal_weights / internal_weights.sum()

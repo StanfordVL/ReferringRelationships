@@ -63,8 +63,12 @@ def parse_training_args(parser):
     parser.add_argument('--model', type=str, default='ssas',
                         help='Indicates which model to use: '
                         '[co-occurrence, vrd, ssas] Check paper for details.')
+    parser.add_argument('--use-subject', type=int, default=1,
+                        help='1/0 indicating whether to use the subjects.')
     parser.add_argument('--use-predicate', type=int, default=1,
                         help='1/0 indicating whether to use the predicates.')
+    parser.add_argument('--use-object', type=int, default=1,
+                        help='1/0 indicating whether to use the objects.')
     parser.add_argument('--hidden-dim', type=int, default=1024,
                         help='Number of dimensions in the hidden unit.')
     parser.add_argument('--embedding-dim', type=int, default=512,
