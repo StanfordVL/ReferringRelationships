@@ -5,7 +5,7 @@
 This repository contains code used to produce the results in the following paper:
 
 ### [Referring Relationships](https://cs.stanford.edu/people/ranjaykrishna/referringrelationships/index.html) <br/>
-[Ranjay Krishna](http://ranjaykrishna.com)&dagger;, [Ines Chami](http://web.stanford.edu/~chami/)&dagger;, [Michael Bernstein](http://hci.st/msb), [Li Fei-Fei](https://twitter.com/drfeifei) <br/>
+[Ranjay Krishna](http://ranjaykrishna.com)<sup>&dagger;</sup>, [Ines Chami](http://web.stanford.edu/~chami/)<sup>&dagger;</sup>, [Michael Bernstein](http://hci.st/msb), [Li Fei-Fei](https://twitter.com/drfeifei) <br/>
 IEEE Conference on Computer Vision and Pattern Recognition ([CVPR](http://cvpr2018.thecvf.com/)), 2018 <br/>
 
 If you are using this repository, please use the following citation:
