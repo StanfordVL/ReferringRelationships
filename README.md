@@ -4,11 +4,20 @@
 
 This repository contains code used to produce the results in the following paper:
 
-TODO: Cite paper here.
+Referring Relationships
+Ranjay Krishna&dagger;, Ines Chami&dagger;, Michael Bernstein, Li Fei-Fei
+CVPR 2018
 
 If you are using this repository, please use the following citation:
 
-TODO: Add citation here.
+```
+@inproceedings{krishna2018referring,
+  title={Referring Relationships},
+  author={Krishna, Ranjay and Chami, Ines and Bernstein, Michael and Fei-Fei, Li },
+  booktitle={IEEE Conference on Computer Vision and Pattern Recognition},
+  year={2018}
+}
+```
 
 ## Clone the repository and install the dependencies.
 
