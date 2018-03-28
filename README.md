@@ -4,9 +4,9 @@
 
 This repository contains code used to produce the results in the following paper:
 
-Referring Relationships
-Ranjay Krishna&dagger;, Ines Chami&dagger;, Michael Bernstein, Li Fei-Fei
-CVPR 2018
+### [Referring Relationships](https://cs.stanford.edu/people/ranjaykrishna/referringrelationships/index.html)
+[Ranjay Krishna](http://ranjaykrishna.com)&dagger;, [Ines Chami](http://web.stanford.edu/~chami/)&dagger;, [Michael Bernstein](http://hci.st/msb), [Li Fei-Fei](https://twitter.com/drfeifei)
+IEEE Conference on Computer Vision and Pattern Recognition ([CVPR](http://cvpr2018.thecvf.com/)), 2018
 
 If you are using this repository, please use the following citation:
 
