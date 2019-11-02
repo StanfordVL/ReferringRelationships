@@ -2,7 +2,7 @@ h5py==2.7.1
 Keras==2.0.6
 numpy==1.13.3
 olefile==0.44
-Pillow==4.3.0
+Pillow==6.2.0
 protobuf==3.4.0
 PyYAML==3.12
 scipy==0.19.1
