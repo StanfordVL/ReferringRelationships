@@ -4,7 +4,7 @@ numpy==1.13.3
 olefile==0.44
 Pillow==4.3.0
 protobuf==3.4.0
-PyYAML==3.12
+PyYAML==5.4
 scipy==0.19.1
 six==1.11.0
 tensorflow-gpu==1.1.0
